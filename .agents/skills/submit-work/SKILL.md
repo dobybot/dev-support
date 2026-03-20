@@ -1,9 +1,9 @@
 ---
-name: open-pr
+name: submit-work
 description: Open a PR and update Jira when code is ready. Detects work type (hotfix or new-feature) from the branch name and follows the correct workflow for each.
 ---
 
-# Open PR
+# Submit Work
 
 ## Inputs
 1. **Branch name** — detected automatically from the current branch via `git branch --show-current`.
@@ -35,12 +35,10 @@ description: Open a PR and update Jira when code is ready. Detects work type (ho
      git push origin uat
      git checkout {branch_name}
      ```
+   - If there are conflicts, ask the user to resolve them manually and then continue.
 
 3. **Add labels to Jira ticket**
    - Add the following labels to the Jira ticket: `ENV:uat`, `TEST:testing`
-
-4. **Update Jira ticket**
-   - Add a comment (in Thai language) on the Jira ticket describing what to test and linking to the PR.
 
 ### New Feature
 
@@ -50,8 +48,8 @@ description: Open a PR and update Jira when code is ready. Detects work type (ho
    - Include a link to the Jira ticket in the PR description.
    - **Do NOT merge** — the user will merge after the PR is approved.
 
-2. **Update Jira ticket**
-   - Add a comment (in Thai language) on the Jira ticket describing what to test and linking to the PR.
+2. **Add labels to Jira ticket**
+   - Add the following labels to the Jira ticket: `ENV:uat`, `TEST:review`
 
 ## Confirmation
 
