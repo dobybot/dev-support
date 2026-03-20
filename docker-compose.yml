@@ -1,0 +1,28 @@
+services:
+  dobybot_db:
+    image: postgres:17.7
+    volumes:
+      - dobybot_pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - 127.0.0.1:5432:5432
+    command: >
+      -c work_mem=1GB
+
+  dobysync_db:
+    image: postgres:18.1
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - dobysync_pgdata:/var/lib/postgresql/18/docker
+    ports:
+      - 127.0.0.1:5433:5432
+
+volumes:
+  dobybot_pgdata:
+  dobysync_pgdata:
