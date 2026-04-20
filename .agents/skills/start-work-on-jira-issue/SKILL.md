@@ -15,8 +15,8 @@ description: Start working on a Jira issue by checking git status, reading ticke
 1. **Clean working directory** — Run `git status` and confirm there are no uncommitted changes (staged, unstaged, or untracked files that matter). If the working directory is dirty, stop and ask the user to commit or stash their changes before proceeding.
 
 2. **Correct starting branch** — Based on the type of work:
-   - `hotfix` → must be on `main`. Run `git checkout main && git pull origin main`.
-   - `new-feature` → must be on `uat`. Run `git checkout uat && git pull origin uat`.
+   - `hotfix` → must be on `main` (`main-v2` for dobysync). Run `git checkout main && git pull origin main`.
+   - `new-feature` → must be on `uat` (`uat-v2` for dobysync). Run `git checkout uat && git pull origin uat`.
 
 ## Steps
 
