@@ -33,23 +33,47 @@ example: DBT-100-hotfix-fix-etax-document-upload
 - **P2** — Should run before every deploy to production if possible, can be run later
 - **P3** — Nice to run before deploy, can be run later
 
+## Tester Constraints (IMPORTANT)
+Test cases are run by QA testers, not developers. Write every step so it can be executed under these constraints:
+
+- **Environments**: testers only use **UAT** (`https://uat.dobybot.com`, `https://uat.dobysync.com`) or **PROD**. Never instruct them to run anything on `localhost`, Docker, or a dev machine.
+- **No database / admin access**: testers cannot open Django admin, run SQL, or inspect DB rows. All assertions must be verifiable via the user-facing UI or public API response that the UI exposes.
+- **No backend logs / webhook logs / payload inspection**: do not ask testers to read server logs, Cloud Logging, Sentry, or request bodies. If the underlying behaviour is at the payload level, design the check as an **end-to-end UI observation** (e.g. "Send the order from Dobysync Send Orders page, then confirm the expected column/dialog content appears in Dobybot Order Center").
+- **No code / terminal**: testers don't run scripts, curl, or open browser dev tools unless the step is purely about a visible console error.
+
+If a behaviour genuinely cannot be checked from the UI, either (a) rewrite it as an end-to-end UI check, or (b) flag it to the user during Step 4 so they can decide to skip it or cover it with a developer-owned integration test instead of a QA test case.
+
 ## Test Case Text Format (Thai)
-All test case content is written in Thai and stored in the `text` field as Markdown:
+All test case content is written in Thai and stored in the `text` field as Markdown.
+
+Use three sections — **Preconditions**, **Steps**, **Expected Result**. Inside each step or bullet, use **indented sub-bullets** (4-space indent) to group small actions or checks so the step list stays short and scannable. Avoid one long paragraph per step.
 
 ```
 ## เงื่อนไขเบื้องต้น (Preconditions)
-- เข้าสู่ระบบด้วยบัญชี xxx
-- อยู่ที่หน้า xxx
+- Login เข้า Dobybot UAT ที่ https://uat.dobybot.com
+- อยู่ที่หน้า Order Center
+- มีออเดอร์ที่ xxx
 
 ## ขั้นตอนการทดสอบ (Steps)
-1. คลิกปุ่ม xxx
-2. กรอกข้อมูล xxx
-3. กดบันทึก
+1. เปิดหน้า xxx ที่ https://uat.dobybot.com/xxx
+2. Filter หาข้อมูลที่ต้องการ
+    - ตั้งค่า A = `...`
+    - ตั้งค่า B = `...`
+    - กด Search
+3. กดปุ่ม **Send** แล้วตรวจสอบผลลัพธ์
+    - UI แสดง ...
+    - ไม่มี error บนหน้าจอ
 
 ## ผลลัพธ์ที่คาดหวัง (Expected Result)
 - ระบบแสดงข้อความ xxx
-- ข้อมูลถูกบันทึกสำเร็จ
+- ข้อมูลที่แสดงใน UI ตรงกับข้อมูลต้นทาง (ไม่ต้องตรวจ DB / log)
 ```
+
+Formatting rules:
+- Preconditions: flat bullet list (no numbering).
+- Steps: numbered 1., 2., 3. — one action per number. Use `    -` sub-bullets for detail.
+- Expected Result: flat bullet list.
+- Use **bold** for UI element names (button labels, column names, fields) and `` ` `` backticks for literal values / URLs.
 
 ## Workflow
 
@@ -86,9 +110,10 @@ Using the Jira issue context, code changes, and existing test coverage:
    - **priority** — P1, P2, or P3
    - **category** — format: `<page_name>/<feature_name>` (per-product)
    - **component** — the part of the product being tested (e.g. Login, eTax, API)
-   - **text** — full test case body in Thai using the format above
+   - **text** — full test case body in Thai using the format above, respecting the **Tester Constraints** section (UAT/PROD only, no DB/log/terminal access, sub-bulleted steps)
 2. Print a numbered list showing each proposed test case.
 3. Note which test cases overlap with existing ones found in Step 2.
+4. If any proposed check cannot be done from the UI alone, either rewrite it as an end-to-end UI observation or flag it so the user can decide to drop it.
 
 ### Step 4: Human Confirmation
 1. Ask the user: "ยืนยันสร้าง test cases เหล่านี้หรือไม่? แก้ไขหรือเพิ่มเติมได้"
