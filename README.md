@@ -65,3 +65,40 @@ Start local databases:
 ```sh
 docker compose up -d
 ```
+
+## Cloning UAT into a local database
+
+`scripts/clone-uat-to-local.sh` snapshots the UAT Postgres into a fresh local
+database and rewrites `dobybot/.env` to point at it. The current `DATABASE_URL`
+is commented out (not removed), and `.env` is backed up to
+`.env.bak.<timestamp>` first.
+
+### One-time setup (per dev)
+
+1. **cloud-sql-proxy alias** (in `~/.zshrc`):
+   ```sh
+   alias cloud-sql-proxy-dobybot-main="cloud-sql-proxy --port 15432 \
+     --credentials-file ~/Projects/dobybot/.gcp/dobybot-2f20c212773a.json \
+     dobybot:asia-southeast1:main-2"
+   ```
+2. **UAT password in `~/.pgpass`** — never on the command line, never in `.env`:
+   ```sh
+   echo '*:15432:*:postgres:<UAT_PASSWORD>' >> ~/.pgpass
+   chmod 600 ~/.pgpass
+   ```
+   Get `<UAT_PASSWORD>` from the team password manager.
+
+### Per-run
+
+```sh
+# Terminal 1 — leave running
+cloud-sql-proxy-dobybot-main
+
+# Terminal 2 — clones into uat_clone_YYYYMMDD by default,
+# or pass a name:  ./scripts/clone-uat-to-local.sh my_debug_db
+./scripts/clone-uat-to-local.sh
+```
+
+The script aborts before touching local state if the proxy is down, the local
+Postgres is down, or `~/.pgpass` is missing/world-readable. Cloud-SQL-only
+objects (e.g. `cloudsqladmin` grants) produce harmless `pg_restore` warnings.

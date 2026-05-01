@@ -85,14 +85,12 @@ npx tolgee push --force-mode KEEP
 - `--force-mode KEEP`: adds new keys, keeps existing server translations untouched. This is the only push mode this skill uses.
 - Never use `--force-mode OVERRIDE` unless the user explicitly authorized a value override in step 3/4, and even then prefer running a second targeted push after explicit confirmation.
 
-### 9. Cleanup (ask first)
-After a successful push, ask the user whether to delete the snapshot folder:
+### 9. Cleanup
+After a successful push, delete the snapshot folder automatically:
 
 ```bash
 rm -rf lang/translation-temp
 ```
-
-Only remove it with explicit confirmation. If the user declines, leave it in place so they can inspect or recover.
 
 ## Summary Output
 At the end, print:
@@ -103,6 +101,7 @@ At the end, print:
 - Keys that existed locally but not on server and were kept on server (i.e. local-only deletions ignored).
 - Any out-of-scope issues noticed (e.g. wrong Chinese variant in pre-existing keys) as suggestions, **not** auto-fixed.
 - Tolgee push result.
+- Confirmation that `lang/translation-temp/` has been removed.
 
 ## Guardrails
 - Never run `tolgee pull` without first snapshotting `lang/translation/` to `lang/translation-temp/` — pull overwrites local files and would destroy unpushed keys.
