@@ -28,5 +28,6 @@ for wt in "$TICKET_DIR"/*; do
   git -C "$src" worktree remove $FORCE_FLAG "$wt"
 done
 
+rm -f "$TICKET_DIR/$TICKET.code-workspace"
 rmdir "$TICKET_DIR" 2>/dev/null || echo "note: $TICKET_DIR not empty, leaving it"
 echo "✓ done"

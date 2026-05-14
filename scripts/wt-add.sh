@@ -35,7 +35,7 @@ mkdir -p "$TICKET_DIR"
 setup_dobybot() {
   local wt="$1"
   ln -sf "../../../dobybot/.env" "$wt/.env"
-  ( cd "$wt" && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt )
+  ( cd "$wt" && ~/.pyenv/versions/3.9.20/bin/python3.9 -m venv .venv && .venv/bin/pip install -r requirements.txt )
 }
 
 setup_dobybot_ui() {
@@ -68,8 +68,68 @@ for repo in "${REPOS[@]}"; do
   esac
 done
 
+ws_file="$TICKET_DIR/$TICKET.code-workspace"
+cat > "$ws_file" <<EOF
+{
+  "folders": [
+    {
+      "name": "$TICKET",
+      "path": "."
+    },
+    {
+      "name": "dev-support",
+      "path": "../../dev-support"
+    }
+  ],
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "dobybot: runserver",
+        "type": "python",
+        "request": "launch",
+        "program": "\${workspaceFolder:$TICKET}/dobybot/manage.py",
+        "args": ["runserver", "0:8000"],
+        "django": true,
+        "console": "integratedTerminal",
+        "python": "\${workspaceFolder:$TICKET}/dobybot/.venv/bin/python",
+        "cwd": "\${workspaceFolder:$TICKET}/dobybot"
+      },
+      {
+        "name": "dobybot-ui: uidev",
+        "type": "node-terminal",
+        "request": "launch",
+        "command": "yarn uidev",
+        "cwd": "\${workspaceFolder:$TICKET}/dobybot-ui"
+      },
+      {
+        "name": "dobybot-report-ui: dev",
+        "type": "node-terminal",
+        "request": "launch",
+        "command": "pnpm dev --host 0.0.0.0",
+        "cwd": "\${workspaceFolder:$TICKET}/dobybot-report-ui"
+      }
+    ],
+    "compounds": [
+      {
+        "name": "All Servers",
+        "configurations": [
+          "dobybot: runserver",
+          "dobybot-ui: uidev",
+          "dobybot-report-ui: dev"
+        ],
+        "stopAll": true
+      }
+    ]
+  }
+}
+EOF
+
 echo
-echo "✓ done. open in vscode:"
-for repo in "${REPOS[@]}"; do
-  echo "  code $TICKET_DIR/$repo"
-done
+echo "✓ done. workspace file: $ws_file"
+if command -v code >/dev/null 2>&1; then
+  echo "  opening in VS Code..."
+  code "$ws_file"
+else
+  echo "  open with: code \"$ws_file\""
+fi

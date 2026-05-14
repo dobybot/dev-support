@@ -54,7 +54,7 @@ git branch {branch_name}
   {TICKET_ID} {branch_name} --repos {comma-separated-projects}
 ```
 
-The helper creates worktrees at `~/Projects/dobybot/dobybot-workspace/tickets/{TICKET_ID}/{project_name}` and prepares deps (`.env` symlinks for dobybot/dobybot-ui, fresh `.venv` for dobybot, fresh `node_modules` for UI repos). Main checkouts stay on their base branches, ready for the next ticket.
+The helper creates worktrees at `~/Projects/dobybot/dobybot-workspace/tickets/{TICKET_ID}/{project_name}` and prepares deps (`.env` symlinks for dobybot/dobybot-ui, fresh `.venv` for dobybot, fresh `node_modules` for UI repos). It also writes `tickets/{TICKET_ID}/{TICKET_ID}.code-workspace` (a VS Code multi-root workspace containing the ticket folder + `dev-support`) and auto-launches it with `code` if the CLI is available. Main checkouts stay on their base branches, ready for the next ticket.
 
 ### 4. Summarize what was done
 Print a summary table showing for each project:
