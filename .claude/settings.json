@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(npm info *)",
+      "Bash(node -e \"const d=require\\('/dev/stdin'\\);console.log\\('version:',d.version\\);console.log\\('main:',d.main\\);console.log\\('exports:',JSON.stringify\\(d.exports,null,2\\).slice\\(0,300\\)\\)\")",
+      "Bash(npx tsc *)",
+      "Bash(grep -E \"\\\\.\\(vue|ts|tsx|js|jsx\\)$\")",
+      "Bash(awk '/^\\\\s*\\(async\\\\s+\\)?start\\\\s*\\\\\\(|^\\\\s*\\(async\\\\s+\\)?finish\\\\s*\\\\\\(|^\\\\s*\\(async\\\\s+\\)?cancel\\\\s*\\\\\\(|^\\\\s*\\(async\\\\s+\\)?stop\\\\s*\\\\\\(/ {found=1; start_line=NR} found && NR-start_line < 100 {print NR\":\"$0; if \\(/^    \\\\}$/ && NR > start_line+5\\) {found=0}}' /Users/tanin-t/Projects/dobybot/dobybot-workspace/dobybot-ui/components/home/RecordForm.vue)",
+      "Bash(cat)",
+      "Read(//tmp/**)",
+      "Bash(gh issue *)"
+    ],
+    "additionalDirectories": [
+      "/Users/tanin-t/Projects/dobybot/dobybot-workspace/dobysync/cloudbuild"
+    ]
+  }
+}
