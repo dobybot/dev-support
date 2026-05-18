@@ -13,7 +13,14 @@
       "Bash(find /Users/tanin-t/.claude -type d -name \"start-work-on-jira-issue\" 2>/dev/null; find /Users/tanin-t/Projects/dobybot/dobybot-workspace -type d -name \"start-work-on-jira-issue\" 2>/dev/null)",
       "Read(//Users/tanin-t/.claude/**)",
       "Bash(ls -la ~/Projects/dobybot/ 2>/dev/null | head -20; echo ---; ls ~/Projects/dobybot/dobybot 2>/dev/null && echo \"direct path exists\" || echo \"no ~/Projects/dobybot/dobybot\")",
-      "Read(//Users/tanin-t/Projects/dobybot/**)"
+      "Read(//Users/tanin-t/Projects/dobybot/**)",
+      "mcp__db__execute_sql",
+      "mcp__db__search_objects",
+      "Bash(psql *)",
+      "Bash(nc *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(python3 *)"
     ],
     "additionalDirectories": [
       "/Users/tanin-t/Projects/dobybot/dobybot-workspace/dobysync/cloudbuild"
