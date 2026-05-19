@@ -16,6 +16,7 @@ from kiwi_client import get_rpc
 
 def main():
     parser = argparse.ArgumentParser(description="Search Kiwi TCMS test cases")
+    parser.add_argument("--id", type=int, help="Filter by Test Case ID (PK)")
     parser.add_argument("--tag", help="Filter by tag name")
     parser.add_argument("--summary", help="Filter by summary (case-insensitive contains)")
     parser.add_argument("--product", type=int, help="Filter by product PK")
@@ -23,6 +24,8 @@ def main():
     args = parser.parse_args()
 
     query = {}
+    if args.id:
+        query["pk"] = args.id
     if args.tag:
         query["tag__name"] = args.tag
     if args.summary:

@@ -13,6 +13,8 @@ Reusable workflow automations in `.agents/skills/`:
 | **start-work-on-jira-issue** | Creates a properly named git branch from the right base branch (`main` for hotfix, `uat` for new feature) using the Jira ticket ID and summary. |
 | **submit-work** | Pushes code, opens a PR, merges to `uat` if hotfix, and updates Jira labels (`ENV:uat`, `TEST:testing`/`TEST:review`). |
 | **generate-test-cases** | Generates test cases from the Jira ticket, confirms with the developer, then syncs them to Kiwi TCMS with test plans and runs. |
+| **generate-automated-test** | Converts Kiwi TCMS test cases into optimized, maintainable Cypress E2E scripts using API-driven state setup. |
+| **generate-automated-test** | Converts Kiwi TCMS test cases into optimized, maintainable Cypress E2E scripts using API-driven state setup and reusable UI commands. |
 
 ### Django Coding Rules
 
