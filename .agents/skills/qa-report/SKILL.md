@@ -1,104 +1,86 @@
 ---
 name: qa-report
-description: File QA bug as concise markdown ticket in campaign folder. Status = filename prefix. Pairs with fix-qa-issue (separate Claude session, no chat memory).
+description: File a QA bug as a GitHub issue via `gh`. Reads `.qa-config.json` from the repo root for the target repo. Primary capture is the in-app Report Issue button; this skill is the keyboard fallback for bugs found while reading code or working in the terminal.
 ---
 
 # qa-report
 
-File a tight ticket. Don't fix — that's `fix-qa-issue`.
+File a tight GitHub issue. Don't fix — that's `fix-qa-issue`.
 
-**Lifecycle**: `[NEW]` → `[WIP]` → `[FIXED]` → `[VERIFIED]` | `[REOPENED]`. `[BLOCKED]` (fixer). `[MERGED]` (user-directed consolidation).
+## Lifecycle (in GitHub)
+
+- **open · no `qa:wip` label · no `qa:blocked` label** → in fixer queue
+- **open · `qa:wip`** → fixer claimed it
+- **open · `qa:blocked`** → fixer needs human input (read latest comment for reason)
+- **open · assignee=reporter · last comment is Fix Notes** → fixed, awaiting human verify
+- **closed** → verified
+- **reopened** (`state_reason="reopened"` from API) → fixer bumps to top of next tick
+
+`qa:p1` / `qa:p2` / `qa:p3` is severity — separate label namespace from state.
 
 ## Inputs
-1. QA folder. Default: read `~/.claude/.qa-last-campaign`.
-2. Bug description (verbatim from chat).
+
+1. Repo cwd (must contain `.qa-config.json` at root).
+2. Bug description from chat (verbatim).
 
 ## Pre-flight
-1. Resolve folder. Save path to `~/.claude/.qa-last-campaign`.
-2. No `_qa.config.json` → propose + confirm:
-   ```json
-   {"working_branch":"…","default_repo":"…","repos":["…"],"worktree_root":"…","created_at":"YYYY-MM-DD"}
-   ```
-   `working_branch`: auto-suggest from current checkout in `default_repo`, confirm.
-   `worktree_root`: must be outside any repo.
 
-## Required fields
-- `title` — imperative, becomes slug.
-- `repo` — must be in `repos`. Default: `default_repo`.
-- `where` — URL/file/component, specific.
-- `steps` — numbered, concrete actions.
-- `expected`, `actual`.
-- `acceptance` — bullets, fixer's contract. Empty = refuse, push back.
-- `severity` — P1/P2/P3, default P2.
-- `attachments` — verbatim, paths not binaries.
+1. Read `.qa-config.json`. Need: `repo`. Missing → abort.
+2. `gh auth status` succeeds → continue. Else tell the user to `gh auth login`.
+3. Capture target branch: `git branch --show-current`. This stamps where the bug lives so the fixer doesn't depend on a shared config field.
+   - Detached HEAD (empty output) → ask the user which branch.
+   - On `main` / `master` → ask once to confirm. QA bugs almost always live on a phase branch; reporting against `main` is usually a forgotten branch switch.
 
-## Style — keep tickets short
+## Required fields (push back if missing)
 
-Tickets are specs for a context-less fixer agent, **not** docs for humans. Compress aggressively. Sacrifice grammar for brevity.
+- **title** — imperative one-line, ≤70 chars. Becomes issue title.
+- **severity** — `p1` (blocker) / `p2` (broken) / `p3` (polish). Default `p2`.
+- **where** — URL or route + the offending component (data-cy / selector / `n/a`).
+- **what** — description: what happened, what was expected, how to reproduce.
 
-- Metadata: one inline-code line under the title — not a bullet list.
-- Section headers: short (`## Where`, `## Repro`, `## Acceptance`, `## Notes`, `## Log`) — not full phrases like "Where it happens" / "Steps to reproduce" / "Acceptance criteria" / "Status log".
-- Each section: 1–3 lines or 2–6 short bullets. No paragraphs of prose, no rationale, no "why this matters" text.
-- Acceptance criteria: imperative, ≤8 words ("Banner removed", "No layout shift"), not full sentences with rationale.
-- Don't repeat info across sections. URL once. Reasoning once.
-- Notes: paste verbatim user input + related ticket slugs. No narrative.
-- Log entries: one line per state change, reason in ≤6 words.
-- Drop articles (`the`/`a`) where intent stays clear. Fragments OK.
+If a required field can't be inferred from the user's chat message, ask once. Don't invent.
 
-## Body template (compact)
-```markdown
-# {title}
+## File via `gh`
 
-`NEW · {sev} · {repo} · {wb} · {YYYY-MM-DD}`
-
-## Where
-{URL/file — 1 line}
-
-## Repro
-1. …
-2. …
-
-## Expected
-{1–2 lines}
-
-## Actual
-{1–2 lines}
-
-## Acceptance
-- [ ] …
-
-## Notes
-{verbatim user input, related ticket slugs, paths}
-
-## Log
-- {YYYY-MM-DD} NEW — qa-report
+```bash
+gh issue create \
+  --repo "$REPO" \
+  --title "$TITLE" \
+  --label "qa:$SEV" \
+  --body "$BODY"
 ```
 
-Empty section → `_(none)_`. Don't write `## Fix` — fixer appends.
+Body template (matches what the in-app form produces, minus the auto-captured env footer):
 
-## Slug
-Lowercase, hyphenated, alnum. ≤60ch, truncate at word boundary. Collision → `-2`, `-3`.
+```markdown
+{what — verbatim user words, fragments OK}
 
-## Filename
-`[NEW] {slug}.md` — space after `]`.
+---
+**Where:** {url-or-route} · component `{data-cy or selector or n/a}`
+**Branch:** `{branch from git branch --show-current}`
+**Reported via:** chat (qa-report skill) · {YYYY-MM-DD}
+```
 
-## Confirmation
-**Default: write immediately.**
-Confirm only on: new-campaign config; missing fields you'd invent; true ambiguity; slug collision.
-Batch confirms — never per-ticket. User fires several `/qa-report` in succession, won't wait.
+The `---` separator matters: above is the human report, below is metadata. Fixer reads both, never edits above.
 
-## After write
-Print path. Print queue tally.
+`**Branch:**` is the fixer's worktree target for this issue. Stamping it per-issue means the fixer doesn't rely on a global `working_branch` config that drifts as you move between phases.
 
-## Merge (user-directed)
-Combining tickets:
-1. Write new merged ticket — consolidated `## Acceptance` + `## Notes` line: `Merged from: {slug-a}, {slug-b}`.
-2. Append log line on each source: `- DATE MERGED — superseded by [NEW] {merged}.md`.
-3. Rename sources `[…]` → `[MERGED]`. Fixer ignores `[MERGED]` (queue glob is `[NEW]`/`[REOPENED]` only).
+## Style — keep issues short
+
+Issues are specs for a context-less fixer agent, **not** docs for humans. Compress aggressively.
+
+- Description: 1–4 short paragraphs or a numbered repro list. No "why this matters" prose.
+- Drop articles where intent stays clear. Fragments OK.
+- Don't repeat info — URL once, component once.
+- No acceptance criteria section — fixer infers from the "expected behavior" in the description.
+- Sacrifice grammar for brevity.
+
+## After filing
+
+Print the issue URL returned by `gh`. That's it. Don't poll, don't comment, don't add other labels. The fixer takes over on its next loop tick.
 
 ## Guardrails
-- `_qa.config.json`: never write without confirm.
-- Other tickets: don't rename/delete (fixer's job). Exception: user-directed merge above.
-- Empty `acceptance` → refuse, push back.
-- Binary attachments → reference paths, don't embed.
-- Vague description → ask, don't pad with assumptions.
+
+- Vague description → ask once, don't pad with assumptions.
+- Don't change `qa:wip` / `qa:blocked` labels — those are the fixer's.
+- Don't close or reopen issues — that's the human verifier's signal.
