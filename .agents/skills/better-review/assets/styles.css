@@ -1,0 +1,168 @@
+/* better-review guide — self-contained, inline this whole file into a <style> tag */
+:root {
+  --bg: #fbfbfa; --card: #fff; --ink: #1f2328; --muted: #656d76; --line: #d0d7de;
+  --accent: #0969da; --new: #1a7f37; --new-bg: #dafbe1; --chg: #9a6700; --chg-bg: #fff8c5;
+  --add-bg: #e6ffec; --add-ink: #0a5827; --del-bg: #ffebe9; --del-ink: #82071e;
+  --hunk: #ddf4ff; --warn-bg: #fff8c5; --warn-bd: #d4a72c;
+  /* per-repo lane colors */
+  --r-dobybot: #0969da; --r-dobybot-ui: #8250df; --r-dobybot-report-ui: #bf3989;
+  --r-dobysync: #1a7f37; --r-external: #656d76;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#0d1117; --card:#161b22; --ink:#e6edf3; --muted:#8b949e; --line:#30363d;
+    --add-bg:#12261e; --add-ink:#3fb950; --del-bg:#25171c; --del-ink:#f85149; --hunk:#13243d;
+    --new-bg:#12261e; --chg-bg:#272115; --warn-bg:#272115; }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+/* prose line-height is generous (1.65) for readability; code/diff stays tight — see .diff .ln */
+body { margin:0 auto; background:var(--bg); color:var(--ink);
+  font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  max-width: 1720px; padding: 0 28px 80px; }
+section, .flow-title { scroll-margin-top: 14px; }
+code, pre, .loc { font-family: ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h2 { font-size: 18px; margin: 0 0 16px; }
+/* no text-transform/letter-spacing: breaks scripts without uppercase (Thai/Chinese) */
+h3 { font-size: 14.5px; margin: 26px 0 12px; color: var(--muted); font-weight: 600; }
+
+/* shell — wide two-column: sticky sidebar nav (left) + fluid main column.
+   Uses the full horizontal viewport; collapses to one column under 1100px. */
+.layout { display:grid; grid-template-columns: 232px minmax(0,1fr); gap:30px; align-items:start; margin-top:16px; }
+.side { position:sticky; top:14px; max-height:calc(100vh - 28px); overflow:auto; }
+.layout > main { min-width:0; }
+@media (max-width:1100px) {
+  .layout { display:block; }
+  .side { position:static; max-height:none; }
+  .toc { flex-direction:row; flex-wrap:wrap; }
+  .toc .sub { display:contents; }
+}
+
+/* header (not sticky — the sidebar nav carries navigation) */
+.hdr { padding: 18px 0 12px; border-bottom:1px solid var(--line); }
+.hdr-title { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+.tid { font-weight:700; font-size:20px; }
+.tname { color:var(--muted); font-size:16px; }
+.hdr-meta { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.chip { font-size:12px; padding:2px 9px; border:1px solid var(--line); border-radius:99px; color:var(--muted); white-space:nowrap; }
+.chip.type-hotfix { color:#fff; background:#cf222e; border-color:#cf222e; }
+.chip.type-feature, .chip.type-new-feature { color:#fff; background:var(--accent); border-color:var(--accent); }
+.chip.pr { color:var(--accent); border-color:var(--accent); }
+.stamp { font-size:12px; color:var(--muted); margin-top:8px; }
+.stamp code { background:var(--card); padding:1px 5px; border-radius:4px; border:1px solid var(--line); }
+
+/* toc — vertical in the sidebar; .sub holds the per-workflow jump links.
+   app.js adds .active to the link whose target is currently in view (scrollspy). */
+.toc { display:flex; flex-direction:column; gap:3px; font-size:13.5px; }
+.toc a { display:block; padding:6px 11px; border-radius:6px; color:var(--ink); }
+.toc a:hover { background:var(--card); text-decoration:none; }
+.toc a.active { background:var(--card); color:var(--accent); font-weight:600; box-shadow:inset 2px 0 0 var(--accent); }
+.toc .sub { display:flex; flex-direction:column; gap:2px; margin:0 0 4px; padding-left:14px; }
+.toc .sub a { font-size:12.5px; color:var(--muted); }
+
+/* cards */
+.card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:24px 26px; margin:0 0 18px; }
+.card p { margin:0 0 10px; }
+.hint { color:var(--muted); font-size:13px; }
+.risks { margin-top:18px; padding:16px 20px; background:var(--warn-bg); border:1px solid var(--warn-bd); border-radius:8px; }
+.risks h3 { margin-top:0; color:var(--chg); }
+.risks ul, .card ul, .card ol { margin:0; padding-left:22px; }
+.card li { margin:8px 0; }
+.card li > ul { margin:6px 0 0; }
+.card li li { margin:4px 0; }
+
+/* decisions — "how it was built" as cards on a fixed 2-column grid.
+   Each .dec: h4 question → short paragraph(s) → bullets → optional small <pre> →
+   optional .dec-watch (the per-decision ⚠ risk-flags, with .sev chips) →
+   .dec-out = the artifact it produced (pinned to the card bottom). */
+.decisions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-top:14px; }
+@media (max-width:900px) { .decisions { grid-template-columns:1fr; } }
+.dec { display:flex; flex-direction:column; gap:9px; padding:16px 18px; border:1px solid var(--line);
+  border-left:4px solid var(--accent); border-radius:10px; background:var(--bg); }
+.dec h4 { margin:0; font-size:16.5px; line-height:1.5; color:var(--accent); }
+/* a sub-feature variant: tint the lane + h4, and tag the h4 with a .dec-tag chip */
+.dec.chat { border-left-color:var(--r-dobybot-ui); }
+.dec.chat h4 { color:var(--r-dobybot-ui); }
+.dec-tag { display:inline-block; font-size:11px; font-weight:700; padding:0 8px; border-radius:99px;
+  color:#fff; background:var(--r-dobybot-ui); vertical-align:3px; margin-right:2px; }
+.dec p { margin:0; font-size:14px; }
+.dec ul { margin:0; padding-left:20px; font-size:14px; }
+.dec li { margin:4px 0; }
+.dec pre { margin:0; padding:8px 12px; background:var(--card); border:1px solid var(--line); border-radius:6px;
+  font-size:12.5px; line-height:1.5; overflow-x:auto; white-space:pre; }
+.dec .dec-out { margin-top:auto; padding-top:8px; border-top:1px dashed var(--line); font-size:13px; color:var(--add-ink); }
+.dec-watch { padding:10px 12px; background:var(--warn-bg); border:1px solid var(--warn-bd); border-radius:8px; }
+.dec-watch .dw-title { font-size:12.5px; font-weight:700; color:var(--chg); margin:0 0 4px; }
+.dec-watch ul { margin:0; padding-left:18px; font-size:13px; }
+.dec-watch li { margin:4px 0; }
+/* severity chips for risk-flags: high / med / ok (fixed-verified) / watch / design (by-design) */
+.sev { display:inline-block; font-size:11px; font-weight:700; padding:0 7px; border-radius:99px; margin-right:4px; }
+.sev.high { color:var(--del-ink); background:var(--del-bg); }
+.sev.med { color:var(--chg); background:var(--chg-bg); }
+.sev.ok { color:var(--new); background:var(--new-bg); }
+.sev.watch { color:var(--accent); background:var(--hunk); }
+.sev.design { color:var(--muted); background:var(--card); border:1px solid var(--line); }
+
+/* legacy grouped "thought-process" list (older guides; superseded by .decisions) */
+.grp { list-style:none; padding-left:0; }
+.grp > li { margin:14px 0; }
+.grp > li > .lead { font-weight:700; }
+
+/* flow overview — one clickable card per workflow, jumps to its #flow-N anchor */
+.flow-overview { display:grid; grid-template-columns:repeat(auto-fill,minmax(225px,1fr)); gap:10px; margin:14px 0 6px; }
+.fo { display:flex; flex-direction:column; gap:3px; padding:11px 14px; border:1px solid var(--line); border-radius:8px;
+  background:var(--bg); color:var(--ink); }
+.fo:hover { border-color:var(--accent); text-decoration:none; }
+.fo .fo-num { font-weight:700; color:var(--accent); font-size:13px; }
+.fo .fo-title { font-weight:600; font-size:13.5px; line-height:1.45; }
+.fo .fo-meta { font-size:12px; color:var(--muted); }
+
+/* flow */
+.flow-title { font-size:14.5px; font-weight:700; margin:30px 0 8px; }
+.flow { display:flex; flex-direction:column; align-items:stretch; gap:0; }
+.entry, .effect { align-self:center; max-width:92%; text-align:center; font-size:13px; line-height:1.5; color:var(--muted);
+  padding:9px 18px; border:1px dashed var(--line); border-radius:16px; background:var(--bg); }
+.flow .step { position:relative; margin:0 0 0 0; }
+.flow .step::before { content:""; display:block; width:2px; height:26px; background:var(--line); margin:0 auto; }
+.entry + .step::before, .step.first::before { } /* connector handled uniformly */
+/* wrap + a full-width .loc keeps the action title on its own readable line; file:line drops below */
+.step-head { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; padding:13px 16px; border:1px solid var(--line);
+  border-left:4px solid var(--lane,var(--line)); border-radius:8px; background:var(--card); }
+.step[data-repo="dobybot"]            { --lane:var(--r-dobybot); }
+.step[data-repo="dobybot-ui"]         { --lane:var(--r-dobybot-ui); }
+.step[data-repo="dobybot-report-ui"]  { --lane:var(--r-dobybot-report-ui); }
+.step[data-repo="dobysync"]           { --lane:var(--r-dobysync); }
+.step[data-repo="External"]           { --lane:var(--r-external); }
+.step.context .step-head { opacity:.62; }
+.step.changed .step-head { cursor:pointer; }
+.step.changed .step-head:hover { background:var(--hunk); }
+.num { flex:0 0 auto; width:22px; height:22px; border-radius:50%; background:var(--bg); border:1px solid var(--line);
+  display:grid; place-items:center; font-size:12px; color:var(--muted); }
+.step-title { font-weight:600; flex:1 1 auto; min-width:0; line-height:1.45; }
+.loc { order:1; flex-basis:100%; margin:3px 0 0 32px; font-size:12px; color:var(--muted); }
+.repo-tag { font-size:11px; color:var(--lane,var(--muted)); border:1px solid var(--lane,var(--line)); border-radius:4px; padding:0 5px; }
+.badge { font-size:11px; font-weight:700; padding:1px 7px; border-radius:99px; }
+.badge.new { color:var(--new); background:var(--new-bg); }
+.badge.chg { color:var(--chg); background:var(--chg-bg); }
+.open { flex:0 0 auto; font-size:15px; padding:2px 6px; border-radius:6px; }
+.open:hover { background:var(--bg); text-decoration:none; }
+.caret { flex:0 0 auto; color:var(--muted); transition:transform .15s; }
+.step.open-diff .caret { transform:rotate(90deg); }
+
+/* diff */
+.diff { border:1px solid var(--line); border-top:0; border-radius:0 0 8px 8px; margin:0 0 0 0; overflow-x:auto; background:var(--card); }
+.diff[hidden] { display:none; }
+/* white-space:normal collapses the newlines BETWEEN block .ln spans (otherwise <pre> renders each
+   as a blank line → double-spaced code). Each .ln re-enables white-space:pre for its own indentation. */
+.diff pre { margin:0; white-space:normal; }
+.diff .ln { display:block; padding:0 16px; white-space:pre; font-size:13px; line-height:1.45; }
+.diff .ln.hunk { background:var(--hunk); color:var(--muted); }
+.diff .ln.add { background:var(--add-bg); color:var(--add-ink); }
+.diff .ln.del { background:var(--del-bg); color:var(--del-ink); }
+.diff .note { padding:8px 16px; font-size:12px; line-height:1.55; color:var(--muted); border-top:1px dashed var(--line); }
+
+/* test recipe */
+.recipe li { margin:9px 0; }
+.ac label { cursor:pointer; }
+.ac input { margin-right:8px; }
