@@ -2,6 +2,37 @@
 
 Development workflow automation and coding standards for the Dobybot workspace.
 
+## Installing the team skills (Claude Code)
+
+Every skill in `.agents/skills/` is shared with the whole team. One-time setup
+symlinks them into your Claude Code config and registers a `SessionStart` hook
+that re-syncs on every launch — so after the first install, **`git pull` + relaunch
+is all it takes for new skills to appear**.
+
+```sh
+git clone git@github.com:dobybot/dev-support.git
+cd dev-support
+./install.sh          # requires jq (brew install jq)
+```
+
+What `install.sh` does:
+
+- resolves this clone's absolute path and writes a `SessionStart` hook into
+  `~/.claude/settings.json` (backs the file up first) that runs
+  `.agents/sync-skills.sh` on every Claude Code launch;
+- runs the first sync immediately.
+
+`sync-skills.sh` links each child of `.agents/{skills,agents,commands}/` into the
+matching `~/.claude/` dir, one symlink per item. It is safe and idempotent:
+
+- **never clobbers a personal skill** of the same name (it warns and skips);
+- **prunes** its own links when a skill is deleted upstream;
+- leaves all non-repo entries untouched.
+
+Re-run `./install.sh` only if you move the clone to a new path. Removing the team
+skills = delete the `SessionStart` hook from `~/.claude/settings.json` and remove
+the symlinks under `~/.claude/skills` that point into this repo.
+
 ## What's Inside
 
 ### Agent Skills
