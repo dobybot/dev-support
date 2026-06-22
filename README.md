@@ -47,17 +47,6 @@ Reusable workflow automations in `.agents/skills/`:
 | **generate-automated-test** | Converts Kiwi TCMS test cases into optimized, maintainable Cypress E2E scripts using API-driven state setup. |
 | **generate-automated-test** | Converts Kiwi TCMS test cases into optimized, maintainable Cypress E2E scripts using API-driven state setup and reusable UI commands. |
 
-### Django Coding Rules
-
-Shared coding standards in `.agent/rules/` that are automatically applied when working on Django projects:
-
-- **project-structure** — Clean separation of concerns, one APIView per file, type safety
-- **django-api-views** — Validator + ResponseSerializer pattern, concise docstrings
-- **django-authentication** — Custom authentication classes (e.g. header-based team auth)
-- **django-service-layer** — Business logic in services, HTTP handling in views, Pydantic for complex params
-- **django-error-response** — Standardized `{code, message, detail}` error format
-- **django-exceptions** — Custom exception classes, small try-catch at API layer only
-
 ### Local Databases
 
 `docker-compose.yml` provides two PostgreSQL instances for local development:
