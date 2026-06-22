@@ -33,7 +33,7 @@ description: Start working on a Jira issue by checking git status, reading ticke
 - Translate/convert the ticket summary to a short English slug (lowercase, kebab-case, max ~60 chars).
 - Format: `{TICKET_ID}-{type-of-work}-{short-english-summary}`
   - Example: `DBT-100-hotfix-fix-etax-document-upload`
-- Show the proposed branch name to the user and ask for confirmation before creating.
+- **Do not ask the user to confirm the branch name** — pick a sensible slug and proceed. Just state the chosen name in the summary.
 - The **same branch name** is used across all specified projects.
 
 ### 3. Create the branch (for each project)
