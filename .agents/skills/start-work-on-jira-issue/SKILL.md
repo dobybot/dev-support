@@ -1,83 +1,98 @@
 ---
 name: start-work-on-jira-issue
-description: Start working on a Jira issue by checking git status, reading ticket details, and creating a properly named branch from the correct base branch (main for hotfix, uat for new-feature). Supports multiple projects (dobybot, dobybot-ui, dobysync) and optional worktree mode for parallel ticket work.
+description: Start a Jira ticket fast — gather inputs, resolve the workspace path, then hand the whole mechanical job (read ticket, name the branch, build a per-ticket worktree of the full stack with parallel dep installs) to a haiku sub-agent. Branch base is chosen by track — fast-track (small feature / bug fix) off main, normal-track (large feature) off uat; dobysync uses main-v2 / uat-v2. Always worktree mode.
 ---
 
 # Start Working on a Jira Issue
 
-## Inputs
-1. **Jira Ticket ID** — e.g. `DBT-100`
-2. **Type of work** — `hotfix` or `new-feature`
-3. **Project names** — one or more of: `dobybot`, `dobybot-ui`, `dobysync` — the repos this ticket actually **edits**.
-   - All projects live under `~/Projects/dobybot/dobybot-workspace/{project_name}`
-   - In worktree mode the ticket folder is also filled with the rest of the **dobybot stack** (`dobybot`, `dobybot-ui`, `dobybot-report-ui`) so the full stack runs on F5 — see Worktree mode below. (dobysync is a separate stack and is not auto-added.)
-4. **Worktree mode** — `yes` or `no`. Ask the user if not specified.
-   - **No** — branch is checked out directly in the main project checkout. Classic single-ticket workflow.
-   - **Yes** (default for the DBT ticket-batch workflow) — branch is checked out in a per-ticket worktree at `~/Projects/dobybot/dobybot-workspace/tickets/{TICKET_ID}/{project_name}`, leaving each main checkout free. The ticket folder gets the **full runnable stack** (all three repos): the edited repos on the ticket branch, the rest detached on their base purely to run. The **dev runs this skill itself on pickup — the manager does not pre-build the worktree.**
+The skill is split in two: a **thin interactive front desk** (this agent) that gathers the few
+human-judgment inputs, and a **haiku worker** (a sub-agent) that does everything mechanical and
+slow. Always worktree mode. The goal is to get the dev coding ASAP.
 
-## Pre-flight Checks (for each project)
+## Tracks (the workflow)
 
-1. **Clean working directory** — Run `git status` in each project directory and confirm there are no uncommitted changes. If any project is dirty, stop and ask the user to commit or stash before proceeding.
+| Track | When | Base (dobybot, dobybot-ui, dobybot-report-ui) | Base (dobysync) | Downstream flow |
+|-------|------|-----------------------------------------------|-----------------|-----------------|
+| **fast-track** | small feature **or** bug fix | `main` | `main-v2` | PR → `main`; side-merge → `uat` for human testing; merge `main` to deploy |
+| **normal-track** | large feature | `uat` | `uat-v2` | PR → `uat`; merge; test on UAT; merge `uat` → `main` on release date |
 
-2. **Correct starting branch** — Based on the type of work:
-   - `hotfix` → must be on `main`. Run `git checkout main && git pull origin main`.
-   - `new-feature` → must be on `uat`. Run `git checkout uat && git pull origin uat`.
+Track is **the user's call per ticket** (the Jira issue type is untrustable). Heuristic: *easy +
+low blast-radius → fast-track; otherwise → normal-track.* If the user didn't say, ask in plain
+chat — do not guess, the base branch depends on it.
 
-## Steps
+## Inputs (the front desk gathers these — all of them — before dispatching the worker)
 
-### 1. Read the Jira ticket
-- Use the Jira tool to fetch the ticket details for the given ticket ID.
-- Extract the **summary** (title) of the ticket.
+1. **Jira Ticket ID** — e.g. `DBT-417` (from the invocation).
+2. **Track** — `fast-track` or `normal-track` (see above; ask if unstated).
+3. **Edited repos** — one or more of `dobybot`, `dobybot-ui`, `dobysync` — the repos this ticket
+   actually **edits** (ask if unstated). The worktree always also scaffolds the rest of the
+   dobybot stack run-only; dobysync is scaffolded only when it's an edited repo.
+4. **Workspace path** + (if dobysync edited) **dobysync local `.env`** — resolved/persisted, see below.
 
-### 2. Create the branch name
-- Translate/convert the ticket summary to a short English slug (lowercase, kebab-case, max ~60 chars).
-- Format: `{TICKET_ID}-{type-of-work}-{short-english-summary}`
-  - Example: `DBT-100-hotfix-fix-etax-document-upload`
-- **Do not ask the user to confirm the branch name** — pick a sensible slug and proceed. Just state the chosen name in the summary.
-- The **same branch name** is used across all specified projects.
+## Step 0 — Resolve config (front desk, interactive; never delegate this)
 
-### 3. Create the branch (for each project)
+A backgroundable worker can't stop to ask, so the **front desk** resolves every interactive value
+first.
 
-**Non-worktree mode** — check out the branch directly in the main checkout:
-```bash
-cd ~/Projects/dobybot/dobybot-workspace/{project_name}
-git checkout -b {branch_name}
-```
+### Workspace path
+Resolve in this order, stop at the first hit:
+1. `$DOBYBOT_WORKSPACE` if exported.
+2. The persisted file `~/.config/dobybot/workspace` (one line: the abs path).
+3. **First run** — ask the user in plain chat for the absolute workspace path. **Validate** it
+   exists and contains `dev-support/` + the repo dirs, then persist it:
+   ```bash
+   mkdir -p ~/.config/dobybot && printf '%s\n' "<abs-path>" > ~/.config/dobybot/workspace
+   ```
 
-**Worktree mode** — create the branch only in the repos this ticket **edits** (*without* switching HEAD), then run the worktree helper once. Let it default to the full stack — **do not** restrict `--repos` to the edited repos, or the stack won't run on F5:
-```bash
-# For each EDITED project only (does not change HEAD):
-cd ~/Projects/dobybot/dobybot-workspace/{edited_project_name}
-git branch {branch_name}
+### dobysync local `.env` (only if dobysync is an edited repo)
+The dobysync worktree must **never** symlink the shared `.env` — it points at PROD `:15434` with
+`load_dotenv(override=True)`, so `manage.py test` would create a test DB on prod. We keep a safe
+local-`:5433` `.env` machine-local and **copy** it into the worktree.
+1. If `~/.config/dobybot/dobysync.env.local` exists → use it.
+2. **First time** — ask the user (plain chat) to paste / point to their local-`:5433` dobysync
+   `.env`, write it to `~/.config/dobybot/dobysync.env.local`, then reuse it forever after.
 
-# Then once, from anywhere — no --repos, so all three stack repos are set up:
-~/Projects/dobybot/dobybot-workspace/dev-support/scripts/wt-add.sh \
-  {TICKET_ID} {branch_name}
-```
+## Step 1 — Dispatch the haiku worker (then BLOCK)
 
-The helper creates worktrees at `~/Projects/dobybot/dobybot-workspace/tickets/{TICKET_ID}/{project_name}` for the full stack (`dobybot`, `dobybot-ui`, `dobybot-report-ui`): repos where `{branch_name}` exists go on the ticket branch; the rest are checked out **detached on their base** (run-only). It prepares deps (`.env` symlinks for dobybot/dobybot-ui, fresh `.venv` for dobybot, fresh `node_modules`/pnpm for UI repos), writes `tickets/{TICKET_ID}/{TICKET_ID}.code-workspace` (multi-root workspace + `dev-support`) whose **"All Servers"** compound boots the whole stack on **F5**, and auto-launches it with `code` if the CLI is available. Main checkouts stay on their base branches, ready for the next ticket.
+Spawn **one** sub-agent with `subagent_type` defaulted and `model: "haiku"`, **not** in the
+background — block until it returns its summary. Hand it every resolved input so it never has to
+ask. The worker prompt must instruct it to:
 
-### 4. Summarize what was done
-Print a summary table showing for each project:
-- Project name
-- Branch name created
-- Base branch (main or uat)
-- Working directory (main checkout path, or worktree path if worktree mode)
-- Status (success or error)
+1. **Read the Jira ticket** for `{TICKET}` and extract the summary.
+2. **Derive the branch name**: translate the summary to a short English kebab slug (≤ ~60 chars),
+   then build `{TICKET}--{track}--{slug}` (double-dash separators), e.g.
+   `DBT-417--fast-track--vrich-report`. The **same branch name** is used across all edited repos.
+3. **Create the branch off the fresh remote base, without checking out the main checkout** — for
+   each *edited* repo, using the per-repo base from the track table:
+   ```bash
+   git -C {workspace}/{repo} fetch origin {base}
+   git -C {workspace}/{repo} branch {branch} origin/{base}
+   ```
+   (Never `git checkout`/`pull` the main checkout — it stays free, and this guarantees the branch
+   starts from the up-to-date remote base. No clean-working-dir preflight is needed: the worktree
+   is independent of the main checkout's state.)
+4. **Build the worktree** by running the script that ships with this skill:
+   ```bash
+   ~/.claude/skills/start-work-on-jira-issue/wt-add.sh \
+     --workspace {workspace} --ticket {TICKET} --branch {branch} \
+     [--with-dobysync --dobysync-env ~/.config/dobybot/dobysync.env.local]   # only if dobysync edited
+   ```
+   The script always scaffolds the dobybot stack (edited repos on the ticket branch, the rest
+   detached run-only), adds dobysync only with `--with-dobysync`, installs all repos' deps **in
+   parallel**, and writes `tickets/{TICKET}/{TICKET}.code-workspace` whose **"All Servers"**
+   compound boots the whole stack on **F5**. (It does NOT auto-open VS Code — open the
+   `.code-workspace` file yourself.)
+5. **Return a summary table**: for each repo — branch (or "detached run-only"), base branch,
+   worktree path, deps status (✓/✗).
 
-Then remind the user of the workflow:
+## Step 2 — Report (front desk)
 
-**If hotfix:**
-> Workflow reminder:
-> 1. Develop on this branch
-> 2. Merge into `uat` for human testing
-> 3. Create PR into `main` for code review
-> 4. Once tests pass and review is approved → merge to `main` to deploy
+Relay the worker's summary table, then the matching workflow reminder:
 
-**If new-feature:**
-> Workflow reminder:
-> 1. Develop on this branch
-> 2. Create PR into `uat` for code review
-> 3. Once approved → merge into `uat`
-> 4. Test on UAT environment
-> 5. When ready → merge `uat` into `main` on release date
+**fast-track:** 1) develop on this branch · 2) merge into `uat` for human testing · 3) PR into
+`main` for code review · 4) tests pass + approved → merge to `main` to deploy.
+
+**normal-track:** 1) develop on this branch · 2) PR into `uat` for code review · 3) approved →
+merge into `uat` · 4) test on UAT · 5) ready → merge `uat` into `main` on release date.
+
+(dobysync edits ride the same flow against its `*-v2` branches.)
