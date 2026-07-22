@@ -7,7 +7,8 @@ Repo กลางสำหรับเก็บ **Claude Code skills** ที่
 
 ```
 dev-support/
-├── install.sh              # ตัวติดตั้ง — รันแล้วเลือก skill ที่ต้องการ
+├── install.sh              # ตัวติดตั้ง skill — รันแล้วเลือก skill ที่ต้องการ
+├── install-mcp.sh          # ตัวติดตั้ง MCP server (ลง global ให้ Claude Code)
 ├── skills/
 │   ├── in-development/     # skill ที่กำลังพัฒนา/ทดลองใช้ (เก็บ feedback อยู่)
 │   │   └── learn-diff/
@@ -15,6 +16,8 @@ dev-support/
 │       ├── better-review/
 │       ├── generate-test-cases/
 │       └── ...
+├── mcp/                    # MCP server แบบ bundle (รันได้เลย ไม่ต้อง build)
+│   └── artemis/            # ห่อ REST API ของ Artemis · 21 tool
 ├── pyproject.toml          # Python env สำหรับ skill กลุ่ม Kiwi TCMS (อย่าลบ)
 └── rules/                  # (สำรองไว้สำหรับ rules ของทีมในอนาคต)
 ```
@@ -57,6 +60,28 @@ git pull
 
 เท่านี้ skill ที่ติดตั้งไว้อัพเดตเองทันที ไม่ต้องรัน `install.sh` ซ้ำ —
 รันซ้ำเฉพาะเมื่อต้องการ **เพิ่ม skill ใหม่** หรือมี skill **ย้ายโฟลเดอร์** ใน repo
+
+## ติดตั้ง MCP server
+
+นอกจาก skill แล้ว repo นี้ยังแจก **MCP server** ที่ build ไว้พร้อมใช้ (bundle ไฟล์เดียว รันด้วย `node`
+ได้เลย ไม่ต้องมี repo ต้นทางหรือ build เอง) ตอนนี้มี **artemis** — ให้ Claude อ่าน/เขียนงานใน Artemis
+ได้ตรงจากแชต (21 tool)
+
+```bash
+./install-mcp.sh
+```
+
+สคริปต์จะถาม `ARTEMIS_API_URL` + API token (การพิมพ์ token จะไม่แสดงผล) แล้ว **ลงทะเบียนแบบ global**
+ด้วย `claude mcp add --scope user` — **ใช้ได้ทุกโปรเจกต์** ไม่ใช่แค่โฟลเดอร์เดียว · จากนั้น
+**restart Claude Code** แล้วลองพิมพ์ `list projects ใน artemis`
+
+- สร้าง token ที่หน้าเว็บ Artemis → **Admin → API Tokens** (เริ่มลองติ๊ก `projects:read` + `tickets:read`)
+- ค่าปริยาย `ARTEMIS_API_URL` = `https://artemis-actions.dobybot.com` · กด Enter ผ่านได้
+- ตั้ง env ล่วงหน้าเพื่อข้ามคำถาม: `ARTEMIS_API_TOKEN=… ./install-mcp.sh`
+- **`git pull` อัปเดต bundle ให้เอง** (ทางที่ลงทะเบียนไว้ไม่เปลี่ยน) — แค่ restart Claude Code
+- ถอนออก: `claude mcp remove artemis --scope user`
+
+รายละเอียดแต่ละตัว: [`mcp/artemis/README.md`](mcp/artemis/README.md)
 
 > ⚠️ อย่าลบหรือย้ายโฟลเดอร์ clone นี้ — symlink จะขาด ถ้าจำเป็นต้องย้าย ให้รัน
 > `./install.sh` ใหม่หลังย้าย
