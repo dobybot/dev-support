@@ -8,17 +8,31 @@ no CDN — must open offline by double-click) and open it in the browser.
 
 ## Page sections, in order
 
-1. **TL;DR** — 3–5 bullets: what changed, why, and the single riskiest thing in this diff.
+The page is **top-down**: product/system understanding first (a PM could follow it), then
+the engineer lens. Never put the box map or code above the system view.
 
-2. **Intent reconciliation table** — the three lists from Step 2 (ขอ+ทำ / ขอ+ไม่ได้ทำ /
+1. **TL;DR** — 3–5 bullets: what capability changed, why, and the single riskiest thing.
+   Must read on its own: no stacked undefined jargon; define any technical term in Thai at
+   first use.
+
+2. **System & purpose (PM view)** — the heart of the page, and it comes first. From Step 3:
+   (a) what capability the change adds and why, in product terms; (b) a whole-system diagram
+   marking which box *is* this change; (c) how the parts relate — trace ONE real request/flow
+   end-to-end, naming which file hands off to which; (d) **how to use / run / try it** —
+   concrete build/config/invoke/smoke-test steps grounded in the real repo (show real output
+   from the safe ones); (e) product-level scope/risk/what's-deferred. A reader should
+   understand the change and how to try it from this section alone, without reading code.
+
+3. **Intent reconciliation table** — the three lists from Step 2 (ขอ+ทำ / ขอ+ไม่ได้ทำ /
    ไม่ได้ขอ+ทำ). Style 🚨 unrequested changes so they cannot be missed. If all three
    lists are clean, say so in one line — don't pad.
 
-3. **Box map** — every section of the diff, its box (⬛/🔲/⬜), the one-line justification,
-   and a note that the user can override any assignment in chat. This is the reading plan
-   for the rest of the page.
+4. **Engineer-lens divider + Box map** — an explicit divider ("จากตรงนี้ = มุมมองวิศวกร
+   สำหรับคนที่จะ verify/ดูแลต่อ"), then every section of the diff, its box (⬛/🔲/⬜), the
+   one-line justification, and a note that the user can override any assignment in chat.
+   This is the reading plan for the code sections that follow — not the top of the page.
 
-4. **Per-section explanations** — ordered by dataflow (entry point → core change → ripple
+5. **Per-section explanations** — ordered by dataflow (entry point → core change → ripple
    effects), never alphabetically by file. Depth per box:
 
    - **⬛ blackbox:** what it does, its inputs/outputs, and exactly how to test or use it
@@ -39,7 +53,7 @@ no CDN — must open offline by double-click) and open it in the browser.
 
    Concepts already in the user's ledger: one-line reminder, not a re-explanation.
 
-5. **Prediction questions** — grey/whitebox sections only, count per Scaling rules.
+6. **Prediction questions** — grey/whitebox sections only, count per Scaling rules.
    Format per question:
    - A concrete scenario: "ถ้า input เป็น X ระบบจะทำอะไร?"
    - Reveal-on-click answer with a short explanation.
@@ -49,11 +63,11 @@ no CDN — must open offline by double-click) and open it in the browser.
    - Never trick questions. Wrong-answer feedback explains the misconception without
      having planted it.
 
-6. **Verification checklist** — a copyable markdown block (ISO 29110 Verification format
+7. **Verification checklist** — a copyable markdown block (ISO 29110 Verification format
    where the project uses it): blackbox sections → concrete test steps; grey/whitebox
    sections → the specific understanding to confirm. Everything starts as `PD (Pending)`.
 
-7. **Feedback footer** — one line linking to the feedback board
+8. **Feedback footer** — one line linking to the feedback board
    (https://artemis.dobybot.com/projects/DW) asking: อธิบายส่วนไหนลึกไป/ตื้นไป?
    การจัด box ผิดตรงไหน?
 
