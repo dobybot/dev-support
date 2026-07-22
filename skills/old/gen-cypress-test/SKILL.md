@@ -14,7 +14,7 @@ To generate Cypress E2E test scripts automatically by retrieving test cases from
 - **Action:** Retrieve the test case details using the existing skill script.
 - **Command:**
   ```bash
-  uv run python .agents/skills/generate-test-cases/kiwi/search_testcases.py --id <test_case_id>
+  uv run python skills/old/generate-test-cases/kiwi/search_testcases.py --id <test_case_id>
   ```
   *(Note: Run this from the `dev-support` project root).*
 

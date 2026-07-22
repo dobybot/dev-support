@@ -19,7 +19,7 @@ To generate production-ready Cypress test scripts that adhere to the **DRY (Don'
 ### 1. Requirements Gathering (Kiwi TCMS)
 * **Action:** Call the skill's existing Python script to retrieve the target test case details.
   ```bash
-  uv run python dev-support/.agents/skills/generate-test-cases/kiwi/search_testcases.py --id <test_case_id>
+  uv run python dev-support/skills/old/generate-test-cases/kiwi/search_testcases.py --id <test_case_id>
   ```
   *(Run this from the workspace root).*
 * **Analysis:** Parse the test case text (usually in Thai Markdown). Identify the core user flow, splitting it into **Preconditions**, **Steps**, and **Expected Results**.

@@ -94,12 +94,12 @@ Before generating new test cases, search Kiwi TCMS for existing related content 
 
 1. **Search for existing test plans** related to this feature:
    ```bash
-   uv run python .agents/skills/generate-test-cases/kiwi/lookup.py TestPlan '{"name__icontains": "<feature_name>"}'
+   uv run python skills/old/generate-test-cases/kiwi/lookup.py TestPlan '{"name__icontains": "<feature_name>"}'
    ```
 2. **Search for existing test cases** related to this Jira issue (by tag or summary):
    ```bash
-   uv run python .agents/skills/generate-test-cases/kiwi/search_testcases.py --tag "{jira-issue-id}"
-   uv run python .agents/skills/generate-test-cases/kiwi/search_testcases.py --summary "<keywords>"
+   uv run python skills/old/generate-test-cases/kiwi/search_testcases.py --tag "{jira-issue-id}"
+   uv run python skills/old/generate-test-cases/kiwi/search_testcases.py --summary "<keywords>"
    ```
 3. Present any existing test plans/cases to the user so they are aware of what already exists.
 
@@ -126,43 +126,43 @@ Using the Jira issue context, code changes, and existing test coverage:
 3. Also confirm the **test plan name** (feature_name) — AI proposes, human confirms.
 
 ### Step 5: Create in Kiwi TCMS
-All scripts are in `.agents/skills/generate-test-cases/kiwi/`.
+All scripts are in `skills/old/generate-test-cases/kiwi/`.
 All commands must be run from the **dev-support project root** using `uv run python` so that `uv` resolves the correct Python version and dependencies (e.g. `tcms-api`, `python-dotenv`).
 
 #### 5a. Look up required PKs
 ```bash
 # Look up product PK
-uv run python .agents/skills/generate-test-cases/kiwi/lookup.py Product '{"name": "Dobybot"}'
+uv run python skills/old/generate-test-cases/kiwi/lookup.py Product '{"name": "Dobybot"}'
 
 # Look up version PK
-uv run python .agents/skills/generate-test-cases/kiwi/lookup.py Version '{"product__name": "Dobybot", "value": "uat"}'
+uv run python skills/old/generate-test-cases/kiwi/lookup.py Version '{"product__name": "Dobybot", "value": "uat"}'
 
 # Look up build PK
-uv run python .agents/skills/generate-test-cases/kiwi/lookup.py Build '{"version__value": "uat", "name": "uat"}'
+uv run python skills/old/generate-test-cases/kiwi/lookup.py Build '{"version__value": "uat", "name": "uat"}'
 
 # Look up plan type PK
-uv run python .agents/skills/generate-test-cases/kiwi/lookup.py PlanType '{"name": "Functional"}'
+uv run python skills/old/generate-test-cases/kiwi/lookup.py PlanType '{"name": "Functional"}'
 
 # Look up user PK
-uv run python .agents/skills/generate-test-cases/kiwi/lookup.py User '{"email": "t.thanasopon@gmail.com"}'
+uv run python skills/old/generate-test-cases/kiwi/lookup.py User '{"email": "t.thanasopon@gmail.com"}'
 
 # Look up priority PK (P1=1, P2=2, P3=3 — verify with lookup)
-uv run python .agents/skills/generate-test-cases/kiwi/lookup.py Priority '{}'
+uv run python skills/old/generate-test-cases/kiwi/lookup.py Priority '{}'
 
 # Look up CONFIRMED status PK
-uv run python .agents/skills/generate-test-cases/kiwi/lookup.py TestCaseStatus '{"name": "CONFIRMED"}'
+uv run python skills/old/generate-test-cases/kiwi/lookup.py TestCaseStatus '{"name": "CONFIRMED"}'
 ```
 
 #### 5b. Find or create category
 ```bash
 # Search for existing category
-uv run python .agents/skills/generate-test-cases/kiwi/lookup.py Category '{"product__name": "Dobybot", "name": "eTax/Document Upload"}'
+uv run python skills/old/generate-test-cases/kiwi/lookup.py Category '{"product__name": "Dobybot", "name": "eTax/Document Upload"}'
 ```
 
 #### 5c. Create test cases
 For each confirmed test case:
 ```bash
-uv run python .agents/skills/generate-test-cases/kiwi/create_testcase.py \
+uv run python skills/old/generate-test-cases/kiwi/create_testcase.py \
   --summary "ทดสอบการอัพโหลดเอกสาร eTax" \
   --product <product_pk> \
   --category <category_pk> \
@@ -172,16 +172,16 @@ uv run python .agents/skills/generate-test-cases/kiwi/create_testcase.py \
 ```
 After creation, tag each test case with the Jira issue ID:
 ```bash
-uv run python .agents/skills/generate-test-cases/kiwi/lookup.py TestCase.add_tag '<case_id>' '{jira-issue-id}'
+uv run python skills/old/generate-test-cases/kiwi/lookup.py TestCase.add_tag '<case_id>' '{jira-issue-id}'
 ```
 
 #### 5d. Find or create test plan
 ```bash
 # Search for existing test plan
-uv run python .agents/skills/generate-test-cases/kiwi/lookup.py TestPlan '{"name": "<feature_name>", "product": <product_pk>}'
+uv run python skills/old/generate-test-cases/kiwi/lookup.py TestPlan '{"name": "<feature_name>", "product": <product_pk>}'
 
 # If not found, create one
-uv run python .agents/skills/generate-test-cases/kiwi/create_testplan.py \
+uv run python skills/old/generate-test-cases/kiwi/create_testplan.py \
   --name "<feature_name>" \
   --product <product_pk> \
   --version <version_pk> \
@@ -191,12 +191,12 @@ uv run python .agents/skills/generate-test-cases/kiwi/create_testplan.py \
 
 #### 5e. Add test cases to test plan
 ```bash
-uv run python .agents/skills/generate-test-cases/kiwi/add_case_to_plan.py --plan <plan_pk> --case <case_pk>
+uv run python skills/old/generate-test-cases/kiwi/add_case_to_plan.py --plan <plan_pk> --case <case_pk>
 ```
 
 #### 5f. Create test run
 ```bash
-uv run python .agents/skills/generate-test-cases/kiwi/create_testrun.py \
+uv run python skills/old/generate-test-cases/kiwi/create_testrun.py \
   --summary "{jira-issue-id} {jira-summary} {datetime}" \
   --plan <plan_pk> \
   --build <build_pk> \
@@ -205,7 +205,7 @@ uv run python .agents/skills/generate-test-cases/kiwi/create_testrun.py \
 
 #### 5g. Add test cases to test run
 ```bash
-uv run python .agents/skills/generate-test-cases/kiwi/add_case_to_run.py --run <run_pk> --case <case_pk>
+uv run python skills/old/generate-test-cases/kiwi/add_case_to_run.py --run <run_pk> --case <case_pk>
 ```
 
 ### Step 6: Print Summary
@@ -217,12 +217,12 @@ Print a summary of what was done:
 
 ## Kiwi Python Scripts
 
-All scripts live in `.agents/skills/generate-test-cases/kiwi/` and follow the Unix principle of doing one thing well.
+All scripts live in `skills/old/generate-test-cases/kiwi/` and follow the Unix principle of doing one thing well.
 
 | Script | Purpose |
 |---|---|
 | `kiwi_client.py` | Shared module — creates TCMS-API connection (not a CLI) |
-| `lookup.py` | Generic entity filter: `uv run python .agents/skills/generate-test-cases/kiwi/lookup.py <Entity> '<json_filter>'` |
+| `lookup.py` | Generic entity filter: `uv run python skills/old/generate-test-cases/kiwi/lookup.py <Entity> '<json_filter>'` |
 | `search_testcases.py` | Search test cases by tag, summary, or other criteria |
 | `create_testcase.py` | Create a single test case |
 | `create_testplan.py` | Create a test plan |

@@ -1,126 +1,100 @@
-# Dev Support
+# dev-support — Claude Code Skills ของทีม dobybot
 
-Development workflow automation and coding standards for the Dobybot workspace.
+Repo กลางสำหรับเก็บ **Claude Code skills** ที่ทีมใช้ร่วมกัน ติดตั้งผ่าน `install.sh`
+แล้วเลือกเฉพาะ skill ที่ต้องการใช้
 
-## Installing the team skills (Claude Code)
+## โครงสร้าง
 
-Every skill in `.agents/skills/` is shared with the whole team. One-time setup
-symlinks them into your Claude Code config and registers a `SessionStart` hook
-that re-syncs on every launch — so after the first install, **`git pull` + relaunch
-is all it takes for new skills to appear**.
+```
+dev-support/
+├── install.sh              # ตัวติดตั้ง — รันแล้วเลือก skill ที่ต้องการ
+├── skills/
+│   ├── in-development/     # skill ที่กำลังพัฒนา/ทดลองใช้ (เก็บ feedback อยู่)
+│   │   └── learn-diff/
+│   └── old/                # skill รุ่นก่อนจัดระเบียบ repo — ยังติดตั้งใช้ได้
+│       ├── better-review/
+│       ├── generate-test-cases/
+│       └── ...
+├── pyproject.toml          # Python env สำหรับ skill กลุ่ม Kiwi TCMS (อย่าลบ)
+└── rules/                  # (สำรองไว้สำหรับ rules ของทีมในอนาคต)
+```
 
-```sh
+## ติดตั้ง skill
+
+```bash
 git clone git@github.com:dobybot/dev-support.git
 cd dev-support
-./install.sh          # requires jq (brew install jq)
+./install.sh
 ```
 
-What `install.sh` does:
-
-- resolves this clone's absolute path and writes a `SessionStart` hook into
-  `~/.claude/settings.json` (backs the file up first) that runs
-  `.agents/sync-skills.sh` on every Claude Code launch;
-- runs the first sync immediately.
-
-`sync-skills.sh` links each child of `.agents/{skills,agents,commands}/` into the
-matching `~/.claude/` dir, one symlink per item. It is safe and idempotent:
-
-- **never clobbers a personal skill** of the same name (it warns and skips);
-- **prunes** its own links when a skill is deleted upstream;
-- leaves all non-repo entries untouched.
-
-Re-run `./install.sh` only if you move the clone to a new path. Removing the team
-skills = delete the `SessionStart` hook from `~/.claude/settings.json` and remove
-the symlinks under `~/.claude/skills` that point into this repo.
-
-## What's Inside
-
-### Agent Skills
-
-Reusable workflow automations in `.agents/skills/`:
-
-| Skill | Description |
-|-------|-------------|
-| **start-work-on-jira-issue** | Creates a properly named git branch from the right base branch (`main` for hotfix, `uat` for new feature) using the Jira ticket ID and summary. |
-| **submit-work** | Pushes code, opens a PR, merges to `uat` if hotfix, and updates Jira labels (`ENV:uat`, `TEST:testing`/`TEST:review`). |
-| **generate-test-cases** | Generates test cases from the Jira ticket, confirms with the developer, then syncs them to Kiwi TCMS with test plans and runs. |
-| **generate-automated-test** | Converts Kiwi TCMS test cases into optimized, maintainable Cypress E2E scripts using API-driven state setup. |
-| **generate-automated-test** | Converts Kiwi TCMS test cases into optimized, maintainable Cypress E2E scripts using API-driven state setup and reusable UI commands. |
-
-### Local Databases
-
-`docker-compose.yml` provides two PostgreSQL instances for local development:
-
-| Service | Port | Purpose |
-|---------|------|---------|
-| dobybot_db | 5432 | Dobybot application database |
-| dobysync_db | 5433 | Dobysync application database |
-
-## Branch Naming Convention
-
-Branches follow the pattern: `{TICKET_ID}-{worktype}-{summary}`
+จะได้เมนูให้เลือก:
 
 ```
-DBT-100-hotfix-fix-etax-document-upload
-DBT-201-new-feature-add-report-export
+dev-support skills — เลือก skill ที่จะติดตั้ง/อัพเดต
+
+   1) learn-diff                     (in-development)   [not installed]
+   2) better-review                  (old)              [not installed]
+   ...
+เลือกหมายเลข (คั่นด้วย space เช่น "1 3"), a = ทั้งหมด, q = ยกเลิก:
 ```
 
-## Workflow
+พิมพ์หมายเลขที่ต้องการ (เช่น `1 3`) แล้ว **restart Claude Code** หนึ่งครั้ง skill จะพร้อมใช้
 
-```
-start-work-on-jira-issue  →  develop & commit  →  submit-work
-        │                                              │
-        ├─ hotfix: branch from main                    ├─ hotfix: PR to main + merge to uat
-        └─ new-feature: branch from uat                └─ new-feature: PR to uat
-```
+โหมดไม่ต้องตอบคำถาม (สำหรับ script/onboarding):
 
-## Setup
-
-Requires Python 3.14+ and [uv](https://docs.astral.sh/uv/).
-
-```sh
-uv sync
+```bash
+./install.sh --all              # ติดตั้งทุก skill
+./install.sh learn-diff         # ติดตั้งเฉพาะชื่อที่ระบุ
 ```
 
-Start local databases:
+### การอัพเดต
 
-```sh
-docker compose up -d
+skill ถูกติดตั้งเป็น **symlink** (ทางลัดชี้กลับมาที่ clone นี้) ดังนั้น:
+
+```bash
+git pull
 ```
 
-## Cloning UAT into a local database
+เท่านี้ skill ที่ติดตั้งไว้อัพเดตเองทันที ไม่ต้องรัน `install.sh` ซ้ำ —
+รันซ้ำเฉพาะเมื่อต้องการ **เพิ่ม skill ใหม่** หรือมี skill **ย้ายโฟลเดอร์** ใน repo
 
-`scripts/clone-uat-to-local.sh` snapshots the UAT Postgres into a fresh local
-database and rewrites `dobybot/.env` to point at it. The current `DATABASE_URL`
-is commented out (not removed), and `.env` is backed up to
-`.env.bak.<timestamp>` first.
+> ⚠️ อย่าลบหรือย้ายโฟลเดอร์ clone นี้ — symlink จะขาด ถ้าจำเป็นต้องย้าย ให้รัน
+> `./install.sh` ใหม่หลังย้าย
 
-### One-time setup (per dev)
+### ถอนการติดตั้ง
 
-1. **cloud-sql-proxy alias** (in `~/.zshrc`):
-   ```sh
-   alias cloud-sql-proxy-dobybot-main="cloud-sql-proxy --port 15432 \
-     --credentials-file ~/Projects/dobybot/.gcp/dobybot-2f20c212773a.json \
-     dobybot:asia-southeast1:main-2"
-   ```
-2. **UAT password in `~/.pgpass`** — never on the command line, never in `.env`:
-   ```sh
-   echo '*:15432:*:postgres:<UAT_PASSWORD>' >> ~/.pgpass
-   chmod 600 ~/.pgpass
-   ```
-   Get `<UAT_PASSWORD>` from the team password manager.
-
-### Per-run
-
-```sh
-# Terminal 1 — leave running
-cloud-sql-proxy-dobybot-main
-
-# Terminal 2 — clones into uat_clone_YYYYMMDD by default,
-# or pass a name:  ./scripts/clone-uat-to-local.sh my_debug_db
-./scripts/clone-uat-to-local.sh
+```bash
+rm ~/.claude/skills/<ชื่อ-skill>
 ```
 
-The script aborts before touching local state if the proxy is down, the local
-Postgres is down, or `~/.pgpass` is missing/world-readable. Cloud-SQL-only
-objects (e.g. `cloudsqladmin` grants) produce harmless `pg_restore` warnings.
+(ลบได้อย่างปลอดภัย — เป็นแค่ symlink ตัว skill จริงอยู่ใน repo)
+
+### อัพเกรดจากระบบเก่า (auto-sync)
+
+เดิม repo นี้ใช้ SessionStart hook sync ทุก skill อัตโนมัติ (`.agents/sync-skills.sh`)
+— ระบบนั้นถูกแทนที่แล้ว แค่ `git pull` แล้วรัน `./install.sh` หนึ่งครั้ง:
+ตัวติดตั้งจะถอด hook เก่าออกจาก `~/.claude/settings.json` ให้เอง (มี backup)
+แล้วให้เลือก skill ที่ต้องการใช้ต่อ
+
+## ข้อกำหนดเพิ่มเติมบาง skill
+
+- **skill กลุ่ม Kiwi TCMS** (`generate-test-cases`, `get-kiwi-test-cases`,
+  `gen-cypress-test`, `generate-automated-test`) รันสคริปต์ Python ผ่าน
+  [uv](https://docs.astral.sh/uv/) จาก root ของ repo นี้ — ติดตั้ง uv แล้วรัน
+  `uv sync` หนึ่งครั้ง และต้องมีไฟล์ `.env` ใส่ credential ของ Kiwi (ถามทีม QA)
+- `install.sh` ใช้ `jq` เฉพาะตอนถอด hook เก่า — ถ้ายังไม่มี: `brew install jq`
+
+## เขียน skill ใหม่ให้ทีม
+
+1. สร้างโฟลเดอร์ `skills/in-development/<ชื่อ-skill>/` (ชื่อเป็น kebab-case)
+2. เขียน `SKILL.md` มี frontmatter `name:` และ `description:` (ใส่ trigger phrases
+   ใน description ด้วย เพื่อให้ Claude เรียกใช้ได้ถูกจังหวะ)
+3. ไฟล์ประกอบวางใน `references/` หรือ `assets/` ภายในโฟลเดอร์ skill
+4. แนะนำให้มี `DEVELOPMENT.md` บันทึก design decisions และแผนพัฒนา เพื่อให้คน/agent
+   ที่มาพัฒนาต่อมี context (ดูตัวอย่างที่ `skills/in-development/learn-diff/`)
+5. เปิด PR — เมื่อ skill นิ่งแล้วค่อยพิจารณาย้ายกลุ่ม
+
+## Feedback
+
+Skill ในกลุ่ม `in-development` เป็นส่วนหนึ่งของ workflow improvement program —
+ให้ feedback ได้ที่บอร์ด Artemis: https://artemis.dobybot.com/projects/DW
