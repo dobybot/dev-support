@@ -91,6 +91,38 @@ different moments? Watch the feedback board for confusion between the two.
 3. ส่วนไหนของหน้า HTML ที่คุณ**ไม่เคยอ่าน**? ← สำคัญสุด: section ที่ไม่มีใครอ่านคือ
    candidate แรกที่จะตัดใน v2
 
+## Field feedback — v1 first run (Jul 22, 2026, tanin-t on commit 0a3b52e / artemis-mcp)
+
+First real invocation, on a large single-commit feature (a new `artemis-mcp` package).
+Four pieces of feedback, all pointing the same direction — **lead higher, descend later.**
+Folded into SKILL.md + references/html-page.md the same day:
+
+1. **learn-diff is about understanding the SYSTEM, not "how the code works."** The v1 page
+   led with the engineer structure (box map → per-file code deep-dives) and the user felt
+   "dropped into the middle." Reframe adopted: **PM view before senior-engineer view.** The
+   product-level understanding (what capability this adds, why, what it enables, how to use
+   it, scope/risk) now leads the page as its own step (Step 3, "Lead with the system"); the
+   box triage + code deep-dives are explicitly the *engineer lens* — secondary, and only as
+   deep as verify/maintain requires. NOTE: greybox was already tagged "PM/collaborative
+   level" and whitebox "senior-engineer level" in Core principles above — the fix was ORDER
+   and altitude, not inventing a new level.
+2. **Top-down or bust.** Open with purpose → whole-system picture → how the parts relate
+   (trace ONE real request end-to-end) → then details. The single most effective addition
+   to the v1 page was a "big picture" section with a system diagram + a 6-step request
+   trace naming which file hands off to which. Make this structural, not optional.
+3. **No cold jargon in the TL;DR/intro.** The v1 TL;DR packed "hybrid / transport /
+   ToolContext.fs" into one sentence and the user couldn't parse it. Rule added: TL;DR and
+   any intro must read on their own; never stack undefined terms; define in Thai at first
+   use. (The output-language note already said "define at first use" — it wasn't enough;
+   the TL;DR specifically needs the stronger "no stacked undefined terms" rule.)
+4. **"How do I install / try it?" is part of understanding a system.** The code-only page
+   never told the user how to run or exercise the change; they had to ask separately. A
+   PM-view section must include the concrete how-to-use / run / test steps (build, config,
+   invoke, smoke-test). Added to Step 3 + html-page.md.
+
+All four are consistent with each other and with the skill's own name (learn the *change*,
+not the code). Keep this altitude in v2; do not let the box map creep back to the top.
+
 ## v2 candidate list (as of Jul 22, 2026 — re-prioritize with feedback)
 
 - Merge-or-differentiate decision vs `better-review`
