@@ -26,6 +26,20 @@ log()  { printf '[install-mcp] %s\n' "$*"; }
 warn() { printf '[install-mcp] WARN: %s\n' "$*" >&2; }
 die()  { printf '[install-mcp] ERROR: %s\n' "$*" >&2; exit 1; }
 
+# ---------- Windows (Git Bash/MSYS2/Cygwin) → มอบงานให้ install-mcp.ps1 ----------
+# path ที่ลงทะเบียนกับ claude ต้องเป็น Windows path (C:\…) ไม่ใช่ /c/… ของ Git Bash
+case "$(uname -s 2>/dev/null || echo unknown)" in
+  MINGW*|MSYS*|CYGWIN*|Windows_NT)
+    ps1="$REPO/install-mcp.ps1"
+    if [ -f "$ps1" ] && command -v powershell.exe >/dev/null 2>&1; then
+      log "ตรวจพบ Windows — ส่งต่อให้ install-mcp.ps1"
+      win_ps1="$(cygpath -w "$ps1" 2>/dev/null || printf '%s' "$ps1")"
+      exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$win_ps1" "$@"
+    fi
+    die "บน Windows ให้รัน: powershell -ExecutionPolicy Bypass -File .\\install-mcp.ps1"
+    ;;
+esac
+
 command -v node   >/dev/null 2>&1 || die "ไม่พบ node (ต้องใช้ Node 22+)"
 command -v claude >/dev/null 2>&1 || die "ไม่พบคำสั่ง claude (Claude Code CLI) — ติดตั้ง Claude Code ก่อน"
 [ -f "$BUNDLE" ] || die "ไม่พบ bundle ที่ $BUNDLE — ลอง 'git pull' แล้วรันใหม่"

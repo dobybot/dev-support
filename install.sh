@@ -31,6 +31,22 @@ SETTINGS="$HOME/.claude/settings.json"
 log()  { printf '[install] %s\n' "$*"; }
 warn() { printf '[install] WARN: %s\n' "$*" >&2; }
 
+# ---------- Windows (Git Bash/MSYS2/Cygwin) → มอบงานให้ install.ps1 ----------
+# `ln -s` บน Git Bash คัดลอกโฟลเดอร์แทนการทำ symlink จริง (git pull จะไม่อัพเดตให้อีก)
+# install.ps1 สร้าง directory junction จริง — ไม่ต้อง admin, ไม่ต้อง Developer Mode, ไม่ต้องมี jq
+case "$(uname -s 2>/dev/null || echo unknown)" in
+  MINGW*|MSYS*|CYGWIN*|Windows_NT)
+    ps1="$REPO/install.ps1"
+    if [ -f "$ps1" ] && command -v powershell.exe >/dev/null 2>&1; then
+      log "ตรวจพบ Windows — ส่งต่อให้ install.ps1 (สร้าง junction แทน symlink)"
+      win_ps1="$(cygpath -w "$ps1" 2>/dev/null || printf '%s' "$ps1")"
+      exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$win_ps1" "$@"
+    fi
+    warn "บน Windows ให้รัน: powershell -ExecutionPolicy Bypass -File .\\install.ps1"
+    exit 1
+    ;;
+esac
+
 [ -d "$SRC_ROOT" ] || { warn "no skills/ directory in $REPO"; exit 1; }
 mkdir -p "$DEST"
 

@@ -7,8 +7,10 @@ Repo กลางสำหรับเก็บ **Claude Code skills** ที่
 
 ```
 dev-support/
-├── install.sh              # ตัวติดตั้ง skill — รันแล้วเลือก skill ที่ต้องการ
+├── install.sh              # ตัวติดตั้ง skill (macOS/Linux) — รันแล้วเลือก skill ที่ต้องการ
+├── install.ps1             # ตัวเดียวกันสำหรับ Windows (PowerShell)
 ├── install-mcp.sh          # ตัวติดตั้ง MCP server (ลง global ให้ Claude Code)
+├── install-mcp.ps1         # ตัวเดียวกันสำหรับ Windows (PowerShell)
 ├── skills/
 │   ├── in-development/     # skill ที่กำลังพัฒนา/ทดลองใช้ (เก็บ feedback อยู่)
 │   │   └── learn-diff/
@@ -24,10 +26,20 @@ dev-support/
 
 ## ติดตั้ง skill
 
+**macOS / Linux**
+
 ```bash
 git clone git@github.com:dobybot/dev-support.git
 cd dev-support
 ./install.sh
+```
+
+**Windows** (PowerShell — ดู [หมายเหตุสำหรับ Windows](#หมายเหตุสำหรับ-windows))
+
+```powershell
+git clone git@github.com:dobybot/dev-support.git
+cd dev-support
+powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
 จะได้เมนูให้เลือก:
@@ -50,9 +62,14 @@ dev-support skills — เลือก skill ที่จะติดตั้�
 ./install.sh learn-diff         # ติดตั้งเฉพาะชื่อที่ระบุ
 ```
 
+```powershell
+.\install.ps1 -All              # Windows — ติดตั้งทุก skill
+.\install.ps1 learn-diff        # Windows — เฉพาะชื่อที่ระบุ
+```
+
 ### การอัพเดต
 
-skill ถูกติดตั้งเป็น **symlink** (ทางลัดชี้กลับมาที่ clone นี้) ดังนั้น:
+skill ถูกติดตั้งเป็น **symlink** (บน Windows เป็น **junction**) — ทางลัดชี้กลับมาที่ clone นี้ ดังนั้น:
 
 ```bash
 git pull
@@ -71,6 +88,10 @@ git pull
 ./install-mcp.sh
 ```
 
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install-mcp.ps1   # Windows
+```
+
 สคริปต์จะถาม `ARTEMIS_API_URL` + API token (การพิมพ์ token จะไม่แสดงผล) แล้ว **ลงทะเบียนแบบ global**
 ด้วย `claude mcp add --scope user` — **ใช้ได้ทุกโปรเจกต์** ไม่ใช่แค่โฟลเดอร์เดียว · จากนั้น
 **restart Claude Code** แล้วลองพิมพ์ `list projects ใน artemis`
@@ -78,13 +99,14 @@ git pull
 - สร้าง token ที่หน้าเว็บ Artemis → **Admin → API Tokens** (เริ่มลองติ๊ก `projects:read` + `tickets:read`)
 - ค่าปริยาย `ARTEMIS_API_URL` = `https://artemis-actions.dobybot.com` · กด Enter ผ่านได้
 - ตั้ง env ล่วงหน้าเพื่อข้ามคำถาม: `ARTEMIS_API_TOKEN=… ./install-mcp.sh`
+  (Windows: `$env:ARTEMIS_API_TOKEN='art_…'; .\install-mcp.ps1`)
 - **`git pull` อัปเดต bundle ให้เอง** (ทางที่ลงทะเบียนไว้ไม่เปลี่ยน) — แค่ restart Claude Code
 - ถอนออก: `claude mcp remove artemis --scope user`
 
 รายละเอียดแต่ละตัว: [`mcp/artemis/README.md`](mcp/artemis/README.md)
 
-> ⚠️ อย่าลบหรือย้ายโฟลเดอร์ clone นี้ — symlink จะขาด ถ้าจำเป็นต้องย้าย ให้รัน
-> `./install.sh` ใหม่หลังย้าย
+> ⚠️ อย่าลบหรือย้ายโฟลเดอร์ clone นี้ — symlink/junction จะขาด ถ้าจำเป็นต้องย้าย ให้รัน
+> ตัวติดตั้งใหม่หลังย้าย
 
 ### ถอนการติดตั้ง
 
@@ -92,12 +114,29 @@ git pull
 rm ~/.claude/skills/<ชื่อ-skill>
 ```
 
-(ลบได้อย่างปลอดภัย — เป็นแค่ symlink ตัว skill จริงอยู่ใน repo)
+```powershell
+# Windows — ใช้ rmdir กับ junction (Remove-Item -Recurse อาจไล่ลบไฟล์จริงใน repo)
+cmd /c rmdir "$env:USERPROFILE\.claude\skills\<ชื่อ-skill>"
+```
+
+(ลบได้อย่างปลอดภัย — เป็นแค่ทางลัด ตัว skill จริงอยู่ใน repo)
+
+## หมายเหตุสำหรับ Windows
+
+- ใช้ `install.ps1` / `install-mcp.ps1` — ถ้าเผลอรัน `./install.sh` ใน **Git Bash** สคริปต์จะ
+  เรียก `.ps1` ให้อัตโนมัติ (เพราะ `ln -s` บน Git Bash **คัดลอกโฟลเดอร์** แทนการทำ symlink
+  ผลคือ `git pull` ไม่อัพเดต skill ให้อีกต่อไป)
+- ติดตั้งเป็น **directory junction** ไม่ต้องเป็น admin และไม่ต้องเปิด Developer Mode
+- ถ้าโดน execution policy บล็อก ให้เติม `-ExecutionPolicy Bypass` ตามตัวอย่างข้างบน
+- เคยรัน `install.sh` ใน Git Bash มาก่อน? จะเห็น skill ขึ้นสถานะ `personal — skip`
+  เพราะกลายเป็นโฟลเดอร์สำเนา — ลบโฟลเดอร์นั้นใน `%USERPROFILE%\.claude\skills\` แล้วรัน
+  `install.ps1` ใหม่ (สคริปต์จะบอกคำสั่งลบให้)
+- ไม่ต้องใช้ `jq` — `install.ps1` จัดการ JSON ด้วย PowerShell เอง
 
 ### อัพเกรดจากระบบเก่า (auto-sync)
 
 เดิม repo นี้ใช้ SessionStart hook sync ทุก skill อัตโนมัติ (`.agents/sync-skills.sh`)
-— ระบบนั้นถูกแทนที่แล้ว แค่ `git pull` แล้วรัน `./install.sh` หนึ่งครั้ง:
+— ระบบนั้นถูกแทนที่แล้ว แค่ `git pull` แล้วรันตัวติดตั้งหนึ่งครั้ง:
 ตัวติดตั้งจะถอด hook เก่าออกจาก `~/.claude/settings.json` ให้เอง (มี backup)
 แล้วให้เลือก skill ที่ต้องการใช้ต่อ
 
@@ -107,7 +146,7 @@ rm ~/.claude/skills/<ชื่อ-skill>
   `gen-cypress-test`, `generate-automated-test`) รันสคริปต์ Python ผ่าน
   [uv](https://docs.astral.sh/uv/) จาก root ของ repo นี้ — ติดตั้ง uv แล้วรัน
   `uv sync` หนึ่งครั้ง และต้องมีไฟล์ `.env` ใส่ credential ของ Kiwi (ถามทีม QA)
-- `install.sh` ใช้ `jq` เฉพาะตอนถอด hook เก่า — ถ้ายังไม่มี: `brew install jq`
+- `install.sh` (macOS/Linux) ใช้ `jq` เฉพาะตอนถอด hook เก่า — ถ้ายังไม่มี: `brew install jq`
 
 ## เขียน skill ใหม่ให้ทีม
 
