@@ -123,6 +123,43 @@ Folded into SKILL.md + references/html-page.md the same day:
 All four are consistent with each other and with the skill's own name (learn the *change*,
 not the code). Keep this altitude in v2; do not let the box map creep back to the top.
 
+## Jul 29, 2026 — v2: static assets + multi-page output (DW-4, DW-5, DW-6, DW-7, DW-13)
+
+Implemented from the DW board (subtasks of DW-1):
+
+- **DW-4 — prebuilt static assets.** `assets/learn-diff.css` (~10 KB) +
+  `assets/learn-diff.js` (~8 KB) now ship inside the skill folder. The generator emits a
+  documented **markup contract** (see references/html-page.md) instead of regenerating
+  styling/behavior inline every run — saves generation tokens and keeps every page
+  consistent. Rule added: never write `<style>`/`<script>` beyond the two asset includes
+  (Artifact mode excepted — inline a trimmed copy there, same classes).
+- **DW-5 — syntax highlighting.** Hand-rolled regex tokenizer in learn-diff.js
+  (comment → string → number → keyword → function-name priority) for js/ts/jsx/tsx,
+  python, bash, sql, json, yaml, html/xml, css/scss. Unknown language or any error →
+  renders plain, never breaks the page. **Rejected: vendoring highlight.js** (too big,
+  CDN forbidden).
+- **DW-6 — filename + line numbers.** `figure.code-block` with `figcaption.code-filename`
+  header; JS wraps each line in `span.ln`, CSS counters number them; start offset via
+  `style="--ln-start: N"` on the figure.
+- **DW-7 — terminal blocks.** `figure.terminal`, always-dark; `span.cmd` gets a CSS
+  `::before` "$ " prefix (`user-select:none` — never typed in the markup), `span.out`
+  lines unprefixed. Copy button copies commands only.
+- **DW-13 — multi-page output.** CLI sessions and Large diffs now produce
+  `<repo>/.learn-diff/<slug>/`: `index.html` (entire PM altitude: TL;DR + PM view +
+  reconciliation + box map — the "PM view first" ordering is preserved by construction),
+  numbered per-section pages (grey/whitebox only; short blackbox inlined in the box map),
+  `99-verify.html`, plus a copied `assets/`. Written **index-first** so the user reads
+  while later pages generate; not-yet-written pages are non-link `.nav-pending`
+  "ยังไม่เสร็จ" entries, and index nav (+ previous page's footer-nav) is rewritten as
+  each page lands. **Rejected: JS availability-polling** — `fetch` doesn't work on
+  `file://`; refresh-based progress instead. Assets are *copied* into the output dir
+  (`cp -R ~/.claude/skills/learn-diff/assets` — cp follows the install symlink) so the
+  folder is self-contained/movable offline. Output dir goes in `.git/info/exclude`,
+  never the tracked `.gitignore`.
+- **Mode selection:** Artifact tool present + Medium diff → single self-contained
+  Artifact page (unchanged behavior); CLI or Large → multi-page local; Tiny → chat only.
+- Rejected in passing: mermaid (CDN ban; `.diagram` HTML/CSS panels instead).
+
 ## v2 candidate list (as of Jul 22, 2026 — re-prioritize with feedback)
 
 - Merge-or-differentiate decision vs `better-review`

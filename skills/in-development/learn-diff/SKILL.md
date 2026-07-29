@@ -127,10 +127,21 @@ affected section at the new depth).
 
 ## Step 5 — Generate the explanation page
 
-Read [references/html-page.md](references/html-page.md) and generate ONE self-contained
-HTML page. Prefer the Artifact tool (opens side-by-side with chat in the desktop app);
-if Artifact is unavailable (CLI session), write the file locally and open it in the
-browser. Scale the page to the diff — see Scaling rules below.
+Read [references/html-page.md](references/html-page.md) — it defines the two output
+modes and the markup contract. Choose the mode:
+
+- **Artifact mode** — มี Artifact tool (desktop app) และ diff ขนาด Medium: หน้าเดียว
+  self-contained เหมือนเดิม (inline CSS/JS ตัดทอนได้ แต่ class ตาม contract เดิม)
+- **Multi-page local mode** — CLI session หรือ diff ขนาด Large: สร้าง
+  `<repo>/.learn-diff/<slug>/`, copy assets จาก skill folder
+  (`cp -R ~/.claude/skills/learn-diff/assets "<outdir>/assets"`), เขียน **index.html
+  ก่อน** (PM view ทั้งหมดอยู่หน้านี้) แล้วบอก user เปิดอ่านทันที จากนั้นทยอยเขียน
+  section pages และ update nav ทุกครั้งที่หน้าเสร็จ. เพิ่ม `.learn-diff/` ลง
+  `.git/info/exclude` (ไม่แตะ `.gitignore`).
+
+**ห้าม generate CSS/JS เอง** — ใช้ไฟล์ใน `assets/` + markup contract ใน html-page.md
+เท่านั้น (Artifact mode ยกเว้น) — ประหยัด tokens และ style สม่ำเสมอทุกครั้ง.
+Scale the output to the diff — see Scaling rules below.
 
 The page is top-down: TL;DR → system/PM view (Step 3) → intent reconciliation → engineer
 lens (box map + per-section deep-dives, Step 4) → questions → verification checklist.
@@ -179,8 +190,9 @@ Ceremony must scale with the diff, or users will stop invoking the skill on smal
 - **Tiny (< ~50 changed lines):** no HTML page unless asked — a short system/PM summary
   (what it enables + how to try it) + the reconciliation table, directly in chat. No quiz.
 - **Medium:** full page, prediction questions only for grey/whitebox sections (1–2 each).
-- **Large (multi-feature):** full page with table of contents; questions scale with risk,
-  not with size.
+- **Large (multi-feature):** multi-page output — index.html เป็น table of contents +
+  PM view ทั้งหมด, section pages แยกหน้า (ผู้อ่านเริ่มอ่านได้ก่อนหน้าอื่นเสร็จ);
+  questions scale with risk, not with size.
 
 ## Concept ledger
 
