@@ -17,9 +17,13 @@ Repo นี้คือศูนย์รวม **Claude Code skills ของ�
   ทำให้ข้อความไทยเพี้ยนจน parse ไม่ผ่าน (ตรวจได้ด้วย
   `[System.Management.Automation.Language.Parser]::ParseFile(...)`)
 - **MCP server** อยู่ที่ `mcp/<name>/<name>-mcp.mjs` (bundle ไฟล์เดียว build มาแล้ว) ติดตั้งด้วย `install-mcp.sh`
-  ซึ่งลงแบบ global ผ่าน `claude mcp add --scope user` (ไม่ symlink แบบ skill — ลงทะเบียนชี้มาที่ไฟล์ใน clone นี้
-  `git pull` จึงอัปเดต bundle ให้เอง) · bundle เป็น artifact ที่ build จาก repo ต้นทาง — refresh ตามวิธีใน
-  `mcp/<name>/README.md` และอัปเดต version stamp ทุกครั้งที่เปลี่ยน
+  ซึ่งลงแบบ global (ไม่ symlink แบบ skill — ลงทะเบียนชี้มาที่ไฟล์ใน clone นี้ `git pull` จึงอัปเดต bundle ให้เอง) ·
+  bundle เป็น artifact ที่ build จาก repo ต้นทาง — refresh ตามวิธีใน `mcp/<name>/README.md`
+  และอัปเดต version stamp ทุกครั้งที่เปลี่ยน
+- ตัวติดตั้ง MCP รองรับ **2 client** และค่าปริยายคือลงให้ทุกตัวที่เจอในเครื่อง (เลือกด้วย
+  `--client claude|codex|all` / `-Client`) — bundle เป็น stdio MCP server จึงไม่ผูกกับ client ใด ต่างกันแค่
+  คำสั่งลงทะเบียน: `claude mcp add --scope user -e K=V` กับ `codex mcp add --env K=V` (เขียน
+  `~/.codex/config.toml`) · เพิ่ม client ใหม่ = เพิ่ม branch ลงทะเบียน ไม่ต้องแตะ bundle
 
 ## Convention การเขียน/แก้ skill
 

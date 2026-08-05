@@ -9,7 +9,7 @@ Repo กลางสำหรับเก็บ **Claude Code skills** ที่
 dev-support/
 ├── install.sh              # ตัวติดตั้ง skill (macOS/Linux) — รันแล้วเลือก skill ที่ต้องการ
 ├── install.ps1             # ตัวเดียวกันสำหรับ Windows (PowerShell)
-├── install-mcp.sh          # ตัวติดตั้ง MCP server (ลง global ให้ Claude Code)
+├── install-mcp.sh          # ตัวติดตั้ง MCP server (ลง global ให้ Claude Code / Codex)
 ├── install-mcp.ps1         # ตัวเดียวกันสำหรับ Windows (PowerShell)
 ├── skills/
 │   ├── in-development/     # skill ที่กำลังพัฒนา/ทดลองใช้ (เก็บ feedback อยู่)
@@ -84,27 +84,36 @@ git pull
 ## ติดตั้ง MCP server
 
 นอกจาก skill แล้ว repo นี้ยังแจก **MCP server** ที่ build ไว้พร้อมใช้ (bundle ไฟล์เดียว รันด้วย `node`
-ได้เลย ไม่ต้องมี repo ต้นทางหรือ build เอง) ตอนนี้มี **artemis** — ให้ Claude อ่าน/เขียนงานใน Artemis
+ได้เลย ไม่ต้องมี repo ต้นทางหรือ build เอง) ตอนนี้มี **artemis** — ให้ agent อ่าน/เขียนงานใน Artemis
 ได้ตรงจากแชต (21 tool)
 
+รองรับทั้ง **Claude Code** และ **Codex** — bundle เป็น stdio MCP server ตัวเดียวกัน ใช้ได้ทั้งคู่
+ค่าปริยายของตัวติดตั้งคือลงให้ **ทุก client ที่เจอในเครื่อง**
+
 ```bash
-./install-mcp.sh
+./install-mcp.sh                    # ลงให้ทุก client ที่เจอ (Claude Code + Codex)
+./install-mcp.sh --client claude    # เฉพาะ Claude Code
+./install-mcp.sh --client codex     # เฉพาะ Codex
 ```
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\install-mcp.ps1   # Windows
+powershell -ExecutionPolicy Bypass -File .\install-mcp.ps1                  # Windows
+powershell -ExecutionPolicy Bypass -File .\install-mcp.ps1 -Client codex    # เฉพาะ Codex
 ```
 
-สคริปต์จะถาม `ARTEMIS_API_URL` + API token (การพิมพ์ token จะไม่แสดงผล) แล้ว **ลงทะเบียนแบบ global**
-ด้วย `claude mcp add --scope user` — **ใช้ได้ทุกโปรเจกต์** ไม่ใช่แค่โฟลเดอร์เดียว · จากนั้น
-**restart Claude Code** แล้วลองพิมพ์ `list projects ใน artemis`
+สคริปต์จะถาม `ARTEMIS_API_URL` + API token (การพิมพ์ token จะไม่แสดงผล) แล้ว **ลงทะเบียนแบบ global** —
+Claude Code ใช้ `claude mcp add --scope user` · Codex เขียนลง `~/.codex/config.toml` ผ่าน `codex mcp add` —
+**ใช้ได้ทุกโปรเจกต์** ไม่ใช่แค่โฟลเดอร์เดียว · จากนั้น **restart client** แล้วลองพิมพ์
+`list projects ใน artemis`
 
 - สร้าง token ที่หน้าเว็บ Artemis → **Admin → API Tokens** (เริ่มลองติ๊ก `projects:read` + `tickets:read`)
 - ค่าปริยาย `ARTEMIS_API_URL` = `https://artemis-actions.dobybot.com` · กด Enter ผ่านได้
 - ตั้ง env ล่วงหน้าเพื่อข้ามคำถาม: `ARTEMIS_API_TOKEN=… ./install-mcp.sh`
   (Windows: `$env:ARTEMIS_API_TOKEN='art_…'; .\install-mcp.ps1`)
-- **`git pull` อัปเดต bundle ให้เอง** (ทางที่ลงทะเบียนไว้ไม่เปลี่ยน) — แค่ restart Claude Code
-- ถอนออก: `claude mcp remove artemis --scope user`
+- **`git pull` อัปเดต bundle ให้เอง** (ทางที่ลงทะเบียนไว้ไม่เปลี่ยน) — แค่ restart client
+- ถอนออก: `claude mcp remove artemis --scope user` · `codex mcp remove artemis`
+- ใช้ Codex บน Windows แต่ clone repo ไว้ใน WSL? path ที่ลงทะเบียนต้องเป็นฝั่งเดียวกับ client
+  ที่รัน — ให้รันตัวติดตั้งจากฝั่งนั้น (รันใน WSL ได้ path `/home/…`, รันบน Windows ได้ `C:\…`)
 
 รายละเอียดแต่ละตัว: [`mcp/artemis/README.md`](mcp/artemis/README.md)
 

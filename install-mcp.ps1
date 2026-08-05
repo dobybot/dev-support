@@ -1,23 +1,32 @@
 ﻿#Requires -Version 5.1
 <#
-    install-mcp.ps1 — ลงทะเบียน MCP server ของทีม dobybot ให้ Claude Code แบบ global (Windows)
+    install-mcp.ps1 — ลงทะเบียน MCP server ของทีม dobybot ให้ AI client แบบ global (Windows)
     เทียบเท่า install-mcp.sh บน macOS/Linux
 
-    ตอนนี้มีตัวเดียว: artemis (ห่อ REST API /api/v1 ของ Artemis · 21 tool)
+    รองรับ 2 client: Claude Code (`claude`) และ Codex CLI (`codex`) — bundle เป็น stdio MCP server
+    ตัวเดียวกัน ใช้ได้ทั้งคู่ ต่างกันแค่คำสั่งลงทะเบียน
+
+    ตอนนี้มี MCP ตัวเดียว: artemis (ห่อ REST API /api/v1 ของ Artemis · 21 tool)
     bundle ถูก commit ไว้ที่ mcp\<name>\<name>-mcp.mjs — ไม่ต้องมี repo artemis หรือ build เอง
-    ลงด้วย `claude mcp add --scope user` → ใช้ได้ทุกโปรเจกต์ · `git pull` อัปเดต bundle ให้เอง
+    ลงแบบ global (`claude mcp add --scope user` / `codex mcp add`) → ใช้ได้ทุกโปรเจกต์ ·
+    `git pull` อัปเดต bundle ให้เอง
 
     Usage:
-      .\install-mcp.ps1                    # ลง artemis (ถามค่าที่จำเป็น)
+      .\install-mcp.ps1                    # ลงให้ทุก client ที่เจอในเครื่อง
+      .\install-mcp.ps1 -Client claude     # เฉพาะ Claude Code
+      .\install-mcp.ps1 -Client codex      # เฉพาะ Codex
       $env:ARTEMIS_API_TOKEN='art_…'; .\install-mcp.ps1    # ตั้ง env ล่วงหน้าเพื่อข้ามคำถาม
 
     ถ้าโดน execution policy บล็อก:
       powershell -ExecutionPolicy Bypass -File .\install-mcp.ps1
 
-    ถอนออก:  claude mcp remove artemis --scope user
+    ถอนออก:  claude mcp remove artemis --scope user   ·   codex mcp remove artemis
 #>
 [CmdletBinding()]
-param()
+param(
+    [ValidateSet('claude', 'codex', 'all')]
+    [string]$Client = 'all'
+)
 
 $ErrorActionPreference = 'Stop'
 # ให้ข้อความไทยอ่านออกเมื่อรันผ่าน Git Bash/Windows Terminal (console เดิมเป็น ANSI codepage)
@@ -50,18 +59,57 @@ function Resolve-ClaudeCli {
     return $null
 }
 
+# หา CLI `codex` — ปกติมาจาก npm global (@openai/codex) หรือ installer ของ Codex
+function Resolve-CodexCli {
+    $cmd = Get-Command codex -ErrorAction SilentlyContinue
+    if ($cmd) { if ($cmd.Source) { return $cmd.Source } else { return 'codex' } }
+    foreach ($candidate in @(
+        (Join-Path $env:APPDATA      'npm\codex.cmd'),
+        (Join-Path $env:USERPROFILE  '.codex\bin\codex.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Programs\codex\codex.exe')
+    )) {
+        if ($candidate -and (Test-Path -LiteralPath $candidate)) { return $candidate }
+    }
+    return $null
+}
+
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     Stop-Install 'ไม่พบ node (ต้องใช้ Node 22+) — ติดตั้งจาก https://nodejs.org แล้วเปิด PowerShell ใหม่'
-}
-$Claude = Resolve-ClaudeCli
-if (-not $Claude) {
-    Stop-Install 'ไม่พบคำสั่ง claude (Claude Code CLI) — ติดตั้ง Claude Code ก่อน หรือเปิด PowerShell ใหม่ให้ PATH อัพเดต'
 }
 if (-not (Test-Path -LiteralPath $Bundle)) {
     Stop-Install "ไม่พบ bundle ที่ $Bundle — ลอง 'git pull' แล้วรันใหม่"
 }
 
-Write-Log "ลงทะเบียน MCP '$Name' แบบ global (scope user) — ใช้ได้ทุกโปรเจกต์"
+# ── หา client ที่จะลง ────────────────────────────────────────────────────────
+$Claude = $null
+$Codex  = $null
+if ($Client -eq 'claude' -or $Client -eq 'all') {
+    $Claude = Resolve-ClaudeCli
+    if (-not $Claude) {
+        if ($Client -eq 'claude') {
+            Stop-Install 'ไม่พบคำสั่ง claude (Claude Code CLI) — ติดตั้ง Claude Code ก่อน หรือเปิด PowerShell ใหม่ให้ PATH อัพเดต'
+        }
+        Write-Log 'ข้าม Claude Code — ไม่พบคำสั่ง claude ในเครื่อง'
+    }
+}
+if ($Client -eq 'codex' -or $Client -eq 'all') {
+    $Codex = Resolve-CodexCli
+    if (-not $Codex) {
+        if ($Client -eq 'codex') {
+            Stop-Install 'ไม่พบคำสั่ง codex (Codex CLI) — ติดตั้งก่อน: npm i -g @openai/codex หรือเปิด PowerShell ใหม่ให้ PATH อัพเดต'
+        }
+        Write-Log 'ข้าม Codex — ไม่พบคำสั่ง codex ในเครื่อง'
+    }
+}
+if (-not $Claude -and -not $Codex) {
+    Stop-Install 'ไม่พบทั้ง claude และ codex ในเครื่อง — ติดตั้ง client อย่างน้อยหนึ่งตัวก่อน'
+}
+
+$targetList = @()
+if ($Claude) { $targetList += 'Claude Code' }
+if ($Codex)  { $targetList += 'Codex' }
+$Targets = $targetList -join ' + '
+Write-Log "ลงทะเบียน MCP '$Name' แบบ global ให้: $Targets — ใช้ได้ทุกโปรเจกต์"
 
 # ── ค่าที่จำเป็น ──────────────────────────────────────────────────────────────
 $ApiUrl = $env:ARTEMIS_API_URL
@@ -98,20 +146,41 @@ if ($null -eq $SiteUrl) {
 if ($SiteUrl) { $SiteUrl = $SiteUrl.Trim().TrimEnd('/') }
 
 # ── ลงทะเบียน global ─────────────────────────────────────────────────────────
-try { & $Claude mcp remove $Name --scope user | Out-Null } catch { }   # ถอนของเดิม (ถ้ามี) เพื่อรันซ้ำได้
+# Claude ใช้ `-e KEY=VAL` + ต้องระบุ --scope user · Codex ใช้ `--env KEY=VAL` (global อยู่แล้ว
+# ที่ %USERPROFILE%\.codex\config.toml) — นอกนั้นเหมือนกัน: `-- node <bundle>`
+if ($Claude) {
+    try { & $Claude mcp remove $Name --scope user | Out-Null } catch { }   # ถอนของเดิม (ถ้ามี) เพื่อรันซ้ำได้
 
-$mcpArgs = @('mcp', 'add', $Name, '--scope', 'user',
-             '-e', "ARTEMIS_API_URL=$ApiUrl",
-             '-e', "ARTEMIS_API_TOKEN=$ApiToken")
-if ($ProjectKey) { $mcpArgs += @('-e', "ARTEMIS_PROJECT_KEY=$ProjectKey") }
-if ($SiteUrl)    { $mcpArgs += @('-e', "ARTEMIS_SITE_URL=$SiteUrl") }
-$mcpArgs += @('--', 'node', $Bundle)
+    $mcpArgs = @('mcp', 'add', $Name, '--scope', 'user',
+                 '-e', "ARTEMIS_API_URL=$ApiUrl",
+                 '-e', "ARTEMIS_API_TOKEN=$ApiToken")
+    if ($ProjectKey) { $mcpArgs += @('-e', "ARTEMIS_PROJECT_KEY=$ProjectKey") }
+    if ($SiteUrl)    { $mcpArgs += @('-e', "ARTEMIS_SITE_URL=$SiteUrl") }
+    $mcpArgs += @('--', 'node', $Bundle)
 
-& $Claude @mcpArgs | Out-Null
-if ($LASTEXITCODE -ne 0) {
-    Stop-Install "ลงทะเบียนไม่สำเร็จ — ลองมือ: claude mcp add $Name --scope user -- node `"$Bundle`""
+    & $Claude @mcpArgs | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Stop-Install "ลงทะเบียนกับ Claude Code ไม่สำเร็จ — ลองมือ: claude mcp add $Name --scope user -- node `"$Bundle`""
+    }
+    Write-Log "✅ Claude Code: ลงทะเบียน '$Name' ที่ scope user แล้ว"
 }
-Write-Log "✅ ลงทะเบียน '$Name' ที่ scope user แล้ว"
+
+if ($Codex) {
+    try { & $Codex mcp remove $Name | Out-Null } catch { }                 # ถอนของเดิม (ถ้ามี) เพื่อรันซ้ำได้
+
+    $codexArgs = @('mcp', 'add', $Name,
+                   '--env', "ARTEMIS_API_URL=$ApiUrl",
+                   '--env', "ARTEMIS_API_TOKEN=$ApiToken")
+    if ($ProjectKey) { $codexArgs += @('--env', "ARTEMIS_PROJECT_KEY=$ProjectKey") }
+    if ($SiteUrl)    { $codexArgs += @('--env', "ARTEMIS_SITE_URL=$SiteUrl") }
+    $codexArgs += @('--', 'node', $Bundle)
+
+    & $Codex @codexArgs | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Stop-Install "ลงทะเบียนกับ Codex ไม่สำเร็จ — ลองมือ: codex mcp add $Name -- node `"$Bundle`""
+    }
+    Write-Log "✅ Codex: ลงทะเบียน '$Name' ใน %USERPROFILE%\.codex\config.toml แล้ว"
+}
 
 # ── smoke-test (boot + ลิสต์ tool · ไม่แตะเน็ต ไม่ใช้ token จริง) ──────────────
 Write-Log 'smoke-test: server boot + ลิสต์ tool …'
@@ -140,5 +209,7 @@ if ($toolCount -ge 1) {
 }
 
 Write-Host ''
-Write-Log 'เสร็จแล้ว! restart Claude Code แล้วลองพิมพ์:  "list projects ใน artemis"'
-Write-Log "อัปเดต bundle → git pull แล้ว restart · ถอน → claude mcp remove $Name --scope user"
+Write-Log "เสร็จแล้ว! restart $Targets แล้วลองพิมพ์:  `"list projects ใน artemis`""
+Write-Log 'อัปเดต bundle → git pull แล้ว restart client'
+if ($Claude) { Write-Log "ถอนจาก Claude Code → claude mcp remove $Name --scope user" }
+if ($Codex)  { Write-Log "ถอนจาก Codex → codex mcp remove $Name" }
