@@ -25,8 +25,49 @@ Repo นี้คือศูนย์รวม **Claude Code skills ของ�
 
 - `SKILL.md` ต้องมี frontmatter `name:` (ตรงกับชื่อโฟลเดอร์) และ `description:` ที่มี trigger phrases
 - ไฟล์ประกอบอยู่ใน `references/` หรือ `assets/` ภายในโฟลเดอร์ skill
+- **skill มี node app ของตัวเองได้** (ดู "Node app ในโฟลเดอร์ skill" ข้างล่าง) — ของแบบนี้
+  ไม่ใช่ "ไฟล์ประกอบ" จึงไม่ต้องยัดลง `references/` หรือ `assets/`
 - ก่อนแก้ skill ที่มี `DEVELOPMENT.md` ให้อ่านไฟล์นั้นก่อนเสมอ — มันบันทึก design decisions
   และข้อห้ามที่ตัดสินใจไว้แล้ว — และอัพเดตมันเมื่อมีการตัดสินใจใหม่
 - Prose ที่ผู้ใช้อ่านเป็นภาษาไทย ศัพท์ technical คงเป็นอังกฤษ
+
+### Node app ในโฟลเดอร์ skill
+
+skill ที่ต้องมี runtime ของตัวเอง (ตอนนี้มีตัวเดียว: viewer ของ `learn-diff` ที่
+`skills/in-development/learn-diff/viewer/`) วาง node app เป็น **subfolder ของโฟลเดอร์ skill**
+ได้ ภายใต้กฎนี้:
+
+- app อยู่ในโฟลเดอร์ skill เพราะ symlink ของตัวติดตั้งต้องพามันไปด้วย — ลง skill = ได้ app,
+  ถอด skill = app หายตาม และ `git pull` อัปเดต app ให้ทั้งทีมโดยไม่ต้อง release
+- **1 โฟลเดอร์ = 1 pnpm project** (`package.json` + lockfile ของตัวเอง) ไม่ผูกกับ root ของ repo
+  ซึ่งเป็น Python (uv) อยู่แล้ว
+- ตัวติดตั้ง **ไม่ hardcode ชื่อ skill**: หลัง link เสร็จมันจะไล่หา `package.json` ในโฟลเดอร์ skill
+  และใน subfolder ชั้นเดียว (ข้าม `node_modules/` กับ dot-dir) แล้วรัน `pnpm install` (fallback `npm`) ให้
+  — skill ใหม่ที่มี node app จึงไม่ต้องแก้ `install.sh` / `install.ps1`
+- ต้องการ **node >= 20 และ pnpm >= 9** (ค่าคงที่ `NODE_MIN_MAJOR` / `PNPM_MIN_MAJOR` ใน `install.sh`
+  และ `$NodeMinMajor` / `$PnpmMinMajor` ใน `install.ps1`) — ไม่มี = ตัวติดตั้งบอกวิธีลงแล้ว exit 1
+  ไม่ใช่ลงแบบครึ่ง ๆ กลาง ๆ
+- **รันจาก source เท่านั้น** ไม่ commit build artifact (`node_modules/` กับ `dist/` อยู่ใน
+  `.gitignore` ของ root) — คนแก้ app แล้วเห็นผลทันที ไม่มีขั้นตอน build/release
+- ถ้าเพิ่ม dependency ที่ต้อง build ตอน install (native/postinstall) ต้องเพิ่มชื่อมันใน
+  `onlyBuiltDependencies` ของ `pnpm-workspace.yaml` ในโฟลเดอร์ app ด้วย — pnpm 10+ บล็อก
+  postinstall script เป็นค่าเริ่มต้น
+
+## Agent skills
+
+### Issue tracker
+
+Issue ของ repo นี้อยู่ใน GitHub Issues ของ `dobybot/dev-support` — ใช้ `gh` CLI ·
+ดู [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md)
+
+### Triage labels
+
+ใช้ชุด label มาตรฐาน 5 ตัว (`needs-triage`, `needs-info`, `ready-for-agent`,
+`ready-for-human`, `wontfix`) · ดู [docs/agents/triage-labels.md](docs/agents/triage-labels.md)
+
+### Domain docs
+
+Single-context — `CONTEXT.md` + `docs/adr/` ที่ root ·
+ดู [docs/agents/domain.md](docs/agents/domain.md)
 
 ตอบโต้กับผู้ใช้งานด้วยภาษาไทย
