@@ -14,6 +14,7 @@ dev-support/
 ├── skills/
 │   ├── in-development/     # skill ที่กำลังพัฒนา/ทดลองใช้ (เก็บ feedback อยู่)
 │   │   └── learn-diff/
+│   │       └── viewer/     # หน้าอ่านของ learn-diff (node app — ต้องมี node/pnpm ดูข้อกำหนดข้างล่าง)
 │   └── old/                # skill รุ่นก่อนจัดระเบียบ repo — ยังติดตั้งใช้ได้
 │       ├── better-review/
 │       ├── generate-test-cases/
@@ -77,6 +78,8 @@ git pull
 
 เท่านี้ skill ที่ติดตั้งไว้อัพเดตเองทันที ไม่ต้องรัน `install.sh` ซ้ำ —
 รันซ้ำเฉพาะเมื่อต้องการ **เพิ่ม skill ใหม่** หรือมี skill **ย้ายโฟลเดอร์** ใน repo
+(skill ที่มี node app อย่าง `learn-diff` ก็ไม่ต้องรันซ้ำ — ถ้า `git pull` เปลี่ยน lockfile
+มันจะลง dependency ให้เองตอนสั่งใช้งานครั้งถัดไป)
 
 ## ติดตั้ง MCP server
 
@@ -142,6 +145,17 @@ cmd /c rmdir "$env:USERPROFILE\.claude\skills\<ชื่อ-skill>"
 
 ## ข้อกำหนดเพิ่มเติมบาง skill
 
+- **`learn-diff`** เปิดหน้าอ่านผ่าน **viewer app** ที่รันบนเครื่องตัวเอง (React + Vite dev server
+  ที่ `127.0.0.1:5174`) จึงต้องมี:
+  - **node >= 20** — [nodejs.org](https://nodejs.org) · macOS: `brew install node` ·
+    Windows: `winget install OpenJS.NodeJS.LTS`
+  - **pnpm >= 9** — `npm install -g pnpm` (หรือ `corepack enable pnpm`) · ไม่มี pnpm ตัวติดตั้ง
+    จะถอยไปใช้ `npm` ที่มากับ node ให้
+
+  ตัวติดตั้งลง dependency ของ viewer ให้ตอนติดตั้ง skill (ครั้งแรกกินเวลาสักพัก) · **ไม่มี node
+  หรือไม่มีทั้ง pnpm และ npm = ตัวติดตั้งบอกวิธีลงแล้ว exit 1** — skill อื่นยังถูกติดตั้งตามปกติ
+  ลง node แล้วรันตัวติดตั้งซ้ำได้เลย · `git pull` ที่เปลี่ยน lockfile ไม่ต้องทำอะไรเพิ่ม
+  skill ตรวจแล้วลงให้เองตอนสั่งรัน
 - **skill กลุ่ม Kiwi TCMS** (`generate-test-cases`, `get-kiwi-test-cases`,
   `gen-cypress-test`, `generate-automated-test`) รันสคริปต์ Python ผ่าน
   [uv](https://docs.astral.sh/uv/) จาก root ของ repo นี้ — ติดตั้ง uv แล้วรัน
@@ -153,7 +167,10 @@ cmd /c rmdir "$env:USERPROFILE\.claude\skills\<ชื่อ-skill>"
 1. สร้างโฟลเดอร์ `skills/in-development/<ชื่อ-skill>/` (ชื่อเป็น kebab-case)
 2. เขียน `SKILL.md` มี frontmatter `name:` และ `description:` (ใส่ trigger phrases
    ใน description ด้วย เพื่อให้ Claude เรียกใช้ได้ถูกจังหวะ)
-3. ไฟล์ประกอบวางใน `references/` หรือ `assets/` ภายในโฟลเดอร์ skill
+3. ไฟล์ประกอบวางใน `references/` หรือ `assets/` ภายในโฟลเดอร์ skill · ถ้า skill ต้องมี
+   **node app** ของตัวเอง วางเป็น subfolder (เช่น `learn-diff/viewer/`) ที่มี `package.json`
+   ของตัวเอง — ตัวติดตั้งจะ `pnpm install` ให้เอง ไม่ต้องแก้ script (กติกาเต็มใน
+   [CLAUDE.md](CLAUDE.md#node-app-ในโฟลเดอร์-skill))
 4. แนะนำให้มี `DEVELOPMENT.md` บันทึก design decisions และแผนพัฒนา เพื่อให้คน/agent
    ที่มาพัฒนาต่อมี context (ดูตัวอย่างที่ `skills/in-development/learn-diff/`)
 5. เปิด PR — เมื่อ skill นิ่งแล้วค่อยพิจารณาย้ายกลุ่ม
