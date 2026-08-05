@@ -18,6 +18,11 @@
 
     ปลอดภัยเมื่อรันซ้ำ และไม่แตะ skill ที่ไม่ได้เป็นของ repo นี้ (โฟลเดอร์จริง หรือ link
     ที่ชี้ออกนอก clone จะถูกข้าม)
+
+    skill บางตัวมี node app มาด้วย (เช่น viewer ของ learn-diff) — หลัง link เสร็จ ทุก
+    package.json ในโฟลเดอร์ skill (ที่ root หรือในโฟลเดอร์ย่อยชั้นเดียว) จะถูกติดตั้ง
+    dependency ด้วย pnpm (fallback เป็น npm ถ้าไม่มี pnpm) · ถ้าไม่มี node หรือ node เก่าเกินไป
+    จะ fail แบบชัดเจนพร้อมวิธีติดตั้ง ไม่ทำงานต่อแบบครึ่ง ๆ กลาง ๆ
 #>
 [CmdletBinding()]
 param(
@@ -171,6 +176,7 @@ if ($selected.Count -eq 0) { Write-Log 'ไม่ได้เลือกอะ�
 # ---------- install/update selected ----------
 $installed = 0; $skipped = 0; $pruned = 0
 $repoNorm  = Get-NormalPath $Repo
+$linked    = @()   # skill ที่ link สำเร็จจริง — ใช้ต่อในขั้นติดตั้ง dependency ข้างล่าง
 
 foreach ($item in $selected) {
     if ((Test-Path -LiteralPath $item.Link)) {
@@ -193,9 +199,109 @@ foreach ($item in $selected) {
         New-SkillLink -Link $item.Link -Target $item.Path
         Write-Log "linked $($item.Name) -> $($item.Path.Substring($repoNorm.Length + 1))"
         $installed++
+        $linked += $item
     } catch {
         Write-Warn "ข้าม $($item.Name): สร้าง link ไม่สำเร็จ — $($_.Exception.Message)"
         $skipped++
+    }
+}
+
+# ---------- ติดตั้ง node dependency ให้ skill ที่มี node app ----------
+# กฎกลาง ไม่ผูกกับ skill ตัวใดตัวหนึ่ง: หลัง link เสร็จ ทุก package.json ในโฟลเดอร์ skill
+# (ที่ root หรือในโฟลเดอร์ย่อยชั้นเดียว เช่น learn-diff\viewer\) จะถูก pnpm install
+# — ไม่มี pnpm ค่อย fallback เป็น npm · ไม่มี node / node เก่าเกินไป = fail ชัดเจนพร้อมวิธีแก้
+$NodeMinMajor = 20
+$PnpmMinMajor = 9
+$PkgMgr       = $null    # resolve ครั้งเดียว ตอนเจอ skill ตัวแรกที่ต้องใช้
+$depsFailed   = $false
+
+function Show-ToolchainHint {
+    param([string]$SkillName)
+    Write-Warn "  ต้องการ: node >= $NodeMinMajor และ pnpm >= $PnpmMinMajor (หรือ npm ที่มากับ node)"
+    Write-Warn "  ติดตั้ง node: https://nodejs.org  (winget install OpenJS.NodeJS.LTS)"
+    Write-Warn "  ติดตั้ง pnpm: npm install -g pnpm  (หรือ corepack enable pnpm)"
+    Write-Warn "  แล้วรัน .\install.ps1 $SkillName อีกครั้ง"
+}
+
+# คืนชื่อ package manager ('pnpm'/'npm') ถ้าใช้ได้ · คืน $null ถ้าขาด toolchain
+function Resolve-PackageManager {
+    param([string]$SkillName)
+
+    # local ต่อ function — `node -v` ที่เขียน stderr ไม่ควรทำให้ทั้งสคริปต์ตาย
+    $ErrorActionPreference = 'Continue'
+
+    if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+        Write-Warn "ไม่พบ node — ติดตั้ง dependency ของ skill '$SkillName' ไม่ได้"
+        Show-ToolchainHint $SkillName
+        return $null
+    }
+
+    $nodeVer = ''
+    try { $nodeVer = (& node -v 2>$null | Select-Object -First 1) } catch { $nodeVer = '' }
+    $match = [regex]::Match([string]$nodeVer, '^v?(\d+)')
+    $nodeMajor = 0
+    if ($match.Success) { $nodeMajor = [int]$match.Groups[1].Value }
+    if ($nodeMajor -lt $NodeMinMajor) {
+        Write-Warn "node $nodeVer เก่าเกินไป — ติดตั้ง dependency ของ skill '$SkillName' ไม่ได้"
+        Show-ToolchainHint $SkillName
+        return $null
+    }
+
+    if (Get-Command pnpm -ErrorAction SilentlyContinue) { return 'pnpm' }
+    if (Get-Command npm -ErrorAction SilentlyContinue) {
+        Write-Warn 'ไม่พบ pnpm — ใช้ npm แทน (แนะนำให้ลง pnpm: npm install -g pnpm)'
+        return 'npm'
+    }
+
+    Write-Warn "ไม่พบทั้ง pnpm และ npm — ติดตั้ง dependency ของ skill '$SkillName' ไม่ได้"
+    Show-ToolchainHint $SkillName
+    return $null
+}
+
+# package.json ที่ root ของ skill + ที่โฟลเดอร์ย่อยชั้นเดียว (ข้าม node_modules และโฟลเดอร์ที่ขึ้นต้นด้วย .)
+function Get-PackageDir {
+    param([string]$SkillPath)
+    $dirs = @()
+    if (Test-Path -LiteralPath (Join-Path $SkillPath 'package.json')) { $dirs += $SkillPath }
+    foreach ($sub in (Get-ChildItem -LiteralPath $SkillPath -Directory -ErrorAction SilentlyContinue)) {
+        if ($sub.Name -eq 'node_modules' -or $sub.Name.StartsWith('.')) { continue }
+        if (Test-Path -LiteralPath (Join-Path $sub.FullName 'package.json')) { $dirs += $sub.FullName }
+    }
+    return $dirs
+}
+
+foreach ($item in $linked) {
+    $pkgDirs = @(Get-PackageDir $item.Path)
+    if ($pkgDirs.Count -eq 0) { continue }
+
+    if (-not $PkgMgr) { $PkgMgr = Resolve-PackageManager $item.Name }
+    if (-not $PkgMgr) { $depsFailed = $true; continue }
+
+    foreach ($pkgDir in $pkgDirs) {
+        $shown = $pkgDir
+        if ($shown.StartsWith("$repoNorm\")) { $shown = $shown.Substring($repoNorm.Length + 1) }
+        Write-Log "$($item.Name): $PkgMgr install ใน $shown"
+        Push-Location -LiteralPath $pkgDir
+        try {
+            # ปิด $ErrorActionPreference='Stop' ชั่วคราว — คำสั่งภายนอกที่ exit code ไม่ใช่ 0
+            # ไม่ควรทำให้สคริปต์ตายกลางทาง เราจัดการเองด้วย $LASTEXITCODE
+            $prevEap = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            $global:LASTEXITCODE = 0
+            & $PkgMgr 'install'
+            $code = $LASTEXITCODE
+            $ErrorActionPreference = $prevEap
+            if ($code -ne 0) {
+                Write-Warn "$($item.Name): $PkgMgr install ล้มเหลวที่ $shown (exit $code)"
+                $depsFailed = $true
+            }
+        } catch {
+            Write-Warn "$($item.Name): $PkgMgr install ล้มเหลวที่ $shown — $($_.Exception.Message)"
+            $depsFailed = $true
+        } finally {
+            $ErrorActionPreference = 'Stop'
+            Pop-Location
+        }
     }
 }
 
@@ -248,3 +354,9 @@ if (Test-Path -LiteralPath $SettingsPath) {
 Write-Host ''
 Write-Log "done: $installed linked, $skipped skipped, $pruned pruned"
 Write-Log "restart Claude Code เพื่อให้เห็นการเปลี่ยนแปลง · 'git pull' อัพเดต skill ที่ติดตั้งไว้ให้เอง"
+
+if ($depsFailed) {
+    Write-Host ''
+    Write-Warn 'skill ถูก link แล้ว แต่ dependency ยังติดตั้งไม่ครบ — skill ที่ต้องใช้ node จะยังรันไม่ได้'
+    exit 1
+}

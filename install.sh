@@ -19,6 +19,11 @@
 #
 # Safe to run repeatedly. Never touches skills it does not own: an existing
 # real directory, or a symlink pointing outside this clone, is skipped.
+#
+# Skills may ship a node app (e.g. learn-diff's viewer). After linking, any
+# package.json in the skill folder — at its root or one level down — has its
+# dependencies installed with pnpm (npm as fallback). Missing or too-old node
+# is a hard failure with instructions, never a silent degradation.
 
 set -euo pipefail
 shopt -s nullglob
@@ -155,6 +160,7 @@ fi
 
 # ---------- install/update selected ----------
 installed=0 skipped=0
+LINKED=()   # indexes of skills we actually linked — used by the node-deps step below
 
 for idx in "${SELECTED[@]}"; do
   name="${NAMES[$idx]}"
@@ -168,6 +174,7 @@ for idx in "${SELECTED[@]}"; do
         ln -sfn "$src" "$link"
         log "linked $name -> ${src#"$REPO"/}"
         installed=$((installed + 1))
+        LINKED+=("$idx")
         ;;
       *)
         warn "skip $name: personal symlink exists ($current)"
@@ -181,7 +188,91 @@ for idx in "${SELECTED[@]}"; do
     ln -sfn "$src" "$link"
     log "linked $name -> ${src#"$REPO"/}"
     installed=$((installed + 1))
+    LINKED+=("$idx")
   fi
+done
+
+# ---------- node dependencies for skills that ship a node app ----------
+# Generic rule, not a per-skill special case: after linking a skill, every package.json
+# inside that skill folder — at its root, or one level down (e.g. learn-diff/viewer/) —
+# gets its dependencies installed with pnpm, falling back to npm when pnpm is absent.
+# Missing/too-old node is a HARD FAILURE with instructions, never a degraded fallback.
+NODE_MIN_MAJOR=20
+PNPM_MIN_MAJOR=9
+PKG_MGR=""          # resolved once, on first skill that needs it
+DEPS_FAILED=0
+
+toolchain_hint() {
+  warn "  ต้องการ: node >= ${NODE_MIN_MAJOR} และ pnpm >= ${PNPM_MIN_MAJOR} (หรือ npm ที่มากับ node)"
+  warn "  ติดตั้ง node: https://nodejs.org  (macOS: brew install node)"
+  warn "  ติดตั้ง pnpm: npm install -g pnpm  (หรือ corepack enable pnpm)"
+  warn "  แล้วรัน ./install.sh $1 อีกครั้ง"
+}
+
+# 0 = พร้อมใช้ (PKG_MGR ถูกเซ็ตแล้ว), 1 = ขาด toolchain
+resolve_pkg_mgr() {
+  [ -n "$PKG_MGR" ] && return 0
+
+  if ! command -v node >/dev/null 2>&1; then
+    warn "ไม่พบ node — ติดตั้ง dependency ของ skill '$1' ไม่ได้"
+    toolchain_hint "$1"
+    return 1
+  fi
+
+  node_ver="$(node -v 2>/dev/null || echo v0)"
+  node_major="${node_ver#v}"
+  node_major="${node_major%%.*}"
+  case "$node_major" in
+    ''|*[!0-9]*) node_major=0 ;;
+  esac
+  if [ "$node_major" -lt "$NODE_MIN_MAJOR" ]; then
+    warn "node $node_ver เก่าเกินไป — ติดตั้ง dependency ของ skill '$1' ไม่ได้"
+    toolchain_hint "$1"
+    return 1
+  fi
+
+  if command -v pnpm >/dev/null 2>&1; then
+    PKG_MGR="pnpm"
+    return 0
+  fi
+  if command -v npm >/dev/null 2>&1; then
+    warn "ไม่พบ pnpm — ใช้ npm แทน (แนะนำให้ลง pnpm: npm install -g pnpm)"
+    PKG_MGR="npm"
+    return 0
+  fi
+
+  warn "ไม่พบทั้ง pnpm และ npm — ติดตั้ง dependency ของ skill '$1' ไม่ได้"
+  toolchain_hint "$1"
+  return 1
+}
+
+for idx in "${LINKED[@]:-}"; do
+  [ -n "${idx:-}" ] || continue
+  name="${NAMES[$idx]}"
+  src="${PATHS[$idx]}"
+
+  # package.json ที่ root ของ skill + ที่โฟลเดอร์ย่อยชั้นเดียว (ข้าม node_modules)
+  PKG_DIRS=()
+  [ -f "$src/package.json" ] && PKG_DIRS+=("$src")
+  for sub in "$src"/*/; do
+    sub="${sub%/}"
+    [ "$(basename "$sub")" = "node_modules" ] && continue
+    [ -f "$sub/package.json" ] && PKG_DIRS+=("$sub")
+  done
+  [ "${#PKG_DIRS[@]}" -eq 0 ] && continue
+
+  if ! resolve_pkg_mgr "$name"; then
+    DEPS_FAILED=1
+    continue
+  fi
+
+  for pkg_dir in "${PKG_DIRS[@]}"; do
+    log "$name: $PKG_MGR install ใน ${pkg_dir#"$REPO"/}"
+    if ! ( cd "$pkg_dir" && "$PKG_MGR" install ); then
+      warn "$name: $PKG_MGR install ล้มเหลวที่ ${pkg_dir#"$REPO"/}"
+      DEPS_FAILED=1
+    fi
+  done
 done
 
 # ---------- prune broken links that point into this clone ----------
@@ -225,3 +316,9 @@ fi
 echo
 log "done: ${installed} linked, ${skipped} skipped, ${pruned} pruned"
 log "restart Claude Code to pick up changes; 'git pull' keeps installed skills up to date"
+
+if [ "$DEPS_FAILED" -ne 0 ]; then
+  echo
+  warn "skill ถูก link แล้ว แต่ dependency ยังติดตั้งไม่ครบ — skill ที่ต้องใช้ node จะยังรันไม่ได้"
+  exit 1
+fi
