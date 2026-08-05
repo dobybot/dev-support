@@ -7,7 +7,10 @@ Repo นี้คือศูนย์รวม **Claude Code skills ของ�
 - Skill อยู่ที่ `skills/<group>/<ชื่อ-skill>/SKILL.md` — group ปัจจุบัน:
   `in-development` (กำลังพัฒนา/เก็บ feedback) และ `old` (รุ่นก่อนจัดระเบียบ ยังใช้ได้)
 - `install.sh` scan โครงสร้างนี้อัตโนมัติ — เพิ่ม group ใหม่ได้โดยไม่ต้องแก้ script
-- Skill ถูกติดตั้งเป็น symlink จาก `~/.claude/skills/` ชี้เข้า repo (Windows = directory junction) —
+- Skill ถูกติดตั้งเป็น symlink จากโฟลเดอร์ skill ของ agent ปลายทางชี้เข้า repo (Windows = directory
+  junction) — ปลายทางเลือกได้: Claude Code (`~/.claude/skills/`) หรือ Codex (`~/.codex/skills/`)
+  หรือทั้งคู่ ผ่านตัวเลือก `--target claude|codex|both` (PowerShell: `-Target`) ·
+  โค้ดใช้ `TARGET_DIRS` / `$TargetDirs` วนทุกปลายทาง อย่าเขียนทับด้วย dest เดียวอีก —
   **การย้าย/เปลี่ยนชื่อโฟลเดอร์ skill ทำให้ link ของทั้งทีมขาด** ให้แจ้งทีมและบอกให้รันตัวติดตั้งใหม่
 - `pyproject.toml` / `uv.lock` / `.python-version` ใช้โดย skill กลุ่ม Kiwi TCMS ใน `skills/old/` — อย่าลบ
 - **ตัวติดตั้งมี 2 ชุดต้องแก้คู่กันเสมอ**: `install.sh` / `install-mcp.sh` (macOS/Linux) กับ

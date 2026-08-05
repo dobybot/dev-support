@@ -4,14 +4,18 @@
 #
 # Lists every skill under skills/<group>/ (e.g. skills/in-development/,
 # skills/old/) and lets the developer choose which ones to install or update
-# into ~/.claude/skills as symlinks. A symlink tracks this clone, so
-# `git pull` updates an installed skill's content automatically — re-run this
-# script only to add/remove skills, or after a skill moves to another group.
+# into the chosen agent's skills folder as symlinks — Claude Code
+# (~/.claude/skills), Codex (~/.codex/skills), or both. A symlink tracks this
+# clone, so `git pull` updates an installed skill's content automatically —
+# re-run this script only to add/remove skills, or after a skill moves to
+# another group.
 #
 # Usage:
-#   ./install.sh                 # interactive menu
-#   ./install.sh --all           # install/update every skill, no prompt
-#   ./install.sh learn-diff ...  # install/update the named skills, no prompt
+#   ./install.sh                          # interactive: pick agent, then skills
+#   ./install.sh --all                    # install/update every skill, no prompt
+#   ./install.sh learn-diff ...           # install/update the named skills, no prompt
+#   ./install.sh --target codex --all     # ปลายทาง: claude (default) | codex | both
+#   ./install.sh --codex learn-diff       # ทางลัดของ --target codex (มี --claude/--both ด้วย)
 #
 # This replaces the old SessionStart auto-sync mechanism (.agents/sync-skills.sh):
 # per-skill selection and sync-everything cannot coexist, so if the legacy hook
@@ -30,7 +34,8 @@ shopt -s nullglob
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_ROOT="$REPO/skills"
-DEST="$HOME/.claude/skills"
+CLAUDE_DEST="$HOME/.claude/skills"
+CODEX_DEST="$HOME/.codex/skills"
 SETTINGS="$HOME/.claude/settings.json"
 
 log()  { printf '[install] %s\n' "$*"; }
@@ -53,7 +58,66 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
 esac
 
 [ -d "$SRC_ROOT" ] || { warn "no skills/ directory in $REPO"; exit 1; }
-mkdir -p "$DEST"
+
+# ---------- parse args: --target ... + ชื่อ skill ----------
+# skill ตัวเดียวกันใช้ได้ทั้ง Claude Code และ Codex (ทั้งคู่อ่าน SKILL.md จากโฟลเดอร์
+# skills ของตัวเอง) — ต่างกันแค่ปลายทางที่วาง symlink
+TARGET=""            # claude | codex | both — ว่าง = ยังไม่ระบุ
+ARGS=()
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --target)
+      if [ "$#" -lt 2 ]; then warn "--target ต้องตามด้วย claude, codex หรือ both"; exit 1; fi
+      TARGET="$2"; shift
+      ;;
+    --target=*) TARGET="${1#--target=}" ;;
+    --claude)   TARGET="claude" ;;
+    --codex)    TARGET="codex"  ;;
+    --both)     TARGET="both"   ;;
+    *)          ARGS+=("$1")    ;;
+  esac
+  shift
+done
+
+case "$TARGET" in
+  ""|claude|codex|both) ;;
+  *) warn "ไม่รู้จัก --target: $TARGET (ใช้ได้: claude, codex, both)"; exit 1 ;;
+esac
+
+# ไม่ระบุ --target: โหมดเมนูถาม, โหมดสั่งตรงใช้ claude เหมือนเดิม
+if [ -z "$TARGET" ]; then
+  if [ "${#ARGS[@]}" -eq 0 ]; then
+    echo
+    echo "ติดตั้ง skill เข้า agent ตัวไหน"
+    echo "  1) Claude Code  ($CLAUDE_DEST)"
+    echo "  2) Codex        ($CODEX_DEST)"
+    echo "  3) ทั้งสอง"
+    echo
+    printf 'เลือก [1]: '
+    read -r target_reply
+    case "$(printf '%s' "$target_reply" | tr -d '[:space:]')" in
+      ""|1) TARGET="claude" ;;
+      2)    TARGET="codex"  ;;
+      3)    TARGET="both"   ;;
+      q|Q)  log "cancelled"; exit 0 ;;
+      *)    warn "ไม่รู้จักตัวเลือก: $target_reply"; exit 1 ;;
+    esac
+  else
+    TARGET="claude"
+  fi
+fi
+
+TARGET_LABEL=""
+TARGET_DIRS=()
+case "$TARGET" in
+  claude) TARGET_LABEL="Claude Code"; TARGET_DIRS=("$CLAUDE_DEST") ;;
+  codex)  TARGET_LABEL="Codex";       TARGET_DIRS=("$CODEX_DEST")  ;;
+  both)   TARGET_LABEL="Claude Code + Codex"; TARGET_DIRS=("$CLAUDE_DEST" "$CODEX_DEST") ;;
+esac
+
+for dest in "${TARGET_DIRS[@]}"; do mkdir -p "$dest"; done
+log "ปลายทาง: $TARGET_LABEL"
 
 # ---------- discover: skills/<group>/<name>/SKILL.md ----------
 # Parallel indexed arrays (macOS ships bash 3.2 — no associative arrays).
@@ -64,6 +128,28 @@ GRPS=()
 PATHS=()
 STATES=()
 
+# สถานะของ skill หนึ่งตัวในปลายทางหนึ่งที่ ($1 = dest, $2 = skill_dir)
+skill_state() {
+  local dest="$1" skill_dir="$2" link current
+  link="$dest/$(basename "$skill_dir")"
+
+  if [ -L "$link" ]; then
+    current="$(readlink "$link")"
+    if [ "$current" = "$skill_dir" ]; then
+      printf 'installed'
+    else
+      case "$current" in
+        "$REPO"/*) printf 'update available' ;;  # stale path inside this clone
+        *)         printf 'personal — skip'  ;;  # someone else's skill
+      esac
+    fi
+  elif [ -e "$link" ]; then
+    printf 'personal — skip'
+  else
+    printf 'not installed'
+  fi
+}
+
 for group_dir in "$SRC_ROOT"/*/; do
   group="$(basename "$group_dir")"
   for skill_dir in "$group_dir"*/; do
@@ -71,21 +157,16 @@ for group_dir in "$SRC_ROOT"/*/; do
     skill_dir="${skill_dir%/}"
     name="$(basename "$skill_dir")"
 
-    state="not installed"
-    link="$DEST/$name"
-    if [ -L "$link" ]; then
-      current="$(readlink "$link")"
-      if [ "$current" = "$skill_dir" ]; then
-        state="installed"
-      else
-        case "$current" in
-          "$REPO"/*) state="update available" ;;  # stale path inside this clone
-          *)         state="personal — skip"  ;;  # someone else's skill
-        esac
+    # หลายปลายทางแล้วสถานะไม่ตรงกัน = "บางปลายทาง" (เช่น ลง Claude ไว้แล้ว แต่ Codex ยัง)
+    state=""
+    for dest in "${TARGET_DIRS[@]}"; do
+      s="$(skill_state "$dest" "$skill_dir")"
+      if [ -z "$state" ]; then
+        state="$s"
+      elif [ "$state" != "$s" ]; then
+        state="บางปลายทาง"
       fi
-    elif [ -e "$link" ]; then
-      state="personal — skip"
-    fi
+    done
 
     NAMES+=("$name"); GRPS+=("$group"); PATHS+=("$skill_dir"); STATES+=("$state")
   done
@@ -105,11 +186,11 @@ select_all() {
   while [ "$i" -lt "$count" ]; do SELECTED+=("$i"); i=$((i + 1)); done
 }
 
-if [ "$#" -gt 0 ]; then
-  if [ "$1" = "--all" ]; then
+if [ "${#ARGS[@]}" -gt 0 ]; then
+  if [ "${ARGS[0]}" = "--all" ]; then
     select_all
   else
-    for want in "$@"; do
+    for want in "${ARGS[@]}"; do
       found=""
       i=0
       while [ "$i" -lt "$count" ]; do
@@ -121,7 +202,7 @@ if [ "$#" -gt 0 ]; then
   fi
 else
   echo
-  echo "dev-support skills — เลือก skill ที่จะติดตั้ง/อัพเดต"
+  echo "dev-support skills — เลือก skill ที่จะติดตั้ง/อัพเดตเข้า $TARGET_LABEL"
   echo
   i=0
   while [ "$i" -lt "$count" ]; do
@@ -165,31 +246,37 @@ LINKED=()   # indexes of skills we actually linked — used by the node-deps ste
 for idx in "${SELECTED[@]}"; do
   name="${NAMES[$idx]}"
   src="${PATHS[$idx]}"
-  link="$DEST/$name"
+  linked_anywhere=""
 
-  if [ -L "$link" ]; then
-    current="$(readlink "$link")"
-    case "$current" in
-      "$REPO"/*)
-        ln -sfn "$src" "$link"
-        log "linked $name -> ${src#"$REPO"/}"
-        installed=$((installed + 1))
-        LINKED+=("$idx")
-        ;;
-      *)
-        warn "skip $name: personal symlink exists ($current)"
-        skipped=$((skipped + 1))
-        ;;
-    esac
-  elif [ -e "$link" ]; then
-    warn "skip $name: a real file/dir already exists at $link"
-    skipped=$((skipped + 1))
-  else
-    ln -sfn "$src" "$link"
-    log "linked $name -> ${src#"$REPO"/}"
-    installed=$((installed + 1))
-    LINKED+=("$idx")
-  fi
+  for dest in "${TARGET_DIRS[@]}"; do
+    link="$dest/$name"
+    if [ -L "$link" ]; then
+      current="$(readlink "$link")"
+      case "$current" in
+        "$REPO"/*)
+          ln -sfn "$src" "$link"
+          log "linked $name -> ${src#"$REPO"/}  ($dest)"
+          installed=$((installed + 1))
+          linked_anywhere=1
+          ;;
+        *)
+          warn "skip $name: personal symlink exists ($current)"
+          skipped=$((skipped + 1))
+          ;;
+      esac
+    elif [ -e "$link" ]; then
+      warn "skip $name: a real file/dir already exists at $link"
+      skipped=$((skipped + 1))
+    else
+      ln -sfn "$src" "$link"
+      log "linked $name -> ${src#"$REPO"/}  ($dest)"
+      installed=$((installed + 1))
+      linked_anywhere=1
+    fi
+  done
+
+  # dependency ติดตั้งที่ source — ครั้งเดียวต่อ skill ไม่ว่าจะ link กี่ปลายทาง
+  [ -n "$linked_anywhere" ] && LINKED+=("$idx")
 done
 
 # ---------- node dependencies for skills that ship a node app ----------
@@ -278,21 +365,24 @@ done
 # ---------- prune broken links that point into this clone ----------
 # Covers skills deleted upstream AND links to pre-reorg paths (.agents/skills/...).
 pruned=0
-for link in "$DEST"/*; do
-  [ -L "$link" ] || continue
-  case "$(readlink "$link")" in
-    "$REPO"/*)
-      if [ ! -e "$link" ]; then
-        rm -f "$link"
-        log "pruned broken link: $(basename "$link")"
-        pruned=$((pruned + 1))
-      fi
-      ;;
-  esac
+for dest in "${TARGET_DIRS[@]}"; do
+  for link in "$dest"/*; do
+    [ -L "$link" ] || continue
+    case "$(readlink "$link")" in
+      "$REPO"/*)
+        if [ ! -e "$link" ]; then
+          rm -f "$link"
+          log "pruned broken link: $(basename "$link")  ($dest)"
+          pruned=$((pruned + 1))
+        fi
+        ;;
+    esac
+  done
 done
 
 # ---------- remove legacy auto-sync SessionStart hook ----------
-if [ -f "$SETTINGS" ] && grep -q 'sync-skills\.sh' "$SETTINGS"; then
+# เป็นกลไกของ Claude Code เท่านั้น — ทำเฉพาะตอนปลายทางมี claude
+if [ "$TARGET" != "codex" ] && [ -f "$SETTINGS" ] && grep -q 'sync-skills\.sh' "$SETTINGS"; then
   if command -v jq >/dev/null 2>&1; then
     backup="$SETTINGS.bak.$$"
     cp "$SETTINGS" "$backup"
@@ -315,7 +405,7 @@ fi
 
 echo
 log "done: ${installed} linked, ${skipped} skipped, ${pruned} pruned"
-log "restart Claude Code to pick up changes; 'git pull' keeps installed skills up to date"
+log "restart $TARGET_LABEL to pick up changes; 'git pull' keeps installed skills up to date"
 
 if [ "$DEPS_FAILED" -ne 0 ]; then
   echo
