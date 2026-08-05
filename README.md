@@ -7,7 +7,7 @@ Repo กลางสำหรับเก็บ **Claude Code skills** ที่
 
 ```
 dev-support/
-├── install.sh              # ตัวติดตั้ง skill (macOS/Linux) — รันแล้วเลือก skill ที่ต้องการ
+├── install.sh              # ตัวติดตั้ง skill (macOS/Linux) — เลือกปลายทาง (Claude/Codex) แล้วเลือก skill
 ├── install.ps1             # ตัวเดียวกันสำหรับ Windows (PowerShell)
 ├── install-mcp.sh          # ตัวติดตั้ง MCP server (ลง global ให้ Claude Code)
 ├── install-mcp.ps1         # ตัวเดียวกันสำหรับ Windows (PowerShell)
@@ -43,10 +43,24 @@ cd dev-support
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-จะได้เมนูให้เลือก:
+ถามปลายทางก่อนว่าจะลง skill ให้ agent ตัวไหน:
 
 ```
-dev-support skills — เลือก skill ที่จะติดตั้ง/อัพเดต
+ติดตั้ง skill เข้า agent ตัวไหน
+  1) Claude Code  (~/.claude/skills)
+  2) Codex        (~/.codex/skills)
+  3) ทั้งสอง
+
+เลือก [1]:
+```
+
+skill ชุดเดียวกันใช้ได้ทั้งสอง agent — ต่างกันแค่โฟลเดอร์ปลายทางที่วางทางลัดไว้
+เลือก `3` ได้ถ้าใช้ทั้ง Claude Code และ Codex บนเครื่องเดียวกัน
+
+จากนั้นจะได้เมนูเลือก skill:
+
+```
+dev-support skills — เลือก skill ที่จะติดตั้ง/อัพเดตเข้า Claude Code
 
    1) learn-diff                     (in-development)   [not installed]
    2) better-review                  (old)              [not installed]
@@ -54,18 +68,23 @@ dev-support skills — เลือก skill ที่จะติดตั้�
 เลือกหมายเลข (คั่นด้วย space เช่น "1 3"), a = ทั้งหมด, q = ยกเลิก:
 ```
 
-พิมพ์หมายเลขที่ต้องการ (เช่น `1 3`) แล้ว **restart Claude Code** หนึ่งครั้ง skill จะพร้อมใช้
+พิมพ์หมายเลขที่ต้องการ (เช่น `1 3`) แล้ว **restart agent ปลายทาง** หนึ่งครั้ง skill จะพร้อมใช้
+(ลงทั้งสองปลายทางแล้วสถานะไม่ตรงกันจะขึ้นว่า `บางปลายทาง`)
 
-โหมดไม่ต้องตอบคำถาม (สำหรับ script/onboarding):
+โหมดไม่ต้องตอบคำถาม (สำหรับ script/onboarding) — ไม่ระบุปลายทาง = `claude` เหมือนเดิม:
 
 ```bash
-./install.sh --all              # ติดตั้งทุก skill
-./install.sh learn-diff         # ติดตั้งเฉพาะชื่อที่ระบุ
+./install.sh --all                     # ติดตั้งทุก skill (Claude Code)
+./install.sh learn-diff                # ติดตั้งเฉพาะชื่อที่ระบุ
+./install.sh --target codex --all      # ปลายทาง: claude | codex | both
+./install.sh --codex learn-diff        # ทางลัด (มี --claude / --both ด้วย)
 ```
 
 ```powershell
-.\install.ps1 -All              # Windows — ติดตั้งทุก skill
-.\install.ps1 learn-diff        # Windows — เฉพาะชื่อที่ระบุ
+.\install.ps1 -All                     # Windows — ติดตั้งทุก skill (Claude Code)
+.\install.ps1 learn-diff               # Windows — เฉพาะชื่อที่ระบุ
+.\install.ps1 -Target codex -All       # ปลายทาง: claude | codex | both
+.\install.ps1 -Codex learn-diff        # ทางลัด (มี -Claude / -Both ด้วย)
 ```
 
 ### การอัพเดต
@@ -114,12 +133,13 @@ powershell -ExecutionPolicy Bypass -File .\install-mcp.ps1   # Windows
 ### ถอนการติดตั้ง
 
 ```bash
-rm ~/.claude/skills/<ชื่อ-skill>
+rm ~/.claude/skills/<ชื่อ-skill>     # Codex: ~/.codex/skills/<ชื่อ-skill>
 ```
 
 ```powershell
 # Windows — ใช้ rmdir กับ junction (Remove-Item -Recurse อาจไล่ลบไฟล์จริงใน repo)
 cmd /c rmdir "$env:USERPROFILE\.claude\skills\<ชื่อ-skill>"
+cmd /c rmdir "$env:USERPROFILE\.codex\skills\<ชื่อ-skill>"
 ```
 
 (ลบได้อย่างปลอดภัย — เป็นแค่ทางลัด ตัว skill จริงอยู่ใน repo)

@@ -2,16 +2,19 @@
 <#
     install.ps1 — ตัวติดตั้ง skill ของทีม dobybot สำหรับ Windows (คู่ขนานกับ install.sh บน macOS/Linux)
 
-    ลิสต์ทุก skill ใต้ skills\<group>\ แล้วให้เลือกว่าจะติดตั้ง/อัพเดตตัวไหนเข้า
-    %USERPROFILE%\.claude\skills โดยสร้างเป็น **directory junction** ชี้กลับมาที่ clone นี้
-    (junction สร้างได้โดยไม่ต้องเป็น admin และไม่ต้องเปิด Developer Mode ต่างจาก symlink)
+    ลิสต์ทุก skill ใต้ skills\<group>\ แล้วให้เลือกว่าจะติดตั้ง/อัพเดตตัวไหนเข้าโฟลเดอร์ skill
+    ของ agent ที่เลือก — Claude Code (%USERPROFILE%\.claude\skills), Codex
+    (%USERPROFILE%\.codex\skills) หรือทั้งสอง — โดยสร้างเป็น **directory junction** ชี้กลับมาที่
+    clone นี้ (junction สร้างได้โดยไม่ต้องเป็น admin และไม่ต้องเปิด Developer Mode ต่างจาก symlink)
     เมื่อเป็น junction แล้ว `git pull` จะอัพเดตเนื้อ skill ให้เอง — รันสคริปต์นี้ซ้ำเฉพาะตอน
     เพิ่ม/ถอด skill หรือเมื่อ skill ย้ายกลุ่ม
 
     Usage:
-      .\install.ps1                      # เมนูเลือก
+      .\install.ps1                      # เมนูเลือก (ถาม agent ก่อน แล้วค่อยเลือก skill)
       .\install.ps1 -All                 # ติดตั้ง/อัพเดตทุก skill ไม่ถาม
       .\install.ps1 learn-diff better-review   # ระบุชื่อ ไม่ถาม
+      .\install.ps1 -Target codex -All   # ปลายทาง: claude (default) | codex | both
+      .\install.ps1 -Codex learn-diff    # ทางลัดของ -Target codex (มี -Claude/-Both ด้วย)
 
     ถ้าโดน execution policy บล็อก ให้รันแบบนี้:
       powershell -ExecutionPolicy Bypass -File .\install.ps1
@@ -27,6 +30,10 @@
 [CmdletBinding()]
 param(
     [switch]$All,
+    [string]$Target,
+    [switch]$Claude,
+    [switch]$Codex,
+    [switch]$Both,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$Skill
 )
@@ -38,7 +45,9 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 $Repo        = $PSScriptRoot
 $SrcRoot     = Join-Path $Repo 'skills'
 $ClaudeHome  = Join-Path $env:USERPROFILE '.claude'
-$Dest        = Join-Path $ClaudeHome 'skills'
+$CodexHome   = Join-Path $env:USERPROFILE '.codex'
+$ClaudeDest  = Join-Path $ClaudeHome 'skills'
+$CodexDest   = Join-Path $CodexHome  'skills'
 $SettingsPath = Join-Path $ClaudeHome 'settings.json'
 
 function Write-Log  { param([string]$Message) Write-Host "[install] $Message" }
@@ -96,35 +105,102 @@ function New-SkillLink {
 }
 
 if (-not (Test-Path -LiteralPath $SrcRoot)) { Stop-Install "ไม่พบโฟลเดอร์ skills\ ใน $Repo" }
-New-Item -ItemType Directory -Path $Dest -Force | Out-Null
+
+# ---------- normalize args: --all / --target ... / ชื่อ skill ----------
+# รับรูปแบบเดียวกับ install.sh ด้วย เผื่อคนก๊อปคำสั่งจากเอกสารฝั่ง macOS/Linux มาวาง
+$args_ = @($Skill | Where-Object { $_ })
+if ($args_ -contains '--all' -or $args_ -contains '-all' -or $args_ -contains 'all') {
+    $All = $true
+    $args_ = @($args_ | Where-Object { $_ -notin @('--all', '-all', 'all') })
+}
+
+$rest = @()
+for ($i = 0; $i -lt $args_.Count; $i++) {
+    switch -Regex ($args_[$i]) {
+        '^--?target$'   { if ($i + 1 -ge $args_.Count) { Stop-Install '--target ต้องตามด้วย claude, codex หรือ both' }
+                          $Target = $args_[$i + 1]; $i++ }
+        '^--?target=(.+)$' { $Target = $Matches[1] }
+        '^--?claude$'   { $Target = 'claude' }
+        '^--?codex$'    { $Target = 'codex'  }
+        '^--?both$'     { $Target = 'both'   }
+        default         { $rest += $args_[$i] }
+    }
+}
+$args_ = @($rest)
+
+# ---------- ปลายทาง: Claude Code / Codex / ทั้งสอง ----------
+# skill ตัวเดียวกันใช้ได้ทั้งคู่ (ทั้งคู่อ่าน SKILL.md จากโฟลเดอร์ skill ของตัวเอง)
+# — ต่างกันแค่ที่วาง junction
+if ($Both)        { $Target = 'both'   }
+elseif ($Codex)   { $Target = 'codex'  }
+elseif ($Claude)  { $Target = 'claude' }
+
+if ($Target) {
+    $Target = $Target.Trim().ToLower()
+    if ($Target -notin @('claude', 'codex', 'both')) {
+        Stop-Install "ไม่รู้จัก -Target: $Target (ใช้ได้: claude, codex, both)"
+    }
+} elseif (-not $All -and $args_.Count -eq 0) {
+    Write-Host ''
+    Write-Host 'ติดตั้ง skill เข้า agent ตัวไหน'
+    Write-Host "  1) Claude Code  ($ClaudeDest)"
+    Write-Host "  2) Codex        ($CodexDest)"
+    Write-Host '  3) ทั้งสอง'
+    Write-Host ''
+    $targetReply = ([string](Read-Host 'เลือก [1]')).Trim()
+    switch -Regex ($targetReply) {
+        '^$'     { $Target = 'claude' }
+        '^1$'    { $Target = 'claude' }
+        '^2$'    { $Target = 'codex'  }
+        '^3$'    { $Target = 'both'   }
+        '^[qQ]$' { Write-Log 'cancelled'; exit 0 }
+        default  { Stop-Install "ไม่รู้จักตัวเลือก: $targetReply" }
+    }
+} else {
+    $Target = 'claude'   # โหมดสั่งตรงแบบไม่ระบุปลายทาง = พฤติกรรมเดิม
+}
+
+switch ($Target) {
+    'claude' { $TargetLabel = 'Claude Code';          $TargetDirs = @($ClaudeDest) }
+    'codex'  { $TargetLabel = 'Codex';                $TargetDirs = @($CodexDest)  }
+    'both'   { $TargetLabel = 'Claude Code + Codex';  $TargetDirs = @($ClaudeDest, $CodexDest) }
+}
+foreach ($dir in $TargetDirs) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+Write-Log "ปลายทาง: $TargetLabel"
 
 # ---------- discover: skills\<group>\<name>\SKILL.md ----------
+# สถานะของ skill หนึ่งตัวในปลายทางหนึ่งที่
+function Get-SkillState {
+    param([string]$Dest, [string]$SkillPath)
+    $link = Join-Path $Dest (Split-Path -Leaf $SkillPath)
+    if (-not (Test-Path -LiteralPath $link)) { return 'not installed' }
+
+    $current = Get-LinkTarget $link
+    if ($null -eq $current) { return 'personal — skip' }          # โฟลเดอร์/ไฟล์จริงของผู้ใช้เอง
+    if ($current -eq (Get-NormalPath $SkillPath)) { return 'installed' }
+    if ($current -like ((Get-NormalPath $Repo) + '\*')) { return 'update available' }  # path เก่าใน clone นี้
+    return 'personal — skip'                                      # link ของคนอื่น/ที่อื่น
+}
+
 $found = @()
 foreach ($groupDir in Get-ChildItem -LiteralPath $SrcRoot -Directory) {
     foreach ($skillDir in Get-ChildItem -LiteralPath $groupDir.FullName -Directory) {
         if (-not (Test-Path -LiteralPath (Join-Path $skillDir.FullName 'SKILL.md'))) { continue }
 
-        $link  = Join-Path $Dest $skillDir.Name
-        $state = 'not installed'
-        if (Test-Path -LiteralPath $link) {
-            $current = Get-LinkTarget $link
-            if ($null -eq $current) {
-                $state = 'personal — skip'          # โฟลเดอร์/ไฟล์จริงของผู้ใช้เอง
-            } elseif ($current -eq (Get-NormalPath $skillDir.FullName)) {
-                $state = 'installed'
-            } elseif ($current -like ((Get-NormalPath $Repo) + '\*')) {
-                $state = 'update available'         # ชี้ path เก่าใน clone นี้ (skill ย้ายกลุ่ม)
-            } else {
-                $state = 'personal — skip'          # link ของคนอื่น/ที่อื่น
-            }
+        $path = Get-NormalPath $skillDir.FullName
+
+        # หลายปลายทางแล้วสถานะไม่ตรงกัน = "บางปลายทาง" (เช่น ลง Claude ไว้แล้ว แต่ Codex ยัง)
+        $state = $null
+        foreach ($dir in $TargetDirs) {
+            $s = Get-SkillState -Dest $dir -SkillPath $path
+            if ($null -eq $state) { $state = $s } elseif ($state -ne $s) { $state = 'บางปลายทาง' }
         }
 
         $found += [pscustomobject]@{
             Name  = $skillDir.Name
             Group = $groupDir.Name
-            Path  = (Get-NormalPath $skillDir.FullName)
+            Path  = $path
             State = $state
-            Link  = $link
         }
     }
 }
@@ -132,12 +208,6 @@ foreach ($groupDir in Get-ChildItem -LiteralPath $SrcRoot -Directory) {
 if ($found.Count -eq 0) { Stop-Install "ไม่พบ skill ใต้ skills\<group>\<name>\SKILL.md" }
 
 # ---------- select ----------
-$args_ = @($Skill | Where-Object { $_ })
-if ($args_ -contains '--all' -or $args_ -contains '-all' -or $args_ -contains 'all') {
-    $All = $true
-    $args_ = @($args_ | Where-Object { $_ -notin @('--all', '-all', 'all') })
-}
-
 $selected = @()
 if ($All) {
     $selected = $found
@@ -148,7 +218,7 @@ if ($All) {
     }
 } else {
     Write-Host ''
-    Write-Host 'dev-support skills — เลือก skill ที่จะติดตั้ง/อัพเดต'
+    Write-Host "dev-support skills — เลือก skill ที่จะติดตั้ง/อัพเดตเข้า $TargetLabel"
     Write-Host ''
     for ($i = 0; $i -lt $found.Count; $i++) {
         Write-Host ('  {0,2}) {1,-30} {2,-18} [{3}]' -f ($i + 1), $found[$i].Name, "($($found[$i].Group))", $found[$i].State)
@@ -179,31 +249,40 @@ $repoNorm  = Get-NormalPath $Repo
 $linked    = @()   # skill ที่ link สำเร็จจริง — ใช้ต่อในขั้นติดตั้ง dependency ข้างล่าง
 
 foreach ($item in $selected) {
-    if ((Test-Path -LiteralPath $item.Link)) {
-        $current = Get-LinkTarget $item.Link
-        if ($null -eq $current) {
-            Write-Warn "ข้าม $($item.Name): มีโฟลเดอร์/ไฟล์จริงอยู่แล้วที่ $($item.Link)"
-            if (Test-Path -LiteralPath (Join-Path $item.Link 'SKILL.md')) {
-                # เคสที่เจอบ่อยบน Windows: เคยรัน install.sh ผ่าน Git Bash — ln -s กลายเป็นการ copy
-                Write-Warn "  ถ้านี่คือสำเนาที่เกิดจากรัน install.sh ผ่าน Git Bash ให้ลบทิ้งแล้วรันสคริปต์นี้ใหม่:"
-                Write-Warn "    Remove-Item -Recurse -Force `"$($item.Link)`""
+    $linkedAnywhere = $false
+
+    foreach ($dir in $TargetDirs) {
+        $link = Join-Path $dir $item.Name
+
+        if ((Test-Path -LiteralPath $link)) {
+            $current = Get-LinkTarget $link
+            if ($null -eq $current) {
+                Write-Warn "ข้าม $($item.Name): มีโฟลเดอร์/ไฟล์จริงอยู่แล้วที่ $link"
+                if (Test-Path -LiteralPath (Join-Path $link 'SKILL.md')) {
+                    # เคสที่เจอบ่อยบน Windows: เคยรัน install.sh ผ่าน Git Bash — ln -s กลายเป็นการ copy
+                    Write-Warn "  ถ้านี่คือสำเนาที่เกิดจากรัน install.sh ผ่าน Git Bash ให้ลบทิ้งแล้วรันสคริปต์นี้ใหม่:"
+                    Write-Warn "    Remove-Item -Recurse -Force `"$link`""
+                }
+                $skipped++; continue
             }
-            $skipped++; continue
+            if (-not ($current -like "$repoNorm\*")) {
+                Write-Warn "ข้าม $($item.Name): มี link ส่วนตัวอยู่แล้ว ($current)"
+                $skipped++; continue
+            }
         }
-        if (-not ($current -like "$repoNorm\*")) {
-            Write-Warn "ข้าม $($item.Name): มี link ส่วนตัวอยู่แล้ว ($current)"
-            $skipped++; continue
+        try {
+            New-SkillLink -Link $link -Target $item.Path
+            Write-Log "linked $($item.Name) -> $($item.Path.Substring($repoNorm.Length + 1))  ($dir)"
+            $installed++
+            $linkedAnywhere = $true
+        } catch {
+            Write-Warn "ข้าม $($item.Name): สร้าง link ไม่สำเร็จ — $($_.Exception.Message)"
+            $skipped++
         }
     }
-    try {
-        New-SkillLink -Link $item.Link -Target $item.Path
-        Write-Log "linked $($item.Name) -> $($item.Path.Substring($repoNorm.Length + 1))"
-        $installed++
-        $linked += $item
-    } catch {
-        Write-Warn "ข้าม $($item.Name): สร้าง link ไม่สำเร็จ — $($_.Exception.Message)"
-        $skipped++
-    }
+
+    # dependency ติดตั้งที่ source — ครั้งเดียวต่อ skill ไม่ว่าจะ link กี่ปลายทาง
+    if ($linkedAnywhere) { $linked += $item }
 }
 
 # ---------- ติดตั้ง node dependency ให้ skill ที่มี node app ----------
@@ -306,18 +385,21 @@ foreach ($item in $linked) {
 }
 
 # ---------- prune link ที่ชี้เข้า clone นี้แต่ปลายทางหายไปแล้ว ----------
-foreach ($entry in Get-ChildItem -LiteralPath $Dest -Force) {
-    $target = Get-LinkTarget $entry.FullName
-    if ($null -eq $target) { continue }
-    if (-not ($target -like "$repoNorm\*")) { continue }
-    if (Test-Path -LiteralPath $target) { continue }
-    Remove-Link $entry.FullName
-    Write-Log "pruned broken link: $($entry.Name)"
-    $pruned++
+foreach ($dir in $TargetDirs) {
+    foreach ($entry in Get-ChildItem -LiteralPath $dir -Force) {
+        $target = Get-LinkTarget $entry.FullName
+        if ($null -eq $target) { continue }
+        if (-not ($target -like "$repoNorm\*")) { continue }
+        if (Test-Path -LiteralPath $target) { continue }
+        Remove-Link $entry.FullName
+        Write-Log "pruned broken link: $($entry.Name)  ($dir)"
+        $pruned++
+    }
 }
 
 # ---------- ถอด SessionStart hook ของระบบ auto-sync เดิม ----------
-if (Test-Path -LiteralPath $SettingsPath) {
+# เป็นกลไกของ Claude Code เท่านั้น — ทำเฉพาะตอนปลายทางมี claude
+if ($Target -ne 'codex' -and (Test-Path -LiteralPath $SettingsPath)) {
     $raw = Get-Content -LiteralPath $SettingsPath -Raw
     if ($raw -match 'sync-skills\.(sh|ps1)') {
         try {
@@ -353,7 +435,7 @@ if (Test-Path -LiteralPath $SettingsPath) {
 
 Write-Host ''
 Write-Log "done: $installed linked, $skipped skipped, $pruned pruned"
-Write-Log "restart Claude Code เพื่อให้เห็นการเปลี่ยนแปลง · 'git pull' อัพเดต skill ที่ติดตั้งไว้ให้เอง"
+Write-Log "restart $TargetLabel เพื่อให้เห็นการเปลี่ยนแปลง · 'git pull' อัพเดต skill ที่ติดตั้งไว้ให้เอง"
 
 if ($depsFailed) {
     Write-Host ''
