@@ -1,0 +1,466 @@
+{
+  "schemaVersion": 1,
+  "id": "pr-230-etax-link-notify",
+  "title": "แจ้งลิงก์ ETax Link ทาง email/chat",
+  "subtitle": "branch `DBT-337--fast-track--lazada-etax-email-chat-notify` → base `uat` · 6 commits · 23 ไฟล์ · +2,574 / −58 · เทสต์ใหม่ 108 ตัว · สเปก #218 (30 user stories, 29 implementation decisions) · ตั๋วลูก 8 ใบ",
+  "pr": {
+    "number": 230,
+    "title": "DBT-337 แจ้งลิงก์ ETax Link ทาง email/chat",
+    "url": "https://github.com/dobybot/dobybot-monorepo/pull/230"
+  },
+  "commit": "e2b2696bb60401824ae512be9052ebce7ce85e70",
+  "baseCommit": "4c211380f0f49b32571667a469fcc13da0387398",
+  "generatedAt": "2026-07-29T18:00:00+07:00",
+  "sections": [
+    { "id": "index", "title": "ภาพรวม", "kind": "index" },
+    {
+      "id": "01-eligibility",
+      "title": "01 — ด่าน “ลิงก์นี้กดแล้วใช้ได้จริงไหม”",
+      "box": "whitebox",
+      "readingList": "rl-eligibility",
+      "subtitle": "`etax/utils/etax_link_eligibility.py` (ใหม่ 173 บรรทัด) · `etax/views/views.py` (−57 / +22) · `etax/tests/test_etax_link_eligibility.py` (26 เทสต์) · ตั๋ว #219 — ประกาศตัวว่าเป็น prefactor: ไม่มีพฤติกรรมใหม่"
+    },
+    {
+      "id": "02-trigger-marker",
+      "title": "02 — ทริกเกอร์ + เครื่องหมาย + hot path ของ sync",
+      "box": "whitebox",
+      "readingList": "rl-trigger",
+      "subtitle": "`services/etax_invoice/etax_service.py` (+11) · `picking/models/models.py` (+36) · `cloudtasks/tasks.py` (+26)"
+    },
+    {
+      "id": "03-handler-channels",
+      "title": "03 — handler + ช่องทางอีเมล/แชท + log",
+      "box": "whitebox",
+      "readingList": "rl-handler",
+      "subtitle": "`etax/utils/etax_link_notify.py` (523 บรรทัด — หัวใจของฟีเจอร์) · `etax/views/etax_link_notify_views.py` (54)"
+    },
+    {
+      "id": "04-settings-migrations",
+      "title": "04 — settings 3 คีย์ + migration 2 ใบ + admin",
+      "box": "whitebox",
+      "readingList": "rl-settings",
+      "subtitle": "`companies/models/settings.py` (+42/−1) · `companies/admin_views/settings_admin/groups/etax_settings.py` (+19) · `logger/models.py` (+10) · migration 2 ใบ"
+    },
+    {
+      "id": "05-prefill",
+      "title": "05 — ล้าง prefill ที่ใช้ไม่ได้",
+      "box": "greybox",
+      "readingList": "rl-prefill",
+      "subtitle": "`etax/utils/etax_link_prefill.py` (ใหม่ 50 บรรทัด) · `etax/views/views.py` (+5) · `etax/tests/test_etax_link_prefill.py` (4 เทสต์)"
+    },
+    {
+      "id": "99-verify",
+      "title": "99 — คำถามทำนายผล + checklist",
+      "kind": "verify",
+      "subtitle": "ทุกข้อมี “พิสูจน์เอง” — คำสั่งจริงที่รันแล้วเห็นคำตอบด้วยตาตัวเอง ไม่ต้องเชื่อหน้านี้ · คำถามหนักที่ส่วนเสี่ยง (02, 03) ตามหลัก “จำนวนคำถามตามความเสี่ยง ไม่ใช่ตามขนาด”"
+    }
+  ],
+  "boxMap": [
+    {
+      "id": "eligibility",
+      "title": "01 — ด่าน “ลิงก์นี้ใช้ได้จริงไหม”",
+      "files": "etax_link_eligibility.py · views/views.py",
+      "box": "whitebox",
+      "section": "01-eligibility",
+      "readingList": "rl-eligibility",
+      "reason": "core business logic + **เปลี่ยนพฤติกรรม endpoint สาธารณะ** ที่ประกาศว่าจะไม่เปลี่ยน — กฎบังคับ whitebox"
+    },
+    {
+      "id": "trigger",
+      "title": "02 — ทริกเกอร์ + เครื่องหมาย + hot path ของ sync",
+      "files": "etax_service.py · picking/models/models.py · cloudtasks/tasks.py",
+      "box": "whitebox",
+      "section": "02-trigger-marker",
+      "readingList": "rl-trigger",
+      "reason": "แตะเส้นที่ทุกออเดอร์ของทุกบริษัทวิ่งผ่าน · เป็นการเปลี่ยนที่**ไม่ได้ขอ**และเสี่ยงที่สุดใน PR"
+    },
+    {
+      "id": "handler",
+      "title": "03 — handler + ช่องทางอีเมล/แชท + log",
+      "files": "etax_link_notify.py · etax_link_notify_views.py",
+      "box": "whitebox",
+      "section": "03-handler-channels",
+      "readingList": "rl-handler",
+      "reason": "ยิง API ออกนอกระบบ = ผลข้างเคียงย้อนกลับไม่ได้ (อีเมลส่งแล้วเรียกคืนไม่ได้) — กฎบังคับ whitebox"
+    },
+    {
+      "id": "settings",
+      "title": "04 — settings 3 คีย์ + migration 2 ใบ + admin",
+      "files": "settings.py · logger/models.py · migrations",
+      "box": "whitebox",
+      "section": "04-settings-migrations",
+      "readingList": "rl-settings",
+      "reason": "มี migration = กฎบังคับ whitebox · และเป็นจุดที่ “ห้าม backfill” ต้องอธิบายให้คนดูแลต่อเข้าใจ"
+    },
+    {
+      "id": "prefill",
+      "title": "05 — ล้าง prefill ที่ใช้ไม่ได้",
+      "files": "etax_link_prefill.py",
+      "box": "greybox",
+      "section": "05-prefill",
+      "readingList": "rl-prefill",
+      "reason": "ตรรกะข้อเดียว ย้อนกลับง่าย ไม่มี side effect ออกนอกระบบ — เข้าใจแนวคิด + รู้ว่าของอยู่ตรงไหนก็พอ"
+    },
+    {
+      "id": "routing",
+      "title": "การต่อสาย routing",
+      "files": "etax/urls.py +5 · etax/views/__init__.py +1",
+      "box": "blackbox",
+      "reason": "ลงทะเบียน path `link-notify/tasks/handler/` เข้า urlconf และ export view ตาม pattern เดิมของโฟลเดอร์ · *ทดสอบ:* `task test:dobybot -- etax.tests.test_etax_link_notify_handler` — ถ้า path ไม่ถูกต่อ เทสต์จะได้ 404 ทั้งชุด"
+    },
+    {
+      "id": "email-channel-column",
+      "title": "เขียน `channel=EMAIL` ในแถวอีเมลเดิม",
+      "files": "logger/models.py 2 จุด",
+      "box": "blackbox",
+      "reason": "เติมค่า `channel` ให้แถวอีเมล ready-to-ship ที่เมื่อก่อนปล่อยว่าง (input/output เดิมทุกอย่าง เพิ่มคอลัมน์เดียว) · *ทดสอบ:* `task test:dobybot -- logger.tests.test_models` ดูเทสต์ `test_success_log_has_email_channel` และ `test_old_rows_with_blank_channel_still_readable`"
+    }
+  ],
+  "reconciliation": [
+    {
+      "status": "done",
+      "ref": "D1, D2",
+      "what": "ทริกเกอร์ที่กิ่ง validate ไม่ผ่าน ไม่ผูกกับเรื่อง mask",
+      "note": "`etax_service.py:283` อยู่ใน `if errors:` ล้วน ๆ"
+    },
+    {
+      "status": "done",
+      "ref": "D3",
+      "what": "เฉพาะออเดอร์จาก marketplace",
+      "note": "`if not pick_order.order_marketplace: return False`"
+    },
+    {
+      "status": "done",
+      "ref": "D4, D30",
+      "what": "ปั๊มเครื่องหมายเฉพาะเมื่อสำเร็จ ≥ 1 ช่องทาง",
+      "note": "`sent = RESULT_SENT in results.values()`"
+    },
+    {
+      "status": "done",
+      "ref": "D5, US26",
+      "what": "ตรรกะ eligibility อยู่ที่เดียว ทั้ง public view และตัวส่งเรียกร่วมกัน",
+      "note": "view ลด 57 บรรทัด → เรียก helper ตัวเดียว"
+    },
+    {
+      "status": "done",
+      "ref": "D7, D8, US21, US22",
+      "what": "แขวน Cloud Task ใน queue แยก ไม่ส่งตรงใน request ของ webhook",
+      "note": "`create_etax_link_notify_task` queue `etax-link-notify`"
+    },
+    {
+      "status": "done",
+      "ref": "D9",
+      "what": "task id คงที่ต่อ (บริษัท, เลขออเดอร์)",
+      "note": "`etax-link-notify--c42--on1234567890`"
+    },
+    {
+      "status": "done",
+      "ref": "D11, US18",
+      "what": "handler ตอบ 200 เสมอ",
+      "note": "ทุกเส้นทางคืน `Response(...)` ไม่มีเส้นไหนโยน exception"
+    },
+    {
+      "status": "done",
+      "ref": "D12",
+      "what": "ไม่ fallback ข้ามช่องทาง",
+      "note": "เทสต์ `test_chat_failure_never_falls_back_to_email`"
+    },
+    {
+      "status": "done",
+      "ref": "D13, US27",
+      "what": "เลือกตัวส่งตาม marketplace ครอบ Lazada + Shopee",
+      "note": "`CHAT_SENDER_BY_MARKETPLACE`"
+    },
+    {
+      "status": "done",
+      "ref": "D14, US19",
+      "what": "ย่อลิงก์ด้วย `etax.me` · ย่อไม่สำเร็จ = บันทึกว่าล้มเหลว ไม่โยน exception",
+      "note": "`SHORTEN_FAILED` + เทสต์"
+    },
+    {
+      "status": "done",
+      "ref": "D15",
+      "what": "สองรูปแบบข้อความโดยไม่ต้องมี flag แยก",
+      "note": "ตัดสินจากการมี `{etax_link}` ใน template"
+    },
+    {
+      "status": "done",
+      "ref": "D16, D17, D18, US7",
+      "what": "อีเมล HTML ในโค้ด · ผู้ส่งชุดเดียวกับอีเมลใบกำกับภาษี · ไม่ทำ setting เนื้ออีเมล",
+      "note": "`build_email_html`, `get_email_sender_identity`"
+    },
+    {
+      "status": "done",
+      "ref": "D19, D20, D21, US11, US16, US17",
+      "what": "3 คีย์ · ปิดเป็นค่าเริ่มต้น · staff-only · registry + fieldset + dropdown + ประกาศตัวแปร",
+      "note": "`settings.py` + `etax_settings.py` · `variables=(\"order_number\",\"etax_link\")`"
+    },
+    {
+      "status": "done",
+      "ref": "D22, US3, US4",
+      "what": "ล้าง prefill เฉพาะฟิลด์ใน `auto_etax_errors`",
+      "note": "`etax_link_prefill.py` · 4 เทสต์"
+    },
+    {
+      "status": "done",
+      "ref": "D23",
+      "what": "**ไม่**เพิ่มด่านตรวจตอน submit ฟอร์ม",
+      "note": "ยืนยันแล้วว่า diff ไม่แตะเส้น submit"
+    },
+    {
+      "status": "done",
+      "ref": "D24, US12, US13",
+      "what": "ทุกความพยายามส่งเขียน 1 แถว · `credit=0` · remark ประจำฟีเจอร์",
+      "note": "`write_notify_log` ครอบทั้ง 4 กรณี + กรณีที่ 5 (marketplace ไม่มีตัวส่ง)"
+    },
+    {
+      "status": "done",
+      "ref": "D25",
+      "what": "**ไม่**แก้ตัวส่งแชทกลาง — ฝั่งฟีเจอร์ตรวจ `log is None` เอง",
+      "note": "`CHAT_NOT_CONNECTED`"
+    },
+    {
+      "status": "done",
+      "ref": "D26",
+      "what": "ไม่ใช้ helper log ของอีเมล ready-to-ship · ไม่ fallback ไป `shippingemail`",
+      "note": "`get_buyer_email` อ่าน `customeremail` อย่างเดียว"
+    },
+    {
+      "status": "done",
+      "ref": "D28, US24",
+      "what": "`SmsLog.CHANNEL_EMAIL` + migration choices ล้วน · เขียนค่าใน*ทุก*จุดรวมของเดิม · ไม่ backfill",
+      "note": "`logger/models.py` 2 จุด + `0044` พร้อมคอมเมนต์ห้ามเพิ่ม UPDATE"
+    },
+    {
+      "status": "done",
+      "ref": "D29, US25",
+      "what": "`EMAIL_SENDER` ประกาศชื่อคีย์ตัวเอง (เดิมเขียน `SMS_SENDER`)",
+      "note": "3 เทสต์ยืนยันค่าที่อ่านได้ไม่เปลี่ยน"
+    },
+    {
+      "status": "done",
+      "ref": "Testing",
+      "what": "เทสต์ที่ seam ทั้ง 3 · mock เฉพาะขอบนอกจริง",
+      "note": "108 เทสต์ใหม่ · mock แค่ตัวส่งอีเมล/แชท/ย่อลิงก์"
+    },
+    {
+      "status": "missing",
+      "ref": "D27 / #223",
+      "what": "ปรับ queue `auto-etax` เป็น 5 งาน/วินาที",
+      "note": "**ยังไม่ทำ** — เป็นงาน infra ไม่บล็อก PR และ PR body ประกาศไว้ตรง ๆ แล้ว (มีมติภายหลังให้เริ่มที่ **2/2** แทน 5/5 แล้วเฝ้าดู — ต้องอัปเดต AC ของ #223 ให้ตรง)"
+    },
+    {
+      "status": "missing",
+      "ref": "#220 AC4–AC5",
+      "what": "บันทึกคำสั่ง+ผล describe ลงคอมเมนต์ตั๋ว · พิสูจน์ว่า pause ทำงานจริง",
+      "note": "queue สร้างแล้ว แต่**ยังไม่ได้พิสูจน์ pause** ซึ่งเป็น kill switch ตัวจริง — ควรพิสูจน์*ก่อน*เปิดร้านแรก"
+    },
+    {
+      "status": "missing",
+      "ref": "#227",
+      "what": "rollout ร้านนำร่อง + พิสูจน์ลิงก์ผ่านแชท + อีเมลเข้า inbox",
+      "note": "งานคน ทำหลัง deploy ไม่ได้ (ข้อมูล prod ตอบไม่ได้ ต้องใช้ออเดอร์จริง)"
+    },
+    {
+      "status": "missing",
+      "ref": "US20",
+      "what": "staff รู้ว่าร้านไหนต้องปรับ `ETAX_ORDER_OPEN_DAYS` ก่อนเปิด",
+      "note": "**ไม่มีอะไรใน PR รองรับเลย** — ไม่มี query ไม่มีคำเตือนในหน้า admin ไม่มี checklist ในโค้ด พึ่งความจำของคนที่ rollout ล้วน ๆ · *นี่คือข้อที่พลาดง่ายที่สุด*"
+    },
+    {
+      "status": "missing",
+      "ref": "US14",
+      "what": "ร้านเห็นว่าออเดอร์ไหนที่ระบบ**ติดต่อผู้ซื้อไม่ได้เลย**",
+      "note": "มีแถว log (`NO BUYER EMAIL` / `CHAT_NOT_CONNECTED`) แต่**ยังไม่มีใครยืนยันว่าหน้ารายงาน SMS ฝั่งลูกค้ากรองด้วย `remark`/`channel` ใหม่ได้จริง** — PR ไม่ได้แตะฝั่ง report"
+    },
+    {
+      "status": "unrequested",
+      "ref": "picking/models/models.py:398, 506",
+      "what": "**แทรกโค้ดเข้า hot path ของ sync** — `_carry_over_extra_keys()` ใน `update_from_zort_order` (+36 บรรทัด)",
+      "note": "**สูงสุดใน PR นี้** สเปกบอกแค่ “เก็บเครื่องหมายใน `order_json.extra`” ไม่เคยพูดถึงการแตะเส้น sync เลย และนี่คือเส้นที่*ทุกออเดอร์ของทุกบริษัท*วิ่งผ่านทุกรอบ · *บรรเทา:* มี early-return 3 ชั้น และใช้ `setdefault` payload ชนะเสมอ · **ดูละเอียดที่หน้า 02**"
+    },
+    {
+      "status": "unrequested",
+      "ref": "etax_link_eligibility.py:161",
+      "what": "**เปลี่ยนพฤติกรรมของ endpoint สาธารณะ** — ด่านวันตัดรอบเดิมบังคับกับผู้ซื้อ*เสมอ* โดยไม่สนใจ `ETAX_BYPASS_CUTOFF_DATE_CHECK` · โค้ดใหม่ให้ setting นั้นครอบผู้ซื้อด้วย",
+      "note": "ตั๋ว #219 เขียนไว้ชัดว่า *“พฤติกรรมที่ผู้ใช้เห็นต้องไม่เปลี่ยนแม้แต่นิดเดียว”* แต่อันนี้เปลี่ยน · *บรรเทา:* ทำให้ตรงกับด่านกลางที่ `d1a_import_document:452` และ **ตรวจ prod แล้ว: 0 บริษัทเปิด setting นี้** · **ดูละเอียดที่หน้า 01**"
+    },
+    {
+      "status": "unrequested",
+      "ref": "etax_link_eligibility.py:171",
+      "what": "ด่านวันตัดรอบกรณี “ยังไม่มีเอกสาร” เปลี่ยนจากเทียบ `order_date` → `D1aDocument.get_doc_create_date()`",
+      "note": "เปลี่ยนพฤติกรรมเช่นกัน แต่**ทำให้ตรงกับที่อื่นทั้งระบบ** — `views.py:583`, `openapi/` 2 จุด และ `d1a_schema.py` ใช้ตัวนี้กันหมดแล้ว (DBT-288) ของเดิมคือจุดที่ตกขบวน"
+    },
+    {
+      "status": "unrequested",
+      "ref": "etax_link_notify.py:504",
+      "what": "normalize ค่า channel (`.strip().lower()`) + fallback เป็น `email` เมื่ออ่านไม่ออก",
+      "note": "เพิ่มทีหลังจากรอบ code review · แก้ปัญหาจริง (ค่าเพี้ยน = ไม่เข้าสาขาไหนเลย = ไม่ปั๊มเครื่องหมาย = วนสร้างงานใหม่ทุกรอบ sync ตลอดกาล) แต่**แลกมาด้วยการที่ค่าพิมพ์ผิดจะเงียบ ๆ ส่งอีเมลออกไปแทนที่จะดังขึ้นมา**"
+    },
+    {
+      "status": "unrequested",
+      "ref": "etax_link_notify.py:404",
+      "what": "กรณี marketplace ที่ยังไม่มีตัวส่งแชท (เช่น TikTok) → เขียน log `NO_CHAT_SENDER`",
+      "note": "ต่ำ · สเปกพูดถึงแค่ Lazada/Shopee การเพิ่มกิ่งนี้สอดคล้องกับ US29 (ทิ้งร่องรอยเสมอ)"
+    }
+  ],
+  "readingLists": [
+    {
+      "id": "rl-eligibility",
+      "title": "ด่าน eligibility — จากผลลัพธ์ ย้อนไปหาลำดับของด่าน",
+      "spans": [
+        {
+          "path": "services/dobybot/etax/utils/etax_link_eligibility.py",
+          "from": 27,
+          "to": 58,
+          "kind": "changed",
+          "why": "รายชื่อเหตุผลที่บล็อกได้ทั้งหมด — อ่านก่อนเพื่อรู้ว่าฟังก์ชันนี้ตอบอะไรได้บ้าง"
+        },
+        {
+          "path": "services/dobybot/etax/utils/etax_link_eligibility.py",
+          "from": 61,
+          "to": 79,
+          "kind": "changed",
+          "why": "ทำไมคืน *เหตุผล* ไม่ใช่ error code — และ map ทางเดียวไปเป็น error code"
+        },
+        {
+          "path": "services/dobybot/etax/utils/etax_link_eligibility.py",
+          "from": 103,
+          "to": 177,
+          "kind": "changed",
+          "why": "ตัวด่านจริง เรียงตามลำดับที่ผู้ซื้อจะเห็นเหตุผล — จุดที่เปลี่ยนพฤติกรรมอยู่ท้ายสุด"
+        },
+        {
+          "path": "services/dobybot/services/etax_invoice/etax_service.py",
+          "from": 440,
+          "to": 470,
+          "kind": "context",
+          "why": "ด่านกลางที่ helper นี้พยายามทำให้สอดคล้องด้วย (ของเดิมที่ PR ไม่ได้แก้)"
+        }
+      ]
+    },
+    {
+      "id": "rl-trigger",
+      "title": "ทริกเกอร์ + เครื่องหมาย — ตามเส้นจาก validate ไม่ผ่าน ไปถึง Cloud Task",
+      "spans": [
+        {
+          "path": "services/dobybot/services/etax_invoice/etax_service.py",
+          "from": 275,
+          "to": 300,
+          "kind": "changed",
+          "why": "จุดเดียวที่ฟีเจอร์นี้ถูกจุดชนวน — อยู่ในกิ่ง `if errors:` ล้วน ๆ"
+        },
+        {
+          "path": "services/dobybot/etax/utils/etax_link_notify.py",
+          "from": 106,
+          "to": 131,
+          "kind": "changed",
+          "why": "ฝั่ง enqueue ตรวจแค่ 3 อย่าง — สังเกตว่าด่าน eligibility *ไม่ได้* อยู่ตรงนี้"
+        },
+        {
+          "path": "services/dobybot/picking/models/models.py",
+          "from": 398,
+          "to": 422,
+          "kind": "changed",
+          "why": "โค้ดที่แทรกเข้า hot path ของ sync — early-return 3 ชั้น และ `setdefault`"
+        },
+        {
+          "path": "services/dobybot/picking/models/models.py",
+          "from": 500,
+          "to": 512,
+          "kind": "changed",
+          "why": "จุดเรียกจริงใน `update_from_zort_order` — บรรทัดที่ทุกออเดอร์วิ่งผ่าน"
+        },
+        {
+          "path": "services/dobybot/cloudtasks/tasks.py",
+          "from": 636,
+          "to": 662,
+          "kind": "changed",
+          "why": "task id คงที่ต่อ (บริษัท, เลขออเดอร์) — กันงานซ้ำได้แค่ช่วงสั้น ๆ"
+        }
+      ]
+    },
+    {
+      "id": "rl-handler",
+      "title": "handler + ช่องทางส่ง — อ่านตามลำดับที่คำขอเดินจริง",
+      "spans": [
+        {
+          "path": "services/dobybot/etax/views/etax_link_notify_views.py",
+          "from": 1,
+          "to": 54,
+          "kind": "changed",
+          "why": "ทางเข้าจาก Cloud Tasks — ดูว่าทุกเส้นทางคืน Response เสมอ"
+        },
+        {
+          "path": "services/dobybot/etax/utils/etax_link_notify.py",
+          "from": 482,
+          "to": 523,
+          "kind": "changed",
+          "why": "ตัวเลือกช่องทางและเกณฑ์ปั๊มเครื่องหมาย — หัวใจของ “สำเร็จ ≥ 1 ช่อง”"
+        },
+        {
+          "path": "services/dobybot/etax/utils/etax_link_notify.py",
+          "from": 240,
+          "to": 334,
+          "kind": "changed",
+          "why": "ช่องอีเมล ทั้ง 4 ทางออก และ log ที่เขียนในแต่ละทาง"
+        },
+        {
+          "path": "services/dobybot/etax/utils/etax_link_notify.py",
+          "from": 350,
+          "to": 481,
+          "kind": "changed",
+          "why": "ช่องแชท: template, `safe_format` และกรณีร้านยังไม่ได้ต่อแชท"
+        },
+        {
+          "path": "services/dobybot/etax/utils/etax_link_notify.py",
+          "from": 194,
+          "to": 231,
+          "kind": "changed",
+          "why": "ตัวเขียน log ตัวเดียวที่ทุกกรณีเรียก — จุดที่ทำให้ “ไม่มีอะไรเกิดขึ้น” แยกออกจากบั๊ก"
+        }
+      ]
+    },
+    {
+      "id": "rl-settings",
+      "title": "settings + migration — ทำไมต้องประกาศสองที่",
+      "spans": [
+        {
+          "path": "services/dobybot/companies/models/settings.py",
+          "from": 1896,
+          "to": 1925,
+          "kind": "changed",
+          "why": "3 คีย์ใหม่ ปิดเป็นค่าเริ่มต้นและเป็น staff-only"
+        },
+        {
+          "path": "services/dobybot/logger/models.py",
+          "from": 1,
+          "to": 60,
+          "kind": "context",
+          "why": "โครงของ SmsLog ที่คอลัมน์ channel ถูกเพิ่มเข้าไป"
+        }
+      ]
+    },
+    {
+      "id": "rl-prefill",
+      "title": "ล้าง prefill — งานจริงมี 3 บรรทัด",
+      "spans": [
+        {
+          "path": "services/dobybot/etax/utils/etax_link_prefill.py",
+          "from": 1,
+          "to": 50,
+          "kind": "changed",
+          "why": "ทั้งไฟล์ — เล็กพอที่จะอ่านรวดเดียว"
+        }
+      ]
+    }
+  ],
+  "nodeMap": {
+    "ENQ": "rl-trigger",
+    "QUEUE": "rl-trigger",
+    "HANDLER": "rl-handler",
+    "ELIG": "rl-eligibility",
+    "NOTIFY": "rl-handler",
+    "PREFILL": "rl-prefill"
+  }
+}
