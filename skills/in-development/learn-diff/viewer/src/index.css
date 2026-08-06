@@ -1,6 +1,18 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+/* ฟอนต์ไทยถูก bundle มากับแอป (#34) — จะได้ไม่พึ่งฟอนต์ในเครื่อง ซึ่งต่างกันเครื่องต่อเครื่อง
+   จนกล่องของ mermaid วัดความกว้างเพี้ยน · ต้องตรงกับ FONT_STACK ใน lib/diagram/engine-mermaid.ts */
+@import '@fontsource/noto-sans-thai/400.css';
+@import '@fontsource/noto-sans-thai/500.css';
+@import '@fontsource/noto-sans-thai/600.css';
+@import '@fontsource/noto-sans-thai/700.css';
+
+@theme {
+  --font-sans:
+    'Noto Sans Thai', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /* shadcn/ui design tokens (new-york, neutral). Keep this block as shadcn generates it —

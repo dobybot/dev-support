@@ -18,8 +18,33 @@ function load() {
   return loading
 }
 
+/**
+ * "Noto Sans Thai" ต้องนำ stack และต้องเป็นตัวที่ bundle มากับแอป (import ใน index.css · #34)
+ * — ถ้าปล่อยให้ตกไปใช้ฟอนต์ในเครื่อง แต่ละเครื่องได้ metric ไม่เท่ากัน กล่องที่ mermaid
+ * คำนวณจะไม่พอดีกับข้อความที่วาดจริง (ข้อความถูกตัดขอบ) · ตัวสำรองท้าย stack มีไว้เฉพาะ
+ * กรณีฟอนต์ bundle โหลดไม่ขึ้นจริง ๆ
+ */
 const FONT_STACK =
-  'ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", "Sarabun", sans-serif'
+  '"Noto Sans Thai", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif'
+
+/**
+ * บังคับให้ฟอนต์ที่ใช้วัดข้อความโหลดเสร็จก่อน render (#34) — browser จะเริ่มโหลดฟอนต์
+ * ก็ต่อเมื่อมีข้อความใช้มันแล้ว ถ้าไม่รอ mermaid อาจวัดขนาดด้วยฟอนต์ fallback
+ * แล้วค่อยวาดด้วยฟอนต์จริงที่กว้างไม่เท่ากัน
+ */
+async function ensureFontsLoaded(): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts) return
+  try {
+    // load ทั้ง glyph ไทยและละติน · น้ำหนักปกติกับหนา (mermaid ใช้ทั้งคู่ในป้ายชื่อ)
+    await Promise.all([
+      document.fonts.load('14px "Noto Sans Thai"', 'กขค ABC'),
+      document.fonts.load('bold 14px "Noto Sans Thai"', 'กขค ABC'),
+    ])
+    await document.fonts.ready
+  } catch {
+    // โหลดฟอนต์พังไม่ควรทำให้ไดอะแกรมวาดไม่ได้ — ยอมวัดด้วย fallback ดีกว่าไม่มีรูป
+  }
+}
 
 function config(dark: boolean): MermaidConfig {
   const p = palette(dark)
@@ -70,7 +95,7 @@ export async function renderToSvg(
   source: string,
   options: { dark: boolean },
 ): Promise<string> {
-  const mermaid = await load()
+  const [mermaid] = await Promise.all([load(), ensureFontsLoaded()])
   // initialize ทุกครั้งเพราะธีมสว่าง/มืดสลับได้ระหว่าง session — เป็นแค่การ merge config
   mermaid.initialize(config(options.dark))
   const { svg } = await mermaid.render(id, source)

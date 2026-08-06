@@ -761,6 +761,26 @@ box map, `:read`, `:file` เปิด panel เดียวกันหมด �
   ทั้งสอง home / พอร์ต / ที่มาของพอร์ต (`--port` | `LEARN_DIFF_PORT` | `default`) เว้นแต่
   `--force` · server เก่าที่ไม่มี `home` = ทำแบบเดิม (ship คู่กันผ่าน git pull)
 
+## Aug 6, 2026 — #34: ข้อความใน node ของ mermaid ถูกตัด (เกิดบางเครื่อง)
+
+ต้นเหตุ: `FONT_STACK` ของไดอะแกรมอ้างฟอนต์ที่**ไม่ได้ bundle มากับแอปเลย** — บน macOS
+`system-ui` ไม่มี glyph ไทย เบราว์เซอร์ตกไปใช้ฟอนต์ที่ติดตั้งในเครื่อง (Thonburi / Noto Sans
+Thai / Sarabun แล้วแต่เครื่อง) ซึ่ง metric ไม่เท่ากัน → ความกว้างที่ mermaid วัดไม่ตรงกับที่วาดจริง
+เครื่องหนึ่งจึงเป็นอีกเครื่องไม่เป็น
+
+ทางแก้ (ทำคู่กันตามที่ตั๋วเสนอ ข้อ 1+2):
+
+- **bundle `@fontsource/noto-sans-thai`** (npm ไม่ใช่ CDN — ไม่ชนกติกา "ห้าม CDN") import
+  น้ำหนัก 400–700 ใน `viewer/src/index.css` และตั้ง `--font-sans` ใน `@theme` ให้ทั้งแอป
+  ใช้ตัวเดียวกับไดอะแกรม · `FONT_STACK` ใน `engine-mermaid.ts` เอา "Noto Sans Thai" ขึ้นนำ
+  stack — **สองที่นี้ต้องแก้คู่กันเสมอ**
+- **`ensureFontsLoaded()` ใน `engine-mermaid.ts`** ถูก await ก่อน `mermaid.render()` ทุกครั้ง —
+  บังคับ `document.fonts.load()` glyph ไทย+ละติน (ปกติ+หนา) แล้วรอ `fonts.ready` เพราะ
+  browser lazy-load ฟอนต์จนกว่าจะมีข้อความใช้จริง ถ้าไม่รอ mermaid จะวัดด้วย fallback ·
+  โหลดพัง = กลืนเงียบแล้ววาดต่อ (ยอมวัดเพี้ยนดีกว่าไม่มีรูป)
+
+ทางที่ตั๋วเสนอเป็นสำรอง (`htmlLabels: false`) **ไม่ได้ใช้** — แก้ต้นเหตุแล้วไม่จำเป็น
+
 ## v2 candidate list (as of Jul 22, 2026 — re-prioritize with feedback)
 
 - Merge-or-differentiate decision vs `better-review`
