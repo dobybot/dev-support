@@ -37,6 +37,16 @@
 
 ## Field feedback
 
+- **2026-08-06 — รันจริงครั้งแรก (dobybot-monorepo#230, default config ทุกตัว)**: ครบ 6 items,
+  14 คำถาม, ผิด 4 — ไม่มี item ไหนชน max-frustration · สิ่งที่ได้:
+  - Loop "ผิด → hint → มุมใหม่" work จริง แต่ตัวที่ปลดล็อกคือการ**ลดระดับลงถาม prerequisite**
+    (เช่น ถาม call site/บริบทที่โค้ดรัน) และการแปะโค้ดให้ trace มือ — เพิ่มเป็น tactic ใน SKILL.md แล้ว
+  - Reasoning probe (~1/3) จับความเข้าใจแบบ imprecise ได้จริง (user ตอบถูกแต่อธิบายกลไกหยาบไป)
+  - Misconception ข้าม item มี pattern ร่วมได้ ("จำ scenario ได้แต่ไม่ trace ว่าโค้ด defend แล้วหรือยัง")
+    — coverage map ควรรายงานระดับ pattern ไม่ใช่แค่รายข้อ · เพิ่มใน SKILL.md แล้ว
+  - ผลพลอยได้ที่ไม่ได้ออกแบบไว้: user เจอ review finding จริงระหว่างตอบ (แยก "โค้ดเป็น" กับ
+    "ควรเป็น") — ให้ skill เก็บรายงานแยก · เพิ่มใน SKILL.md แล้ว
+
 - **2026-08-06 — prompt suggestion เฉลยคำตอบ**: ตอนลองใช้จริง auto-suggest ในช่องพิมพ์
   ของ Claude Code เดาคำตอบที่ถูกให้เห็นก่อนตอบ · ตรวจแล้ว: ปิดได้เฉพาะ global
   (`/config` toggle หรือ `CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false`, มีตั้งแต่ v2.1.205)
