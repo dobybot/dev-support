@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import path from 'node:path'
 
 import type { HealthResponse } from '../src/shared/types'
 import { loadPage, loadRun } from './content'
@@ -7,6 +8,8 @@ import { ApiError } from './errors'
 import { handleRunEvents } from './events'
 import { loadFile } from './file'
 import { activeIdleTimer } from './lifecycle'
+import { warmIndex } from './nav/index-store'
+import { loadDefinition, loadReferences } from './nav/resolve'
 import { learnDiffHome, registryPath, viewerRoot } from './paths'
 import { findRun, listRuns } from './registry'
 
@@ -85,7 +88,11 @@ async function route(url: URL): Promise<{ status: number; body: unknown }> {
     }
     const run = await findRun(parts[1])
     if (parts.length === 2) {
-      return { status: 200, body: await loadRun(run) }
+      const body = await loadRun(run)
+      // index ของ navigation สร้างเป็น background ตั้งแต่เปิด run — request ที่มาก่อนเสร็จรอเงียบ ๆ
+      // ที่ `getIndex` เอง (user story 19) จึงไม่ต้อง await ตรงนี้
+      warmIndex(path.resolve(run.repoPath), run.commit)
+      return { status: 200, body }
     }
     if (parts.length === 4 && parts[2] === 'pages') {
       return { status: 200, body: await loadPage(run, parts[3]) }
@@ -102,6 +109,16 @@ async function route(url: URL): Promise<{ status: number; body: unknown }> {
     // "PR แตะบรรทัดไหนของไฟล์นี้" — hunk ทั้งไฟล์ ไม่ผูกกับช่วงที่กำลังเปิดอยู่
     if (parts.length === 3 && parts[2] === 'diff') {
       return { status: 200, body: await loadDiff(run, url.searchParams.get('path')) }
+    }
+    // code navigation — ตำแหน่ง cursor อยู่ใน query เหมือน /file (server ตัดชื่อ symbol เอง)
+    if (parts.length === 3 && (parts[2] === 'definition' || parts[2] === 'references')) {
+      const query = {
+        path: url.searchParams.get('path'),
+        line: url.searchParams.get('line'),
+        col: url.searchParams.get('col'),
+      }
+      const body = parts[2] === 'definition' ? await loadDefinition(run, query) : await loadReferences(run, query)
+      return { status: 200, body }
     }
   }
 

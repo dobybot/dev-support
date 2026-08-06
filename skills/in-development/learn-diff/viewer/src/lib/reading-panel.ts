@@ -8,10 +8,19 @@ import type { RunData } from '@/shared/types'
  * ไม่ใช่เรียงตามไฟล์/เลขบรรทัด (SPEC-v3 → user story 15)
  */
 
-/** สิ่งที่ panel เปิดได้ · `file` = ชื่อไฟล์ในเนื้อความที่ไม่มี id ของตัวเอง */
+/**
+ * สิ่งที่ panel เปิดได้ · `file` = ชื่อไฟล์ในเนื้อความที่ไม่มี id ของตัวเอง
+ *
+ * `file.focusLine` (CONTRACT-f12 §4.1): บรรทัดที่ต้อง flash highlight ตอนกระโดดมาจาก go-to-definition
+ * หรือจากการคลิกรายการ reference — ไม่ใช่ "ช่วงที่ agent เลือกให้อ่าน" (นั่นคือ from/to) จึงแยกฟิลด์
+ *
+ * `references`: เปิดจาก Shift+F12 หรือปุ่ม "แสดง references ทั้งหมด" — เต็ม panel จัดกลุ่มตามไฟล์
+ * (§4.1) ไม่ผ่าน `resolveTarget` เหมือน list/file เพราะข้อมูลมาจาก endpoint `/references` ไม่ใช่ run.json
+ */
 export type PanelTarget =
   | { kind: 'list'; listId: string }
-  | { kind: 'file'; path: string; from: number | null; to: number | null }
+  | { kind: 'file'; path: string; from: number | null; to: number | null; focusLine?: number }
+  | { kind: 'references'; path: string; line: number; col: number; symbol: string }
 
 /** ช่วงโค้ดหนึ่งก้อนในรูปที่ panel ใช้ — `null` = ทั้งไฟล์ */
 export interface PanelSpan {
@@ -23,17 +32,37 @@ export interface PanelSpan {
 }
 
 export function targetKey(target: PanelTarget): string {
-  return target.kind === 'list'
-    ? `list:${target.listId}`
-    : `file:${target.path}:${target.from ?? ''}-${target.to ?? ''}`
+  switch (target.kind) {
+    case 'list':
+      return `list:${target.listId}`
+    case 'file':
+      // focusLine เข้าคีย์ด้วย: กระโดดมาจาก reference คนละบรรทัดของไฟล์/ช่วงเดียวกัน ต้องนับเป็นก้าวใหม่
+      // (ไม่งั้นย้อนกลับข้ามจุดที่เพิ่งดูไปเงียบ ๆ)
+      return `file:${target.path}:${target.from ?? ''}-${target.to ?? ''}:${target.focusLine ?? ''}`
+    case 'references':
+      // เปิดซ้ำจุดเดิม (ตำแหน่ง cursor เดิมเป๊ะ) ไม่นับก้าวใหม่ (CONTRACT-f12 §4.1)
+      // symbol เข้าคีย์ด้วย — ตำแหน่งเดียวกันคนละ symbol (ไฟล์ถูก reindex/คนละ commit) ต้องเป็นคนละก้าว
+      return `refs\0${target.path}\0${target.line}\0${target.col}\0${target.symbol}`
+  }
+}
+
+/** เป้าหมายที่เป็น "จุดกระโดดชั่วคราว" ไม่ใช่ที่อ่านหลัก — ใช้ตัดสิน goBackToReading */
+function isNavigationTarget(target: PanelTarget): boolean {
+  return target.kind === 'references' || (target.kind === 'file' && target.focusLine != null)
 }
 
 /* ── ประวัติการเปิด ─────────────────────────────────────────────────────────
    เปิดได้ทีละรายการเดียว + ย้อนกลับได้ (SPEC-v3 → Viewer UI)
    tab หรือ panel ซ้อนกันถูกปฏิเสธไว้แล้ว: กองรายการที่เปิดค้างแข่งกับลำดับที่ agent เลือกมา */
 
+/** entry หนึ่งรายการของประวัติ พร้อมตำแหน่ง scroll ของมันตอนออกจากมัน (CONTRACT-f12 §4.1) */
+export interface PanelHistoryEntry {
+  target: PanelTarget
+  scrollTop: number
+}
+
 export interface PanelHistory {
-  entries: PanelTarget[]
+  entries: PanelHistoryEntry[]
   /** -1 = ยังไม่เคยเปิดอะไรเลย */
   index: number
 }
@@ -44,18 +73,32 @@ export const EMPTY_HISTORY: PanelHistory = { entries: [], index: -1 }
 export const MAX_HISTORY = 50
 
 export function currentTarget(history: PanelHistory): PanelTarget | null {
-  return history.entries[history.index] ?? null
+  return history.entries[history.index]?.target ?? null
+}
+
+/** scroll ที่จำไว้ของ entry ปัจจุบัน — hook เอาไป set ให้ scroller แทนการ reset เป็น 0 เสมอ */
+export function currentScrollTop(history: PanelHistory): number {
+  return history.entries[history.index]?.scrollTop ?? 0
 }
 
 /**
  * เปิดรายการใหม่ = แทนที่ของเดิม แล้วตัดประวัติฝั่งหน้าทิ้ง (เหมือน history ของ browser)
  * เปิดอันเดิมซ้ำไม่นับเป็นก้าวใหม่ ไม่งั้นกดปุ่มเดิมสองครั้งแล้ว "ย้อนกลับ" จะไม่ขยับ
+ *
+ * `leavingScrollTop` = scrollTop ของ entry ปัจจุบันตอนกำลังจะออกจากมัน — บันทึกไว้ก่อน push
+ * เพื่อให้กลับมาที่เดิมได้ (CONTRACT-f12 §4.1) · entry ใหม่เอี่ยมเริ่มที่ 0 เสมอ
  */
-export function pushTarget(history: PanelHistory, target: PanelTarget): PanelHistory {
+/** บันทึก scrollTop ลง entry ปัจจุบัน (ตอนกำลังจะออกจากมัน) — ใช้ร่วมกันทุกทางออก: push/back/forward */
+function recordScroll(history: PanelHistory, leavingScrollTop: number): PanelHistoryEntry[] {
+  if (history.index < 0) return history.entries
+  return history.entries.map((entry, i) => (i === history.index ? { ...entry, scrollTop: leavingScrollTop } : entry))
+}
+
+export function pushTarget(history: PanelHistory, target: PanelTarget, leavingScrollTop = 0): PanelHistory {
   const current = currentTarget(history)
   if (current && targetKey(current) === targetKey(target)) return history
-  const kept = history.entries.slice(0, history.index + 1)
-  const entries = [...kept, target].slice(-MAX_HISTORY)
+  const kept = recordScroll(history, leavingScrollTop).slice(0, history.index + 1)
+  const entries = [...kept, { target, scrollTop: 0 }].slice(-MAX_HISTORY)
   return { entries, index: entries.length - 1 }
 }
 
@@ -67,12 +110,40 @@ export function canGoForward(history: PanelHistory): boolean {
   return history.index >= 0 && history.index < history.entries.length - 1
 }
 
-export function goBack(history: PanelHistory): PanelHistory {
-  return canGoBack(history) ? { ...history, index: history.index - 1 } : history
+/**
+ * ทุกทางออกจาก entry (ไม่ใช่แค่ pushTarget) ต้องบันทึก scroll ของ entry ที่กำลังออก — CONTRACT-f12 §4.1
+ * ไม่งั้น back แล้ว forward (หรือเลื่อนรายการ references ก่อนกด "กลับไปอ่านต่อ") ตำแหน่งหายเป็น 0
+ * · default = ค่าที่จำไว้เดิม เพื่อให้ผู้เรียกที่ไม่มี scroll สด (เช่นเทสต์เดิม) ไม่ทำค่าเก่าพัง
+ */
+export function goBack(history: PanelHistory, leavingScrollTop = currentScrollTop(history)): PanelHistory {
+  if (!canGoBack(history)) return history
+  return { entries: recordScroll(history, leavingScrollTop), index: history.index - 1 }
 }
 
-export function goForward(history: PanelHistory): PanelHistory {
-  return canGoForward(history) ? { ...history, index: history.index + 1 } : history
+export function goForward(history: PanelHistory, leavingScrollTop = currentScrollTop(history)): PanelHistory {
+  if (!canGoForward(history)) return history
+  return { entries: recordScroll(history, leavingScrollTop), index: history.index + 1 }
+}
+
+/**
+ * ปุ่ม "กลับไปอ่านต่อ" (CONTRACT-f12 §4.1) — เดินถอย index ไปหา entry ล่าสุดที่ไม่ใช่จุดกระโดด
+ * ชั่วคราว (references / file ที่มี focusLine) แล้ว jump ตรงไปที่นั่นทีเดียว ข้าม entry คั่นกลาง
+ * ทั้งหมด ต่างจาก goBack ที่ถอยทีละก้าว · ไม่เจอที่อ่านมาก่อนหน้า = ไม่ทำอะไร (ไม่มีที่ให้กลับ)
+ */
+export function goBackToReading(history: PanelHistory, leavingScrollTop = currentScrollTop(history)): PanelHistory {
+  for (let i = history.index - 1; i >= 0; i -= 1) {
+    if (!isNavigationTarget(history.entries[i].target)) {
+      return { entries: recordScroll(history, leavingScrollTop), index: i }
+    }
+  }
+  // ไม่มีที่ให้กลับ = คืน object เดิมเป๊ะ — hook ใช้ identity ตัดสิน `canGoBackToReading`
+  return history
+}
+
+/** ปุ่ม "กลับไปรายการอ้างอิง" ใช้ label นี้ตัดสินว่าจะโชว์ไหม — entry ก่อนหน้าเป็น references พอดี */
+export function backGoesToReferences(history: PanelHistory): boolean {
+  const prev = history.entries[history.index - 1]
+  return prev?.target.kind === 'references'
 }
 
 /* ── ความกว้าง ─────────────────────────────────────────────────────────────
@@ -129,7 +200,11 @@ export interface ResolvedList {
   missingListId?: string
 }
 
-export function resolveTarget(data: RunData, target: PanelTarget): ResolvedList {
+/**
+ * resolve เฉพาะ `list`/`file` — target ชนิด `references` ไม่ผ่านที่นี่ (ไม่มี "resolved list" ให้มัน)
+ * component เลือก render `<ReferencesPanel>` แทนตั้งแต่ก่อนเรียกฟังก์ชันนี้
+ */
+export function resolveTarget(data: RunData, target: Exclude<PanelTarget, { kind: 'references' }>): ResolvedList {
   if (target.kind === 'file') {
     const range = target.from == null ? '' : ` บรรทัด ${target.from}${target.to && target.to !== target.from ? `–${target.to}` : ''}`
     return {

@@ -1,9 +1,11 @@
-import { ArrowLeft, ArrowRight, ChevronsDownUp, ChevronsUpDown, Columns2, Maximize2, Minimize2, Rows3, Search, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronsDownUp, ChevronsUpDown, CircleHelp, Columns2, CornerUpLeft, Maximize2, Minimize2, Rows3, Search, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { CodeView, SplitCodeView, type CodeControls } from '@/components/run/code-view'
 import { useReadingPanelState } from '@/components/run/panel-context'
+import { ReferencesPanel } from '@/components/run/references-panel'
 import { useRun } from '@/components/run/run-context'
+import { useCodeNavigation } from '@/components/run/use-code-navigation'
 import { ApiClientError, fetchDiff, fetchFile } from '@/lib/api'
 import type { CodePin } from '@/lib/code'
 import { buildRows, docText, splitDocs, unifiedDoc, type DiffMode } from '@/lib/diff'
@@ -106,22 +108,33 @@ function DiffModeToggle({ mode, onChange }: { mode: DiffMode; onChange: (mode: D
   )
 }
 
+/** นานเท่านี้ก่อน flash highlight ของจุดที่กระโดดมาจาง (go-to-definition / คลิก reference) หายไป */
+const FOCUS_FLASH_MS = 1800
+
 function SpanCard({
   index,
   span,
   runId,
   pins,
+  focusLine,
 }: {
   index: number
   span: PanelSpan
   runId: string
   /** ทุกช่วงของ "ไฟล์นี้" ในรายการเดียวกัน (รวมช่วงนี้ด้วย) — โผล่เป็นหมุดตอนกางทั้งไฟล์ */
   pins: CodePin[]
+  /** บรรทัดที่ต้อง flash highlight — มาจาก navigation (F12 / คลิก reference) ไม่ใช่ agent (CONTRACT-f12 §4.3) */
+  focusLine?: number
 }) {
   const panel = useReadingPanelState()
   const tone = TONE[span.kind]
   const editor = useRef<CodeControls | null>(null)
+  // F12 / Shift+F12 / Cmd+click จากกำแพง CodeMirror → definition/references (issue #36, §4.3)
+  // ส่ง editor ref ให้ด้วย เพื่อให้ Alt+F12 กาง peek widget ใต้บรรทัดใน editor ตัวที่กดได้
+  const nav = useCodeNavigation(span.path, editor)
   const [expanded, setExpanded] = useState(false)
+  // pin ชั่วคราวที่จางหายเอง — ใช้กลไก pin ที่มีอยู่แล้วแทนการเปิด seam ใหม่เข้าไปในกำแพง CodeMirror
+  const [flashPin, setFlashPin] = useState<CodePin | null>(null)
 
   const load = useCallback(
     () => fetchFile(runId, expanded ? { path: span.path } : { path: span.path, from: span.from, to: span.to }),
@@ -153,7 +166,10 @@ function SpanCard({
     [rows, panel.diffMode],
   )
   const split = useMemo(() => (rows && panel.diffMode === 'split' ? splitDocs(rows) : null), [rows, panel.diffMode])
-  const shownPins = expanded ? pins : undefined
+  const shownPins = useMemo(() => {
+    const base = expanded ? pins : []
+    return flashPin ? [...base, flashPin] : expanded ? base : undefined
+  }, [expanded, pins, flashPin])
 
   const lineCount = file.data ? file.data.to - file.data.from + 1 : 0
   const height = expanded || lineCount > TALL_SPAN_LINES ? TALL_HEIGHT : null
@@ -165,6 +181,27 @@ function SpanCard({
     if (!expanded || !file.data || span.from == null) return
     editor.current?.scrollToLine(span.from)
   }, [expanded, file.data, span.from, unified, split])
+
+  // จุดที่กระโดดมาจาก go-to-definition / คลิก reference (CONTRACT-f12 §4.3) — เลื่อนไปแล้ว flash
+  // ผ่านกลไก pin ที่มีอยู่แล้ว (ไม่เปิด seam ใหม่เข้ากำแพง CodeMirror) แล้วจางหายเอง
+  useEffect(() => {
+    // scrollToLine ตรงนี้ครอบเคสที่การ์ดถูก reuse (ไฟล์เดิมเปิดอยู่แล้ว กระโดดไปบรรทัดอื่น) —
+    // เคส "การ์ดเพิ่ง mount" ใช้ prop `scrollToLine` ของ CodeView แทน เพราะการเรียกทันทีตอน
+    // CodeMirror ยังไม่ measure ครั้งแรกจะหาย (ตำแหน่งถูก clamp เป็น 0) ส่วนกลไกตอนสร้าง editor
+    // เชื่อถือได้ (พิสูจน์แล้วจากโหมดกางทั้งไฟล์)
+    if (focusLine == null || !file.data) return
+    editor.current?.scrollToLine(focusLine)
+    setFlashPin({
+      label: '→',
+      from: focusLine,
+      to: focusLine,
+      kind: 'changed',
+      title: 'ตำแหน่งที่กระโดดมา',
+    })
+    const timer = window.setTimeout(() => setFlashPin(null), FOCUS_FLASH_MS)
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ตั้งใจไม่รวม unified/split: flash ครั้งเดียวตอนกระโดดมา ไม่ใช่ทุกครั้งที่เอกสารเปลี่ยน
+  }, [focusLine, file.data])
 
   return (
     <article
@@ -240,7 +277,8 @@ function SpanCard({
               language={file.data.language}
               pins={shownPins}
               height={height}
-              scrollToLine={expanded ? span.from : null}
+              scrollToLine={expanded ? span.from : (focusLine ?? null)}
+              onNavigate={nav.onNavigate}
             />
           ) : (
             <CodeView
@@ -251,11 +289,15 @@ function SpanCard({
               firstLine={file.data.from}
               pins={shownPins}
               height={height}
-              scrollToLine={expanded ? span.from : null}
+              scrollToLine={expanded ? span.from : (focusLine ?? null)}
+              onNavigate={nav.onNavigate}
             />
           )}
         </div>
       ) : null}
+
+      {/* candidate list ของ go-to-definition — โผล่เฉพาะการ์ดที่กดจริง */}
+      {nav.overlay}
 
       {file.data ? (
         <footer className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t px-3 py-1 text-[11px] text-muted-foreground">
@@ -303,6 +345,50 @@ function SpanCard({
   )
 }
 
+/** ปุ่มช่วยเหลือ: popover สรุป shortcut ของ code navigation (#36) — ไม่มี popover lib ใน repo จึงเป็น state + div เบา ๆ */
+function NavHelpButton() {
+  const [open, setOpen] = useState(false)
+  const shortcuts: [string, string][] = [
+    ['Cmd+click / F12', 'ไปที่ definition — เจอหลาย candidate จะมี list ให้เลือก + ปุ่ม show all'],
+    ['Shift+F12', 'references เต็ม panel จัดกลุ่มตามไฟล์ (ชั้น "ยืนยันไม่ได้" พับไว้) คลิกแล้ว jump + flash พร้อมปุ่มกลับสองชั้น'],
+    ['Alt+F12', 'peek — กล่อง references ใต้บรรทัด (Esc ปิดเฉพาะ peek)'],
+    ['Cmd+hover', 'ขีดเส้นใต้บอกจุดที่กดได้'],
+  ]
+  return (
+    <span className="relative">
+      <IconButton label="วิธีใช้ code navigation" onClick={() => setOpen((v) => !v)}>
+        <CircleHelp className="size-3.5" aria-hidden />
+      </IconButton>
+      {open ? (
+        <>
+          <button
+            type="button"
+            aria-label="ปิดคำอธิบาย"
+            className="fixed inset-0 z-20 cursor-default"
+            onClick={() => setOpen(false)}
+          />
+          <div className="absolute top-full right-0 z-30 mt-1.5 w-72 rounded-md border bg-popover p-3 text-popover-foreground shadow-md">
+            <p className="mb-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+              code navigation
+            </p>
+            <dl className="space-y-2 text-xs">
+              {shortcuts.map(([keys, desc]) => (
+                <div key={keys}>
+                  <dt className="font-mono font-medium">{keys}</dt>
+                  <dd className="mt-0.5 text-muted-foreground">{desc}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-2 border-t pt-2 text-[11px] text-muted-foreground">
+              ใน diff view ใช้ได้เฉพาะฝั่งใหม่ (pinned commit)
+            </p>
+          </div>
+        </>
+      ) : null}
+    </span>
+  )
+}
+
 /** ปุ่มเล็กในหัว panel — เหมือนกันหมดทั้ง ย้อนกลับ/ถัดไป/ปิด */
 function IconButton({
   label,
@@ -335,12 +421,22 @@ export function ReadingPanel() {
   const scroller = useRef<HTMLDivElement>(null)
   const { close, setWidth, fullscreen, toggleFullscreen } = panel
 
+  const isReferences = panel.target?.kind === 'references'
+  // `resolveTarget` รับแค่ list/file — target ชนิด references render ผ่าน <ReferencesPanel> แทน (§4.1)
   const resolved = useMemo(
-    () => (panel.target ? resolveTarget(data, panel.target) : null),
-    [data, panel.target],
+    () => (panel.target && !isReferences ? resolveTarget(data, panel.target as Exclude<typeof panel.target, { kind: 'references' }>) : null),
+    [data, panel.target, isReferences],
   )
   const files = useMemo(() => (resolved ? fileIndex(resolved.spans) : []), [resolved])
-  const targetLabel = panel.target ? (panel.target.kind === 'list' ? panel.target.listId : panel.target.path) : ''
+  const targetLabel = panel.target
+    ? panel.target.kind === 'list'
+      ? panel.target.listId
+      : panel.target.kind === 'references'
+        ? `refs:${panel.target.path}:${panel.target.line}:${panel.target.col}`
+        : `${panel.target.path}:${panel.target.from ?? ''}-${panel.target.to ?? ''}:${panel.target.focusLine ?? ''}`
+    : ''
+  // บรรทัดที่ต้อง flash highlight — มีความหมายเฉพาะตอนเปิด target เดียวที่ไม่ใช่ list (kind='file')
+  const focusLine = panel.target?.kind === 'file' ? panel.target.focusLine : undefined
 
   // หมุดต่อไฟล์ คิดครั้งเดียวต่อรายการ — การ์ดทุกใบของไฟล์เดียวกันเห็นหมุดชุดเดียวกัน
   // (ต้องเป็น memo: array ใหม่ทุก render จะสั่ง CodeMirror update ทุกครั้งที่ panel ขยับ)
@@ -373,10 +469,16 @@ export function ReadingPanel() {
     return () => window.removeEventListener('keydown', onKey)
   }, [close, fullscreen, toggleFullscreen])
 
-  // เปลี่ยนรายการ = เริ่มอ่านจากช่วงแรกเสมอ
+  // เปลี่ยน entry = คืน scroll ของ entry นั้นให้ (entry ใหม่เอี่ยมคือ 0 อยู่แล้วจาก pushTarget — CONTRACT-f12 §4.1)
+  // `panel.scrollTop` มาจาก history เท่านั้น (ไม่ใช่ live scroll) จึงเปลี่ยนพอดีตอน entry เปลี่ยนเท่านั้น
   useEffect(() => {
-    if (scroller.current) scroller.current.scrollTop = 0
-  }, [targetLabel])
+    if (scroller.current) scroller.current.scrollTop = panel.scrollTop
+  }, [targetLabel, panel.scrollTop])
+
+  // จำ scrollTop สดไว้ตลอดเวลา — ใช้ตอน openTarget บันทึกลง entry ที่กำลังจะออกจากมัน (ไม่ throttle เพราะแค่เขียนลง ref)
+  const onScroll = useCallback(() => {
+    if (scroller.current) panel.reportScroll(scroller.current.scrollTop)
+  }, [panel])
 
   const onHandleDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -411,7 +513,10 @@ export function ReadingPanel() {
     container.scrollTop = target.offsetTop - 8
   }, [])
 
-  if (!panel.open || !resolved) return null
+  if (!panel.open || !panel.target || (!isReferences && !resolved)) return null
+
+  // ปุ่ม "ย้อนกลับ" ตอนนี้พาไปที่รายการ references — เปลี่ยนแค่ label/icon ตัวเดียวกับปุ่มเดิม (§4.1)
+  const backLabel = panel.backGoesToReferences ? 'กลับไปรายการอ้างอิง' : 'รายการก่อนหน้า'
 
   return (
     <div
@@ -435,9 +540,16 @@ export function ReadingPanel() {
         <header className="border-b px-4 py-3">
           <div className="flex items-center gap-2">
             <span className="mr-auto text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-              ลำดับการอ่าน
+              {isReferences ? 'references' : 'ลำดับการอ่าน'}
             </span>
-            <IconButton label="รายการก่อนหน้า" onClick={panel.back} disabled={!panel.canBack}>
+            <NavHelpButton />
+            {/* กลับไปอ่านต่อ — โผล่เฉพาะตอนมีที่อ่านค้างอยู่ก่อนจุดกระโดด (§4.1) */}
+            {panel.canGoBackToReading ? (
+              <IconButton label="กลับไปอ่านต่อ" onClick={panel.backToReading}>
+                <CornerUpLeft className="size-3.5" aria-hidden />
+              </IconButton>
+            ) : null}
+            <IconButton label={backLabel} onClick={panel.back} disabled={!panel.canBack}>
               <ArrowLeft className="size-3.5" aria-hidden />
             </IconButton>
             <IconButton label="รายการถัดไป" onClick={panel.forward} disabled={!panel.canForward}>
@@ -457,34 +569,48 @@ export function ReadingPanel() {
               <X className="size-3.5" aria-hidden />
             </IconButton>
           </div>
-          <h2 className="mt-1.5 text-sm leading-snug font-semibold">{resolved.title}</h2>
-          <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-            {resolved.spans.length} ช่วง · {files.length} ไฟล์ · commit {run.commit.slice(0, 9)}
-          </p>
 
-          {/* ดัชนีไฟล์ปักหมุด — กระโดดข้ามไฟล์ในรายการนี้ได้โดยไม่เสียลำดับ (user story 17) */}
-          {files.length > 0 ? (
-            <nav className="mt-2 flex flex-wrap gap-1">
-              {files.map((entry) => (
-                <button
-                  key={entry.path}
-                  type="button"
-                  onClick={() => jumpTo(entry.firstSpan)}
-                  title={entry.path}
-                  className="max-w-full truncate rounded border px-1.5 py-0.5 font-mono text-[11px] hover:bg-muted"
-                >
-                  {baseName(entry.path)}
-                  {entry.count > 1 ? (
-                    <span className="ml-1 text-muted-foreground">×{entry.count}</span>
-                  ) : null}
-                </button>
-              ))}
-            </nav>
+          {!isReferences && resolved ? (
+            <>
+              <h2 className="mt-1.5 text-sm leading-snug font-semibold">{resolved.title}</h2>
+              <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+                {resolved.spans.length} ช่วง · {files.length} ไฟล์ · commit {run.commit.slice(0, 9)}
+              </p>
+
+              {/* ดัชนีไฟล์ปักหมุด — กระโดดข้ามไฟล์ในรายการนี้ได้โดยไม่เสียลำดับ (user story 17) */}
+              {files.length > 0 ? (
+                <nav className="mt-2 flex flex-wrap gap-1">
+                  {files.map((entry) => (
+                    <button
+                      key={entry.path}
+                      type="button"
+                      onClick={() => jumpTo(entry.firstSpan)}
+                      title={entry.path}
+                      className="max-w-full truncate rounded border px-1.5 py-0.5 font-mono text-[11px] hover:bg-muted"
+                    >
+                      {baseName(entry.path)}
+                      {entry.count > 1 ? (
+                        <span className="ml-1 text-muted-foreground">×{entry.count}</span>
+                      ) : null}
+                    </button>
+                  ))}
+                </nav>
+              ) : null}
+            </>
           ) : null}
         </header>
 
-        <div ref={scroller} className="relative flex-1 space-y-3 overflow-y-auto p-3">
-          {resolved.missingListId ? (
+        <div ref={scroller} onScroll={onScroll} className="relative flex-1 space-y-3 overflow-y-auto p-3">
+          {isReferences && panel.target.kind === 'references' ? (
+            <ReferencesPanel
+              path={panel.target.path}
+              line={panel.target.line}
+              col={panel.target.col}
+              symbol={panel.target.symbol}
+            />
+          ) : null}
+
+          {!isReferences && resolved?.missingListId ? (
             <div className="rounded-lg border border-red-400 bg-red-50 px-4 py-3 text-sm dark:bg-red-950/30">
               <p className="font-semibold text-red-900 dark:text-red-200">
                 ไม่พบ reading list "{resolved.missingListId}"
@@ -494,15 +620,18 @@ export function ReadingPanel() {
               </p>
             </div>
           ) : null}
-          {resolved.spans.map((span, i) => (
-            <SpanCard
-              key={`${span.path}:${span.from}:${i}`}
-              index={i}
-              span={span}
-              runId={run.id}
-              pins={pinsByFile.get(span.path) ?? []}
-            />
-          ))}
+          {!isReferences
+            ? resolved?.spans.map((span, i) => (
+                <SpanCard
+                  key={`${span.path}:${span.from}:${i}`}
+                  index={i}
+                  span={span}
+                  runId={run.id}
+                  pins={pinsByFile.get(span.path) ?? []}
+                  focusLine={resolved.spans.length === 1 ? focusLine : undefined}
+                />
+              ))
+            : null}
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ import type { CodeLine } from '@/lib/diff'
 import type { CodeLanguage } from '@/shared/languages'
 import { docLineForFileLine, type CodePin } from './decorations'
 import { createEditor, type EditorHandle } from './editor'
+import type { NavRequest } from './navigation'
 
 /**
  * ตัวแสดงโค้ดของ viewer — CodeMirror อยู่หลังกำแพงนี้ทั้งหมด (เหมือน mermaid ที่อยู่หลัง lib/diagram)
@@ -14,7 +15,7 @@ import { createEditor, type EditorHandle } from './editor'
  * ห้าม import '@/lib/code/<ไฟล์>' จากนอกโฟลเดอร์นี้ (มีเทสต์คุมไว้ที่ test/code.test.ts)
  */
 
-export type { CodePin }
+export type { CodePin, NavRequest }
 
 export interface CodeViewOptions {
   /** เนื้อโค้ดของช่วงที่ขอ (ไม่มี newline ปิดท้าย) */
@@ -37,14 +38,32 @@ export interface CodeViewOptions {
   height?: string | null
   /** บรรทัด (เลขฝั่ง head) ที่ต้องเห็นตั้งแต่แรกเปิด — มีผลตอนสร้าง editor เท่านั้น */
   scrollToLine?: number | null
+  /**
+   * ผู้อ่านขอ go to definition (F12 / Cmd-click) หรือ find references (Shift-F12)
+   * ไม่ส่ง = ปิดฟีเจอร์ (ไม่ underline ตอน Cmd-hover ด้วย) — เข้ากันได้กับผู้เรียกเดิม
+   */
+  onNavigate?: (req: NavRequest) => void
+  /** false = ปิด navigation ของมุมมองนี้ แม้จะส่ง onNavigate มา */
+  navigable?: boolean
 }
 
 /** สิ่งที่สั่งได้จากภายนอกโดยไม่ต้องรู้ว่าเป็นมุมมองเดี่ยวหรือสองฝั่ง (panel ถือ ref แบบนี้) */
 export interface CodeControls {
   /** เปิดช่องค้นหาในไฟล์ (เทียบเท่ากด Cmd/Ctrl-F ตอน editor โฟกัสอยู่) */
   openSearch(): void
-  /** เลื่อนไปบรรทัดของไฟล์จริง (เลขฝั่ง head) — ปุ่มหมุดของ panel เรียกตัวนี้ */
-  scrollToLine(line: number): void
+  /**
+   * เลื่อนไปบรรทัดของไฟล์จริง (เลขฝั่ง head) — ปุ่มหมุดของ panel เรียกตัวนี้
+   * `flash` = กะพริบบรรทัดปลายทางให้เห็นว่าลงตรงไหน (การกระโดดจาก definition/references)
+   */
+  scrollToLine(line: number, options?: { flash?: boolean }): void
+  /**
+   * กางกล่อง peek (block widget แบบ VSCode) ใต้บรรทัดของไฟล์จริง (เลขฝั่ง head)
+   * `dom` เป็น plain DOM element ที่ผู้เรียกเป็นเจ้าของเนื้อหา (เช่น render ผ่าน React portal) —
+   * มุมมองสองฝั่งกางที่ฝั่งขวา (pinned commit) ตามขอบเขตเดียวกับ navigation
+   */
+  openPeek(line: number, dom: HTMLElement): void
+  /** ปิดกล่อง peek (ไม่มีอยู่ = ไม่ทำอะไร) */
+  closePeek(): void
   destroy(): void
 }
 
@@ -68,7 +87,9 @@ export function mountCodeView(container: HTMLElement, options: CodeViewOptions):
       current = next
     },
     openSearch: () => editor.openSearch(),
-    scrollToLine: (line) => editor.scrollToFileLine(line),
+    scrollToLine: (line, scrollOptions) => editor.scrollToFileLine(line, scrollOptions),
+    openPeek: (line, dom) => editor.openPeek(line, dom),
+    closePeek: () => editor.closePeek(),
     destroy: () => editor.destroy(),
   }
 }
@@ -83,6 +104,11 @@ export interface SplitCodeViewOptions {
   height?: string | null
   /** บรรทัด (เลขฝั่ง head) ที่ต้องเห็นตั้งแต่แรกเปิด — มีผลตอนสร้าง editor เท่านั้น */
   scrollToLine?: number | null
+  /**
+   * ผู้อ่านขอ navigation — wire เข้า **ฝั่งขวาเท่านั้น** (pinned commit)
+   * ฝั่ง base ไม่ underline และไม่ตอบสนอง เพราะ index มีชุดเดียวที่ commit ที่ pin ไว้
+   */
+  onNavigate?: (req: NavRequest) => void
 }
 
 export interface SplitCodeViewHandle extends CodeControls {
@@ -135,6 +161,7 @@ export function mountSplitCodeView(
     lines: options.right,
     pins: options.pins,
     scrollToDocLine: startRow,
+    onNavigate: options.onNavigate,
   })
 
   /**
@@ -178,12 +205,16 @@ export function mountSplitCodeView(
         text: docTextOf(next.right),
         lines: next.right,
         pins: next.pins,
+        onNavigate: next.onNavigate,
       })
       current = next
     },
     // ค้นหา = ค้นในโค้ดฝั่งใหม่ ซึ่งเป็นฝั่งที่ผู้อ่านกำลังทำความเข้าใจ
     openSearch: () => right.openSearch(),
-    scrollToLine: (line) => right.scrollToFileLine(line),
+    scrollToLine: (line, scrollOptions) => right.scrollToFileLine(line, scrollOptions),
+    // peek กางที่ฝั่งขวา (pinned commit) — ฝั่ง base ไม่ตอบสนอง ตามขอบเขตเดียวกับ navigation
+    openPeek: (line, dom) => right.openPeek(line, dom),
+    closePeek: () => right.closePeek(),
     destroy() {
       for (const off of unlink) off()
       left.destroy()

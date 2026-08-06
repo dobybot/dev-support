@@ -59,6 +59,9 @@ importers:
       '@radix-ui/react-slot':
         specifier: ^1.2.0
         version: 1.3.3(@types/react@19.2.18)(react@19.2.8)
+      '@vscode/tree-sitter-wasm':
+        specifier: ^0.3.1
+        version: 0.3.1
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -95,6 +98,9 @@ importers:
       unist-util-visit:
         specifier: ^5.1.0
         version: 5.1.0
+      web-tree-sitter:
+        specifier: ^0.26.11
+        version: 0.26.11
     devDependencies:
       '@tailwindcss/vite':
         specifier: ^4.0.0
@@ -947,6 +953,9 @@ packages:
 
   '@vitest/utils@4.1.10':
     resolution: {integrity: sha512-fy9am/HWxbaGt/Sawrp90vt6Y6jQwf1RX77cz3uwoJwJVMli/e1IEwRPnMNJ7vKfPTwo0diXifkpPvwH9v7nGA==}
+
+  '@vscode/tree-sitter-wasm@0.3.1':
+    resolution: {integrity: sha512-RJFoomET6FajjG511fmQxeBQfU6M24a0aFZPqpid+ttIxanWf1VGytBG0UmsGjt07qmIPJS8U31D+aecuCucsQ==}
 
   assertion-error@2.0.1:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
@@ -1905,6 +1914,9 @@ packages:
   w3c-keyname@2.2.8:
     resolution: {integrity: sha512-dpojBhNsCNN7T82Tm7k26A6G9ML3NkhDsnw9n/eoxSRlVBB4CEtIQ/KTCLI2Fwf3ataSXRhYFkQi3SlnFwPvPQ==}
 
+  web-tree-sitter@0.26.11:
+    resolution: {integrity: sha512-Q5Dm3YTIXSXuH6FxX6RuzX2Qwpc4DPGiYMU87Wg5Z8OIStiQFiUex4zMDc0vBTw78EphaYJacncJghCHzbZptg==}
+
   why-is-node-running@2.3.0:
     resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==}
     engines: {node: '>=8'}
@@ -2738,6 +2750,8 @@ snapshots:
       '@vitest/pretty-format': 4.1.10
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.1
+
+  '@vscode/tree-sitter-wasm@0.3.1': {}
 
   assertion-error@2.0.1: {}
 
@@ -3929,6 +3943,8 @@ snapshots:
       - msw
 
   w3c-keyname@2.2.8: {}
+
+  web-tree-sitter@0.26.11: {}
 
   why-is-node-running@2.3.0:
     dependencies:

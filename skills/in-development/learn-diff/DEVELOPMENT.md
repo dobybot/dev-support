@@ -781,6 +781,60 @@ Thai / Sarabun แล้วแต่เครื่อง) ซึ่ง metric �
 
 ทางที่ตั๋วเสนอเป็นสำรอง (`htmlLabels: false`) **ไม่ได้ใช้** — แก้ต้นเหตุแล้วไม่จำเป็น
 
+## Aug 6, 2026 — #36: go to definition (F12) + find references (Shift+F12) แบบ syntactic
+
+เพิ่ม code navigation เข้า code panel — ทำงานบนโค้ด ณ pinned commit ของ run เสมอ (ไม่ใช่
+working tree) ผ่าน index แบบ tree-sitter (syntactic, ระดับ 2 ไม่ resolve type) เหตุผลที่ไม่ใช้
+LSP: ต้องพึ่ง venv/interpreter ของ repo เป้าหมาย ทำงานบน working tree ไม่ใช่ pinned commit
+และเพิ่ม failure mode ให้ทั้งทีม — upgrade ภายหลังได้เพราะ API contract ไม่เปลี่ยน ดู contract
+เต็มที่ `viewer/CONTRACT-f12.md`, โค้ดอยู่ที่ `server/nav/*` และ endpoint 2 ตัว
+(`/definition`, `/references`) ต่อเข้า `server/api.ts`
+
+- **tree-sitter (web-tree-sitter/wasm) ต้อง init แบบ serial ห้ามขนาน**: indexer ทุกภาษาใช้
+  wasm heap ก้อนเดียวกันทั้ง process — โหลดสองภาษาพร้อมกันพังทันทีด้วย "memory access out of
+  bounds" · `index-store.ts` จึงมี `initIndexer()` ต่อคิวผ่าน queue ตัวเดียว (`initQueue`) ทุกจุด
+  ที่เรียก `Parser.init()` (ตอน build index และตอน request ไฟล์ที่ index ข้ามไป) ต้องผ่านฟังก์ชัน
+  นี้เท่านั้น ห้ามเรียก `.init()` ตรง ๆ ที่อื่น
+- **เลือก local definition ด้วยเลขบรรทัดอย่างเดียวไม่พอ ต้องดู scope**: ตัวใกล้ที่สุดเหนือ
+  cursor พาไปผิดที่แบบมั่นใจได้ (เช่น method ของ class อื่น หรือตัวแปรของฟังก์ชันอื่นที่บังเอิญ
+  ประกาศบรรทัดก่อนหน้า) — เพิ่ม `scopeFrom`/`scopeTo` ใน `Definition` (`server/nav/types.ts`)
+  เป็นช่วงบรรทัดของ function/class/module ที่ห่อชื่อนั้นอยู่ แล้ว `pickLocal()` ใน
+  `server/nav/resolve.ts` กรอง def ที่ scope ไม่ครอบ cursor ทิ้งก่อน (ไม่ใช่แค่ลดอันดับ) จากที่
+  เหลือเลือก scope ในสุดก่อน (shadowing ถูกต้อง) แล้วค่อยตัวที่ใกล้ที่สุดเหนือ cursor — def ที่
+  ไม่รู้ scope (indexer ยังไม่เติมให้) ถือว่ามองเห็นได้ทั้งไฟล์ เพราะมองกว้างไปดีกว่ามองไม่เห็น
+- **import ที่อยู่ใน block (`if TYPE_CHECKING:`, `try/except ImportError`, import ในฟังก์ชัน)
+  ต้องเดินทั้ง tree ไม่ใช่แค่ statement ระดับ module**: `collectImports()` ใน
+  `server/nav/lang/python.ts` เดินทุก node ด้วย stack (ไม่ใช่แค่ children ตรงของ root) — pattern
+  พวกนี้เป็นเรื่องปกติของ Python จริง มองไม่เห็นเท่ากับไฟล์นั้น "ไม่ได้ import อะไรเลย" ในสายตา
+  ของ resolver (definition ตอบ ambiguous, references ตกชั้น unconfirmed ทั้งไฟล์ทั้งที่จริงเรียก
+  ได้)
+- **re-export ต้องไล่ต่อ ไม่ใช่ยอมแพ้ที่ hop แรก**: barrel `index.ts` (`export { x } from './y'`)
+  และ `__init__.py` ที่ re-export เป็น pattern ที่พบบ่อยที่สุดของทั้ง frontend และ Python package
+  — `resolveViaImports()` และ `importsFrom()` ใน `server/nav/resolve.ts` ไล่ตามเส้น import ได้
+  สูงสุด `MAX_IMPORT_HOPS = 3` ชั้น (มี `seen` set กันวนซ้ำ) ลึกกว่านี้ถือว่าหลงมากกว่าตามถูกทาง
+  · ทั้งสองฟังก์ชันต้อง "มองเห็นเท่ากัน" เสมอ (รวม `moduleWideBindings` สำหรับ star re-export /
+  wildcard import) — ไม่งั้นไฟล์ที่ F12 พาไปได้จริงจะโผล่เป็น "ยืนยันไม่ได้" ในรายการ references
+- **หลักตัดสินทุกจุดของ resolver: false negative อันตรายกว่า noise** (คนอ่าน PR สรุปผิดว่า
+  "ไม่มีใครเรียก" แย่กว่าเห็นผลปนขยะ) — ผลจากหลักนี้: (1) ไม่ทำ heuristic ระดับ class hierarchy
+  (เดา `self.foo()` ข้าม parent class) เสี่ยงพาไปผิดแบบมั่นใจ สู้ส่ง candidate list ให้คนเลือก
+  (2) references แบ่งชั้น `confident`/`unconfirmed` แต่ **ไม่ตัด unconfirmed ทิ้ง** ส่งครบพับไว้
+  พร้อมจำนวน (3) `collectImports` เดินทั้ง tree และ `resolveViaImports`/`importsFrom` ไล่
+  re-export ตามข้อข้างบนก็มาจากหลักเดียวกัน
+- **`NavRequest` (F12 / Shift+F12 / Cmd+click) เป็น plain data ล้วน**: กำแพง "ห้าม import
+  CodeMirror นอกกำแพง" ของเดิมยังบังคับใช้ — โค้ด keymap/click handler/underline decoration
+  ทั้งหมดอยู่ใน `src/lib/code/navigation.ts` หลังกำแพง สิ่งที่ข้ามออกไปให้ฝั่ง React
+  (`use-code-navigation.tsx`) มีแค่ `NavRequest` ซึ่งเป็น type ธรรมดา ไม่ใช่ CodeMirror object
+  — กัน CodeMirror รั่วออกนอก lib เหมือน convention เดิมของ code panel
+- **Test seam เดิมพอ ไม่เปิด seam ใหม่**: server ผ่าน HTTP API seam (fixture git repo จริงใน
+  temp dir, spin server จริง) — ครอบ indexer/registry/import resolver/tsconfig
+  paths/vue offset/การแบ่งชั้น references/candidate list/guard ขนาด/การรอ index ทั้งหมดไม่มี
+  unit test แยก (`test/nav.test.ts`, 1600 บรรทัด) · client ผ่าน reading-panel state seam เดิม
+  · พฤติกรรมใน CodeMirror เอง (Cmd+hover underline, click → symbol ที่ cursor) เป็น manual test
+- **ขอบเขต**: Python, TS/JS, Vue SFC (`<script>` extract มา parse เป็น TS ชดเชย offset บรรทัด)
+  เป็นโครง registry ต่อภาษา เพิ่มภาษาใหม่ไม่ต้องแตะแกนกลาง · ฝั่ง base ของ diff view ไม่ตอบสนอง
+  (index มีชุดเดียวที่ pinned commit) · peek widget แบบ VSCode ทดลองแยกใน worktree ต่างหาก
+  (สำเร็จค่อยรวม) ไม่อยู่ใน scope PR นี้
+
 ## v2 candidate list (as of Jul 22, 2026 — re-prioritize with feedback)
 
 - Merge-or-differentiate decision vs `better-review`

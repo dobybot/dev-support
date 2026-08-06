@@ -8,6 +8,7 @@ import { ReadingPanelContext } from '@/components/run/panel-context'
 import { ReadingPanel } from '@/components/run/reading-panel'
 import { RunContext, RunEventsContext } from '@/components/run/run-context'
 import { ErrorBox, Loading, Warnings } from '@/components/run/status'
+import { ToastHost } from '@/components/run/toast-host'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { fetchRun } from '@/lib/api'
 import { displayRepoName, formatCommitRange, formatRunDate, shortCommit } from '@/lib/run-list'
@@ -227,6 +228,8 @@ export function RunLayout() {
             </div>
             <ReadingPanel />
           </div>
+          {/* ทางตันของ code navigation (definition ไม่อยู่ใน repo / รอ index) โผล่ที่นี่ — issue #36 */}
+          <ToastHost />
         </ReadingPanelContext.Provider>
       </RunEventsContext.Provider>
     </RunContext.Provider>
