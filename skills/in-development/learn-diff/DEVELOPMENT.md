@@ -658,6 +658,109 @@ box map, `:read`, `:file` เปิด panel เดียวกันหมด �
 ถูกปล่อยไว้ตามเดิม เพราะมันคือหลักฐานของ #23 และเป็นสิ่งที่ผู้อ่านทั้ง 4 คนอ่านจริง
 ถ้าแก้ ตัวอย่างกับคำตอบดิบใน `_reader-test-pr229/` จะไม่ตรงกันอีกต่อไป
 
+## Aug 6, 2026 — viewer polish batch (#17, #19, #27, #28, #29)
+
+แก้ 5 ตั๋วเล็กฝั่ง viewer ในรอบเดียว การตัดสินใจที่มีผลต่อไป:
+
+- **#19 — h1 ซ้ำ: เลือกทาง ค (viewer กลืน + เอกสารห้าม)** ตามที่ตั๋วแนะนำเอง ·
+  `src/lib/strip-duplicate-h1.ts` เป็นฟังก์ชันล้วน (มีเทสต์ `test/strip-duplicate-h1.test.ts`)
+  ตัดเฉพาะ h1 **บรรทัดแรก** (ข้ามบรรทัดว่างนำหน้า) ที่ข้อความ normalize ช่องว่างแล้ว**ตรงกับ
+  `section.title` เป๊ะ** — ไม่ตรง = ไม่แตะ · ใช้กับทุกหน้าใน SectionPage (index/verify เดินทางเดียวกัน)
+  · ห้ามย้ายไปทำใน Prose/remark: Prose ไม่รู้จัก section.title
+- **#17 — header โชว์ `base…head`** (และหน้าแรกด้วย) ผ่าน `formatCommitRange()` ใน
+  `src/lib/run-list.ts` · ลิงก์ไป GitHub compare เดาจาก `pr.url` เฉพาะเมื่อ url มีรูป `/pull/N`
+  ไม่ใช่ = ข้อความเฉย ๆ · run เก่าที่ไม่มี `baseCommit` ขึ้น head เดียว + โน้ตเหลือง
+  "ไม่ได้ pin base — เทียบ diff ไม่ได้" (ข้อความเดียวกับการ์ดใน panel)
+- **#27 — nav ซ้ายพับได้** state อยู่ที่ RunLayout (รอดข้าม section เอง) + localStorage
+  `learn-diff:nav-collapsed` · พับแล้วเหลือ rail `w-8` ที่มีปุ่มกางกลับ ไม่หายทั้งแถบ ·
+  **จงใจไม่ทำ**: auto-collapse ตอน panel เปิด กับ keyboard shortcut (ตั๋วบอกว่ายังไม่ตัดสินใจ)
+- **#28 — ชื่อ section ยาวตัดที่ 2 บรรทัด** (`line-clamp-2`, ไม่ใส่ `break-words` —
+  ห้ามหั่นกลางคำ, `lang="th"` ใน index.html ทำให้ไทยแบ่งตามขอบคำอยู่แล้ว) ·
+  NavLink เปลี่ยนเป็น `items-start` ให้ badge "รอเขียน" เกาะบรรทัดแรก · hover เห็นชื่อเต็มผ่าน `title`
+- **#29 — สี +N/−N ใน subtitle: เลือกทาง viewer-side pattern highlight** (ตาม triage;
+  ตั๋วเอนไปทาง structured diffstat field ซึ่งยังเปิดไว้เป็น follow-up) ·
+  `remarkDiffstatColors` ใน `src/lib/remark-learn-diff.ts` ทาสีก็ต่อเมื่อสตริงเดียวกันมี
+  **ทั้ง + และ −** (คู่แบบ GitHub) กัน false positive · เปิดเฉพาะ subtitle ผ่าน prop
+  `diffstat` ของ InlineMd — **ห้ามเปิดใน Prose/ตาราง**
+
+## Aug 6, 2026 — viewer fixes (#18, #30)
+
+- **#18 — ความกว้าง panel หายถาวรหลังเปิดในจอแคบ**: root cause คือ `readStoredWidth`
+  clamp ค่าตอนอ่านจาก localStorage ด้วย viewport ณ ตอนโหลด — เปิดในหน้าต่าง ~800px
+  ทำให้ 760 กลายเป็น 360 ใน state ถาวร (localStorage ยังจำ 760 อยู่ reload จึงหาย) ·
+  แก้โดยให้ `readStoredWidth(store)` คืน**ค่าดิบ** (แค่ sanitize เป็น DEFAULT ถ้าไม่ใช่ตัวเลข)
+  แล้ว clamp เฉพาะตอนแสดงผล (`clampPanelWidth(desiredWidth, viewportWidth)` ใน hook
+  ซึ่งมี resize listener อยู่แล้ว) — **อย่ากลับไป clamp ตอนอ่าน**
+- **#30 — อ่านเต็มหน้าจอ: เลือก app-level layout ไม่ใช่ browser Fullscreen API** เพราะ
+  (ก) ข้อบังคับ layout ของ panel คือต้องเป็น flex sibling ห้าม fixed/absolute
+  (ข) Fullscreen API ยึด Esc และซ่อน chrome ของ browser ขัดกับ Esc-to-exit ที่ต้องการ ·
+  ทำโดยซ่อนคอลัมน์ sidebar+เนื้อหา (`hidden` ใน run-layout) แล้ว panel ยืด `flex-1` เอง ·
+  state `fullscreen` อยู่ใน useReadingPanel (รอดข้าม section) แต่**ไม่จำลง localStorage**
+  (ชั่วคราวเหมือน `open`) · `desiredWidth` ไม่ถูกแตะ — ออกจากเต็มหน้าจอได้ความกว้างเดิมคืนเอง ·
+  ลำดับ Esc: CodeMirror (defaultPrevented) → ออกจากเต็มหน้าจอ → ปิด panel ·
+  `close()` และการเปลี่ยน run รีเซ็ต fullscreen เป็น false
+- **#31 — dark mode toggle**: preference เป็น app-global (`localStorage['learn-diff:theme']`,
+  ค่า `light|dark|system`, default `system`) ไม่ใช่ต่อ run — เป็นค่าของ "ผู้อ่าน" ·
+  แหล่งความจริงยังเป็น class `.dark` บน `<html>` (useDarkMode() เฝ้าอยู่แล้ว mermaid/CodeMirror
+  จึง re-render เอง) · `src/lib/theme-preference.ts` เป็นเจ้าของ logic ตั้ง class ·
+  **inline script ใน index.html ซ้ำ logic โดยจงใจ** (import TS ไม่ได้ ต้องรันก่อน React mount
+  กันจอวาบขาว) — แก้ key/logic ต้องแก้สองที่ให้ตรงกัน · UI เป็นปุ่มเดียววน light→dark→system
+  (`src/components/theme-toggle.tsx` — segmented control 3 ปุ่มถูกตัด: หนักเกินสำหรับ header)
+  วางที่ header หน้าแรกและแถวหัวเรื่องของ RunLayout (ไม่วางใน aside เพราะพับได้แล้วจาก #27)
+- **#32 — box map ตกจอเมื่อ path ยาว**: เปลี่ยนเป็น `table-fixed` + กำหนดความกว้างที่ `<th>`
+  (กล่อง `w-24`, เหตุผล `w-[30%]`, โค้ด `w-28`, ส่วน = ที่เหลือ) และถอด `overflow-x-auto` —
+  คอลัมน์ "โค้ด" อยู่ในจอเสมอ · บรรทัด files ใช้ `break-all` (path ไม่มีจุดหักตามคำ)
+  ชื่อ section ใช้ `break-words` · **จงใจไม่ทำ** truncate+ellipsis ที่ files — ซ่อนว่ากล่อง
+  ครอบไฟล์ไหน (root cause path ติดกันไม่มีตัวคั่นเป็นของ #33 แยกไป)
+
+## Aug 6, 2026 — content-quality batch (#33, #16, #22, #23)
+
+- **#33 — boxMap ไม่มี field spec ในเอกสาร ทำให้ agent เดา schema เอง** (`what` + `files`
+  เป็น array → ลิงก์ไม่มีข้อความ + path ต่อกันไม่มีตัวคั่น) · แก้สามชั้น:
+  (1) `content-format.md` ระบุ field spec ของ `boxMap[]` เต็มรูปแบบเหมือน `reconciliation[]`
+  (2) **`files` รับ `string | string[]`** — array ให้ viewer join ด้วย `' · '`
+  (`box-map.tsx`) · เลือก widen แทน string-only เพราะ run เก่าที่พังแบบ array จะหายเอง
+  ครึ่งหนึ่ง (title ยังต้อง regenerate)
+  (3) warning ใหม่ **`box_map_row_invalid`** ใน `server/validate.ts`: แถวที่ไม่มี `id`/`title`
+  เป็น string ไม่ว่าง หรือมี key นอก contract (เช่น `what`) — key list อยู่ใน validate.ts
+  ต้องอัปเดตคู่กับ `BoxMapRow` ใน types.ts ถ้าเพิ่ม field ใหม่ ไม่งั้น field ถูกกฎจะโดนเตือน
+- **#16 — "ช่องว่างที่เหลืออยู่" บังคับทุกหน้า grey/whitebox** (Step 5c): ต้องตอบ
+  fail-เงียบ / ไม่มีเทสต์ / logic ซ้ำ อย่างน้อยหนึ่งข้อ · whitebox ต้อง flag unrequested change
+  ในหน้าตัวเองด้วย `:::note{type="risk"}` (คน landing ที่ URL ของ section ไม่เห็นตาราง
+  reconciliation บน index) · "ไม่มีช่องว่าง" ตอบได้แต่ต้องเขียนว่าตรวจแล้ว —
+  ที่มา: v3 acceptance run ที่ budget-squeeze ทำให้หน้า section ตัดเรื่องพวกนี้ทิ้งเงียบ ๆ
+- **#22 — กฎเลือก span จาก reader test** เขียนลงทั้ง SKILL.md (5d) และ content-format.md
+  (วิธีเขียน readingLists) ให้ตรงกัน: เลือก context span ด้วย "โค้ดใหม่ต้องเคารพกฎอะไรของระบบ"
+  ไม่ใช่ "เรียกฟังก์ชันไหน" · prose อ้างอะไรเป็นหลักฐาน span ต้องครอบบรรทัดนั้นจริง
+  (เพิ่ม span สั้นดีกว่าถ่างช่วง) · ตัวเลขใน prose ต้องนับได้จาก span ไม่งั้นตัดทิ้ง
+- **#23 — Step 5e กลายเป็นสองรอบ**: รอบ 1 = curl warnings (glossed ชัดว่า `warnings: []`
+  แปลว่าพิกัด resolve ได้ ไม่ใช่เนื้อหาถูก) · รอบ 2 = อ่านทวนทุกหน้าแบบผู้อ่าน เช็ค 4 ข้อ
+  (ตัวเลขในหน้าตรงกัน, หัวข้อตรงเนื้อหา, โจทย์-เฉลยใน 99-verify เรื่องเดียวกัน, หลักฐานมี span)
+  — จำกัดที่ 4 ข้อให้สเกลตามขนาด run · **ทางเลือก sub-agent reviewer จงใจไม่ทำ**
+  ตั๋วเองโยนไป #24 เพราะแพงกว่า
+
+## Aug 6, 2026 — batch fixes (#15, #20, #21, #25)
+
+- **#15 — `diagram_out_of_subset` เป็น warning ฝั่ง API แล้ว**: `collectWarnings()` parse
+  ทุกไดอะแกรมครั้งเดียวต่อ section (ใช้ผลทั้ง violations และรายชื่อ node) แล้วรายงาน
+  violation ทุกอันเป็น warning `where: <section>:<line>` **ไม่รอ complete** — แถบแดงบนรูป
+  กับ `warnings: []` ที่ขัดกันคือของที่ตั๋วนี้ปิด · parseDiagram ไม่ throw — source ที่อ่านไม่ออกเลย
+  ก็โผล่เป็น violations จึงใช้ code เดียว ไม่มี `diagram_parse_failed` แยก
+- **#20 — เพดานไดอะแกรมภาพรวมเปลี่ยนจากนับกล่องเป็นนับ "ชั้น"** (~8–10 ชั้นสำหรับ TB บน
+  index; ~20 กล่องเหลือเป็นเพดานรองต่อรูป) + กฎแบ่งระดับ: index วาดหยาบระดับ subsystem
+  แล้ว detail ไปอยู่หน้า section · **จงใจไม่ทำปุ่ม fit-to-screen ฝั่ง viewer** — auto-shrink
+  เคยถูกปฏิเสธในตั๋ว #6 (ย่อแล้วอ่านไม่ออก) ถ้า guidance ไม่พอค่อยเปิด issue ปุ่ม zoom
+  แบบ opt-in แยกต่างหาก
+- **#21 — registry มี `repoName` (optional)**: `register-run.mjs` ถาม
+  `git rev-parse --path-format=absolute --git-common-dir` ครั้งเดียวตอนลงทะเบียนแล้วเก็บ
+  basename ของ repo หลัก — worktree จึงโชว์ชื่อ repo จริง ไม่ใช่ชื่อ branch · ฝั่งอ่านใช้
+  `displayRepoName()` ใน `src/lib/run-list.ts` (fallback ไป basename สำหรับ entry เก่า —
+  field นี้ต้อง optional ตลอดไป) · หน้าแรกโชว์ชื่อ worktree กำกับเมื่อต่างกัน
+- **#25 — `serve.mjs --stop` เลิกปิดผิดตัวเงียบ ๆ**: health มี field `home`
+  (LEARN_DIFF_HOME ที่ resolve แล้ว) · --stop เทียบ home ก่อนปิด ไม่ตรง = ปฏิเสธพร้อมบอก
+  ทั้งสอง home / พอร์ต / ที่มาของพอร์ต (`--port` | `LEARN_DIFF_PORT` | `default`) เว้นแต่
+  `--force` · server เก่าที่ไม่มี `home` = ทำแบบเดิม (ship คู่กันผ่าน git pull)
+
 ## v2 candidate list (as of Jul 22, 2026 — re-prioritize with feedback)
 
 - Merge-or-differentiate decision vs `better-review`

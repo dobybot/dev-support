@@ -47,6 +47,8 @@ function parseArgs(argv) {
 const args = parseArgs(process.argv.slice(2))
 const asJson = args.flags.has('json')
 const port = Number(args.port ?? process.env.LEARN_DIFF_PORT ?? DEFAULT_PORT)
+/** พอร์ตนี้มาจากไหน — `--stop` รายงานเสมอ กันเข้าใจผิดว่าปิดตัวไหนอยู่ (issue #25) */
+const portSource = args.port !== undefined ? '--port' : process.env.LEARN_DIFF_PORT ? 'LEARN_DIFF_PORT' : 'default'
 const url = `http://${HOST}:${port}`
 const waitSeconds = Number(args.timeout ?? 90)
 
@@ -115,9 +117,13 @@ function report(result) {
   } else if (result.status === 'started') {
     lines.push(`learn-diff viewer: สั่งรันแล้ว (pid ${result.pid})`)
   } else if (result.status === 'stopped') {
-    lines.push(`learn-diff viewer: สั่งปิดแล้ว (pid ${result.pid})`)
+    lines.push(`learn-diff viewer: สั่งปิดแล้ว (pid ${result.pid}, พอร์ต ${result.port} จาก ${result.portSource})`)
   } else if (result.status === 'not_running') {
-    lines.push('learn-diff viewer: ยังไม่มีตัวไหนรันอยู่')
+    lines.push(
+      result.port !== undefined
+        ? `learn-diff viewer: ยังไม่มีตัวไหนรันอยู่ที่พอร์ต ${result.port} (จาก ${result.portSource})`
+        : 'learn-diff viewer: ยังไม่มีตัวไหนรันอยู่',
+    )
   } else {
     lines.push(`learn-diff viewer: ${result.message}`)
   }
@@ -254,13 +260,25 @@ async function main() {
   const found = await probe()
 
   if (args.flags.has('stop')) {
-    if (found.state !== 'running') finish({ status: 'not_running', url }, 0)
+    if (found.state !== 'running') finish({ status: 'not_running', url, port, portSource }, 0)
+    // --stop เลือกเป้าจาก "พอร์ต" — ถ้า home ของตัวที่เจอไม่ตรงกับ home ของเรา แปลว่ากำลังจะ
+    // ปิด instance ของคนอื่น (เช่นตั้ง LEARN_DIFF_PORT ตอนรันแต่ลืมตอนสั่งปิด) — ปฏิเสธ
+    // เว้นแต่สั่ง --force · server รุ่นเก่าที่ health ไม่มี home = ตรวจไม่ได้ ทำแบบเดิม (issue #25)
+    const targetHome = found.health.home ?? null
+    if (targetHome && path.resolve(targetHome) !== homeDir() && !args.flags.has('force')) {
+      fail(
+        `ไม่ปิดให้: ตัวที่รันอยู่บนพอร์ต ${port} (จาก ${portSource}) ใช้ home ${targetHome} ` +
+          `ไม่ใช่ ${homeDir()} ของคำสั่งนี้ — ถ้าตั้งใจจริงให้สั่งซ้ำด้วย --force ` +
+          'หรือระบุพอร์ตให้ตรงกับตัวที่ต้องการปิด',
+        { port, portSource, targetHome },
+      )
+    }
     try {
       process.kill(found.health.pid, 'SIGTERM')
     } catch (err) {
       fail(`ปิด pid ${found.health.pid} ไม่ได้: ${err.message}`)
     }
-    finish({ status: 'stopped', pid: found.health.pid, url })
+    finish({ status: 'stopped', pid: found.health.pid, url, port, portSource })
   }
 
   if (found.state === 'foreign') {

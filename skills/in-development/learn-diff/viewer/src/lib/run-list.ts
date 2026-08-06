@@ -11,9 +11,26 @@ export function repoName(repoPath: string): string {
   return parts[parts.length - 1] ?? repoPath
 }
 
+/**
+ * ชื่อ repo ที่ควรแสดง — worktree ทำให้ basename เป็นชื่อ branch ไม่ใช่ชื่อ repo (issue #21)
+ * registry รุ่นใหม่มี `repoName` (ชื่อ repo ตัวจริงจาก git) ให้ใช้ก่อน · entry เก่า fallback
+ * ไป basename แบบเดิม
+ */
+export function displayRepoName(run: Pick<RunSummary, 'repoPath' | 'repoName'>): string {
+  return run.repoName ?? repoName(run.repoPath)
+}
+
 /** commit สั้นแบบเดียวกับที่ git แสดง — ผู้อ่านต้องเทียบกับ `git log` ได้ด้วยตา */
 export function shortCommit(commit: string): string {
   return commit.slice(0, 9)
+}
+
+/**
+ * ช่วง `base…head` แบบสั้น — base เปลี่ยนความหมายของทั้ง run (merge-base ขยับตาม base branch)
+ * จึงต้องเห็นคู่กับ head เสมอ · run เก่าที่ไม่มี baseCommit ยังแสดงได้: เหลือ head ตัวเดียว
+ */
+export function formatCommitRange(base: string | undefined, head: string): string {
+  return base ? `${shortCommit(base)}…${shortCommit(head)}` : shortCommit(head)
 }
 
 const DATE_FMT = new Intl.DateTimeFormat('th-TH-u-ca-gregory', {
@@ -67,6 +84,8 @@ export function matchesQuery(run: RunSummary, query: string): boolean {
     String(run.pr?.number ?? ''),
     run.id,
     run.repoPath,
+    // ทั้งชื่อ repo ตัวจริงและชื่อโฟลเดอร์ worktree — ผู้อ่านอาจจำได้อันใดอันหนึ่ง
+    run.repoName,
     repoName(run.repoPath),
     run.commit,
   ]

@@ -4,6 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>learn-diff viewer</title>
+    <!-- ตั้ง class .dark ก่อน React mount กันจอวาบขาว — logic ต้องตรงกับ src/lib/theme-preference.ts
+         (จงใจซ้ำ: inline script import TS ไม่ได้) -->
+    <script>
+      ;(function () {
+        try {
+          var pref = window.localStorage.getItem('learn-diff:theme')
+          var dark =
+            pref === 'dark' ||
+            ((pref === null || pref === 'system') &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+          if (dark) document.documentElement.classList.add('dark')
+        } catch (_) {
+          /* localStorage ใช้ไม่ได้ = ปล่อยเป็น light */
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

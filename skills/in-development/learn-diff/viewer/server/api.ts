@@ -7,7 +7,7 @@ import { ApiError } from './errors'
 import { handleRunEvents } from './events'
 import { loadFile } from './file'
 import { activeIdleTimer } from './lifecycle'
-import { registryPath, viewerRoot } from './paths'
+import { learnDiffHome, registryPath, viewerRoot } from './paths'
 import { findRun, listRuns } from './registry'
 
 export const API_PREFIX = '/api'
@@ -60,6 +60,7 @@ async function health(): Promise<HealthResponse> {
     service: 'learn-diff-viewer',
     schemaVersion: 1,
     registry: registryPath(),
+    home: learnDiffHome(),
     pid: process.pid,
     root: viewerRoot(),
     startedAt: new Date(Date.now() - Math.round(process.uptime() * 1000)).toISOString(),

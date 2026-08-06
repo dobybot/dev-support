@@ -25,14 +25,16 @@ export function BoxMap() {
     rowList ?? data.sections.find((s) => s.id === sectionId)?.readingList
 
   return (
-    <div className="my-6 overflow-x-auto rounded-lg border">
-      <table className="w-full border-collapse text-sm">
+    <div className="my-6 rounded-lg border">
+      {/* table-fixed: path ยาว ๆ ใน "ส่วน" ต้องหักบรรทัดในคอลัมน์ตัวเอง ไม่ใช่ดันคอลัมน์อื่น
+          ตกขอบจอ (issue #32) — ความกว้างกำหนดที่ <th> ปุ่ม "อ่านโค้ด" จึงอยู่ในจอเสมอ */}
+      <table className="w-full table-fixed border-collapse text-sm">
         <thead className="bg-muted/60 text-left">
           <tr>
             <th className="px-3 py-2 font-medium">ส่วน</th>
-            <th className="px-3 py-2 font-medium whitespace-nowrap">กล่อง</th>
-            <th className="px-3 py-2 font-medium">เหตุผล</th>
-            <th className="px-3 py-2 font-medium whitespace-nowrap">โค้ด</th>
+            <th className="w-24 px-3 py-2 font-medium whitespace-nowrap">กล่อง</th>
+            <th className="w-[30%] px-3 py-2 font-medium">เหตุผล</th>
+            <th className="w-28 px-3 py-2 font-medium whitespace-nowrap">โค้ด</th>
           </tr>
         </thead>
         <tbody>
@@ -44,15 +46,19 @@ export function BoxMap() {
                   {row.section ? (
                     <Link
                       to={`/r/${run.id}/${row.section}`}
-                      className="font-medium underline underline-offset-2"
+                      className="font-medium break-words underline underline-offset-2"
                     >
                       {row.title}
                     </Link>
                   ) : (
-                    <span className="font-medium">{row.title}</span>
+                    <span className="font-medium break-words">{row.title}</span>
                   )}
                   {row.files ? (
-                    <div className="mt-0.5 font-mono text-xs text-muted-foreground">{row.files}</div>
+                    /* break-all: path ไม่มีช่องว่างให้หักตามคำ — ยอมหักกลาง path
+                       ดีกว่าปล่อยให้บรรทัดเดียวลากทั้งตารางตกจอ (issue #32) */
+                    <div className="mt-0.5 font-mono text-xs break-all text-muted-foreground">
+                      {Array.isArray(row.files) ? row.files.join(' · ') : row.files}
+                    </div>
                   ) : null}
                 </td>
                 <td className="px-3 py-2">

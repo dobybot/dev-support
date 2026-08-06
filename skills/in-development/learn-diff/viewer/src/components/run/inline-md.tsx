@@ -2,10 +2,12 @@ import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkDirective from 'remark-directive'
 import remarkGfm from 'remark-gfm'
 
-import { remarkLearnDiff } from '@/lib/remark-learn-diff'
+import { remarkDiffstatColors, remarkLearnDiff } from '@/lib/remark-learn-diff'
 import { FileRef, ReadRef, UnknownDirective } from './directives'
 
 export const REMARK_PLUGINS = [remarkGfm, remarkDirective, remarkLearnDiff]
+/** ชุดเดียวกัน + ลงสี +N/−N — เปิดเฉพาะ subtitle ไม่ใช้ใน Prose/ตาราง (issue #29) */
+const DIFFSTAT_PLUGINS = [...REMARK_PLUGINS, remarkDiffstatColors]
 
 type SpanProps = React.ComponentPropsWithoutRef<'span'> & { node?: unknown }
 
@@ -29,6 +31,10 @@ export function DirectiveSpan(props: SpanProps) {
       return <ReadRef list={dataAttr(props, 'data-list')}>{children}</ReadRef>
     case 'unknown':
       return <UnknownDirective name={dataAttr(props, 'data-name')} inline />
+    case 'diffstat-add':
+      return <span className="font-medium text-emerald-600 dark:text-emerald-400">{children}</span>
+    case 'diffstat-del':
+      return <span className="font-medium text-red-600 dark:text-red-400">{children}</span>
     default:
       return <span {...rest}>{children}</span>
   }
@@ -44,10 +50,13 @@ const INLINE_COMPONENTS: Components = {
 }
 
 /** markdown แบบ inline สำหรับ cell ในตาราง / subtitle — ไม่มี block element */
-export function InlineMd({ children }: { children?: string }) {
+export function InlineMd({ children, diffstat = false }: { children?: string; diffstat?: boolean }) {
   if (!children) return null
   return (
-    <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={INLINE_COMPONENTS}>
+    <ReactMarkdown
+      remarkPlugins={diffstat ? DIFFSTAT_PLUGINS : REMARK_PLUGINS}
+      components={INLINE_COMPONENTS}
+    >
       {children}
     </ReactMarkdown>
   )

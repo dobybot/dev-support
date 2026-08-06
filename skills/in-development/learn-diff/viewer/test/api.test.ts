@@ -186,6 +186,8 @@ describe('GET /api/health', () => {
     expect((body as { registry: string }).registry).toBe(
       path.join(tmpRoot, 'home', 'runs.json'),
     )
+    // `serve.mjs --stop` ใช้ home เทียบว่าตัวที่จะปิดเป็น instance เดียวกันจริง (issue #25)
+    expect((body as { home: string }).home).toBe(path.join(tmpRoot, 'home'))
   })
 })
 

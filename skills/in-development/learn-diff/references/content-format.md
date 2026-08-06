@@ -21,6 +21,9 @@ viewer อ่านผ่าน HTTP API แล้ว render เอง · agent 
   server ปฏิเสธ path ที่มี `/`, `\` หรือ `..`
 - เขียน `run.json` ให้ครบ **ตั้งแต่ต้น** (ประกาศทุก section) แล้วค่อยทยอยเขียนไฟล์ `.md`
   section ที่ยังไม่มีไฟล์จะขึ้นเป็น "รอเขียน" ในเมนู ไม่ใช่หายไปเฉย ๆ
+- **อย่าเปิดไฟล์ section ด้วย `# <title>`** — viewer แสดง `sections[].title` เป็นหัวข้อของหน้าเองอยู่แล้ว
+  และจะ**กลืน** h1 แรกที่ข้อความซ้ำกับ title ทิ้ง (กันชื่อเดิมโผล่สองครั้งซ้อนกัน) ·
+  เริ่มเนื้อหาที่ prose หรือ `##` ลงไปเลย
 
 ## เขียนไปพลาง ผู้ใช้อ่านไปพลาง
 
@@ -47,10 +50,10 @@ Type จริงอยู่ที่ [`viewer/src/shared/types.ts`](../viewer/
 | `id`, `title`, `subtitle` | ชื่อ run · `subtitle` เป็น markdown inline (บรรทัดสถิติ) |
 | `pr` | `{ number, title, url }` — header ลิงก์ไป GitHub จากตรงนี้ |
 | `commit` | head sha ของ PR ที่ pin ไว้ — file API อ่านไฟล์ที่ commit นี้ |
-| `baseCommit` | sha ฐานของ PR (merge-base ของ base branch กับ head) — **ต้องใส่** ไม่งั้นลงสี diff ไม่ได้ |
+| `baseCommit` | sha ฐานของ PR (merge-base ของ base branch กับ head) — **ต้องใส่** ไม่งั้นลงสี diff ไม่ได้ · viewer โชว์เป็นช่วง `base…head` ใน header ให้ผู้อ่านเห็นเสมอ เพราะ merge-base ขยับตาม base branch — base คนละตัว = ความหมายของ run คนละอย่าง |
 | `generatedAt` | ISO 8601 |
 | `sections[]` | `{ id, title, file?, kind?, box?, subtitle?, readingList? }` · ลำดับใน array = ลำดับเมนูและปุ่มก่อน/ถัดไป |
-| `boxMap[]` | แผนที่กล่อง · แถวที่มี `section` จะกลายเป็นลิงก์ · blackbox ที่อธิบายจบในแถวไม่ต้องมี section |
+| `boxMap[]` | `{ id, title, files?, box, reason, section?, readingList? }` — แผนที่กล่อง · `title` = ชื่อแถว (ห้ามว่าง — มันคือข้อความของลิงก์) · `files` = basename ของไฟล์หลักที่เกี่ยวข้อง เป็น string ที่คั่นด้วย `' · '` แล้ว (ดูตัวอย่าง pr-230) หรือเป็น array ของ basename ให้ viewer join ให้ · แถวที่มี `section` จะกลายเป็นลิงก์ · blackbox ที่อธิบายจบในแถวไม่ต้องมี section · **ห้ามใช้ key อื่น** (เช่น `what`) — viewer ไม่แสดงและ server เตือน `box_map_row_invalid` |
 | `reconciliation[]` | `{ status: done \| missing \| unrequested, ref?, what, note? }` — หัวตารางเปลี่ยนตาม status ให้เอง |
 | `readingLists[]` | `{ id, title, spans: [{ path, from, to, kind: changed \| context, why }] }` |
 | `nodeMap` | node id ใน mermaid → reading list id · ดู [diagram-mermaid.md](diagram-mermaid.md) |
@@ -66,6 +69,11 @@ change เลือกมาให้ · panel แสดงตาม `spans` **�
 - **ต้องมีช่วง `kind: "context"` ด้วย** ถ้าเข้าใจ change ไม่ได้โดยไม่อ่านของเดิม —
   นี่คือเหตุผลทั้งหมดที่ระบบนี้มีอยู่ · `changed` = โค้ดที่ PR แก้ (panel ลงสี), `context` = ของเดิม (ไม่ลงสี)
 - **`why` หนึ่งบรรทัด บอกว่าช่วงนี้ตอบคำถามอะไร** ไม่ใช่สรุปว่าโค้ดทำอะไร (ผู้อ่านอ่านโค้ดเองอยู่แล้ว)
+- **เลือกช่วง context ด้วยคำถาม "โค้ดใหม่ต้องเคารพกฎอะไรของระบบ"** ไม่ใช่ "มันเรียกฟังก์ชันไหน" —
+  ใส่ฟังก์ชันที่ถูกเรียกเฉพาะเมื่อ*พฤติกรรมของมัน*คือประเด็น (จาก reader test, issue #22)
+- **prose อ้าง setting/ฟังก์ชัน/ค่าคงที่ตัวไหนเป็นหลักฐาน ต้องมี span ที่ครอบบรรทัดนั้นจริง** —
+  เพิ่ม span สั้น ๆ อีกอันดีกว่าถ่างช่วงเดิมให้กว้าง
+- **ตัวเลขที่ prose อ้าง (เช่นจำนวนเทสต์) ต้องนับได้จาก span ที่โชว์** ไม่งั้นตัดตัวเลขทิ้ง
 - **ช่วงละ ~10–80 บรรทัด** · ทั้งไฟล์ก็ได้ถ้าไฟล์เล็กจริง ๆ · ช่วงยาวเกินจะกลายเป็น "กองโค้ด" ที่ไม่ได้ช่วยจัดลำดับ
 - **หลาย reading list ต่อ section ได้** — บังคับให้มีอันเดียวต่อ section จะทำให้ทุก node ในหน้าเปิดของเดียวกัน
 - `path` เทียบ root ของ repo · `from`/`to` ต้อง resolve ได้จริงที่ commit ที่ pin ไว้ ไม่งั้น panel ขึ้น error
@@ -102,8 +110,10 @@ server เป็นคนหาเองด้วย `git diff <baseCommit> <com
 | `reading_list_unreferenced` | เขียนนิยามไว้แต่ไม่มีอะไรอ้างถึงเลย = ผู้อ่านเข้าไม่ถึง |
 | `reading_list_duplicate` / `reading_list_empty` | id ซ้ำ / ไม่มี `spans` เลย |
 | `diagram_node_not_found` | `nodeMap` มี node id ที่ไม่ปรากฏในไดอะแกรมไหนเลยของ run นี้ |
+| `diagram_out_of_subset` | ไดอะแกรมมี syntax นอก subset ที่ตกลงกันไว้ (ดู diagram-mermaid.md) — `where` เป็น `<section>:<บรรทัดใน source>` · source ที่ parse ไม่ได้เลยก็โผล่เป็น code นี้เหมือนกัน |
 | `range_not_found` / `file_not_found` / `path_escape` | ช่วงบรรทัดหรือไฟล์ที่อ้างถึง resolve ไม่ได้ที่ commit ที่ pin ไว้ (ทั้งใน `readingLists` และ `:file`) |
 | `box_map_unknown_section` | แถว box map ชี้ section ที่ไม่มีใน `sections` |
+| `box_map_row_invalid` | แถว box map ขาด `id`/`title` (หรือว่าง) หรือมี key ที่ contract ไม่รู้จัก เช่น `what` — viewer จะแสดงแถวนั้นไม่ครบ |
 | `range_check_unavailable` | ตรวจช่วงบรรทัดไม่ได้เพราะยังไม่มี commit นั้นในเครื่อง / repo ถูกย้าย — `git fetch` แล้วเปิดใหม่ |
 
 สองข้อที่เป็นการเช็ค "ไม่มีใครอ้าง / ไม่มีในไดอะแกรม" จะ**เงียบไว้จนกว่าทุก section จะถูกเขียนครบ**

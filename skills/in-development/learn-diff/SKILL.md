@@ -232,6 +232,19 @@ Depth per box, inside a section page:
   **invariants** — สิ่งที่โค้ดใหม่แอบสมมติเกี่ยวกับโค้ดเดิมที่ไม่ได้ถูกแก้, และผลต่องานในอนาคต
 
 ทุก section ที่เป็น grey/whitebox ต้องมี `readingList` ของตัวเอง (ผู้อ่านกด "อ่านโค้ดของหัวข้อนี้")
+— เลือก span ตามกฎใน 5d (ตอบ "กฎของระบบ" ไม่ใช่ "ฟังก์ชันที่ถูกเรียก")
+
+**ช่องว่างที่เหลืออยู่ — บังคับทุกหน้า grey/whitebox:**
+
+- ทุก section page ที่เป็น grey/whitebox ต้องมีหัวข้อ/ย่อหน้า "ช่องว่างที่เหลืออยู่"
+  ที่ตอบอย่างน้อยหนึ่งข้อ: เคสไหน fail เงียบ (ไม่มี log/notify/metric)?
+  อะไรไม่มี test ครอบ? logic ไหนซ้ำกันสองที่แล้วอาจ drift?
+- หน้า whitebox ต้อง flag การเปลี่ยนแปลงที่ไม่ได้ขอ**ในหน้านั้นเอง**ด้วย `:::note{type="risk"}`
+  — ตาราง reconciliation อยู่บน index ซึ่งคนที่เข้าจาก URL ของ section ไม่เห็น
+- "ไม่มีช่องว่าง" เป็นคำตอบที่ยอมรับได้ แต่ต้อง**เขียนออกมาตรง ๆ ว่าตรวจแล้ว** ไม่ใช่ละไว้
+
+**อย่าเปิดไฟล์ .md ด้วย `# <title>`** — viewer แสดง `sections[].title` เป็นหัวข้อของหน้าเองแล้ว
+และจะกลืน h1 แรกที่ซ้ำกับ title ทิ้ง · เริ่มที่ prose หรือหัวข้อย่อย `##` เลย
 
 ### 5d. Rules that are not negotiable
 
@@ -245,7 +258,13 @@ Depth per box, inside a section page:
   4 รูปทรง, `class A,B changed` (ห้าม `style`/`click`/`%%{init}%%`/`:::`) และ **ห้ามกำหนดสีเอง**
   หลุด subset = แถบแดงคาดหัวรูปให้ผู้อ่านเห็น
 - **reading list ต้องมีช่วง `kind: "context"`** เมื่อเข้าใจ change ไม่ได้โดยไม่อ่านของเดิม —
-  นี่คือของชิ้นเดียวที่ diff viewer ให้ไม่ได้ · เรียง span ตาม dataflow ไม่ใช่ตามชื่อไฟล์
+  นี่คือของชิ้นเดียวที่ diff viewer ให้ไม่ได้ · เรียง span ตาม dataflow ไม่ใช่ตามชื่อไฟล์ ·
+  กฎการเลือก span (จาก reader test, issue #22):
+  - เลือกช่วง context ด้วยคำถาม **"โค้ดใหม่ต้องเคารพกฎอะไรของระบบ"** ไม่ใช่ "มันเรียกฟังก์ชันไหน"
+    — ใส่ฟังก์ชันที่ถูกเรียกเฉพาะเมื่อ*พฤติกรรมของมัน*คือประเด็น
+  - prose อ้าง setting/ฟังก์ชัน/ค่าคงที่ตัวไหนเป็นหลักฐาน ต้องมี span ที่**ครอบบรรทัดนั้นจริง** —
+    เพิ่ม span สั้น ๆ อีกอันดีกว่าถ่างช่วงเดิมให้กว้าง
+  - ตัวเลขที่ prose อ้าง (เช่นจำนวนเทสต์) ต้อง**นับได้จาก span ที่โชว์** ไม่งั้นตัดตัวเลขทิ้ง
 - **Tests are first-class learning material.** A unit test is an executable input→output
   example: when the diff or repo has a test covering a grey/whitebox section, put it in the
   reading list and quote it instead of inventing a toy example, and (whitebox) walk through
@@ -253,7 +272,9 @@ Depth per box, inside a section page:
   Quote and explain tests that exist; do not generate new tests as an explanation device.
 - Concepts already in the user's ledger: one-line reminder + pointer, not a re-explanation.
 
-### 5e. Self-check before handing over
+### 5e. Self-check before handing over — สองรอบ
+
+**รอบ 1 — warnings ของ server:**
 
 ```bash
 curl -s <url>/api/runs/<run id> | node -e \
@@ -265,7 +286,18 @@ curl -s <url>/api/runs/<run id> | node -e \
 `warnings` ต้องว่าง **ก่อนบอกผู้ใช้ว่าเสร็จ** — ของพวกนี้คือ dead click กับพิกัดที่ resolve
 ไม่ได้ ซึ่งเป็นผลลัพธ์ที่แย่ที่สุดของหน้านี้ (`reading_list_not_found`, `reading_list_unreferenced`,
 `diagram_node_not_found`, `range_not_found`, …) · ความหมายของแต่ละ code อยู่ใน
-content-format.md · แก้แล้วเขียนไฟล์ทับ — หน้าที่ผู้อ่านเปิดค้างอยู่อัปเดตเอง
+content-format.md · แก้แล้วเขียนไฟล์ทับ — หน้าที่ผู้อ่านเปิดค้างอยู่อัปเดตเอง ·
+**`warnings: []` แปลว่าพิกัด resolve ได้ ไม่ได้แปลว่าเนื้อหาถูก** — server มองไม่เห็น prose
+
+**รอบ 2 — อ่านทวนทุกหน้า (บังคับ):** เปิดทุกไฟล์ .md ที่เขียนไป อ่านจากบนลงล่างเหมือนผู้อ่าน
+(ไม่ต้องเปิดโค้ด) เช็ค 4 อย่าง:
+
+1. ตัวเลขในหน้าเดียวกันตรงกันเอง (บอก "2 แถว" แล้วตารางมี 4 แถวไม่ได้)
+2. หัวข้อตรงกับเนื้อหาใต้มัน
+3. คำถามใน `99-verify.md` แต่ละข้อ — โจทย์กับเฉลยพูดถึงเรื่องเดียวกัน
+4. อะไรที่ยกมาเป็นหลักฐานต้องมี span รองรับ (กฎเดียวกับ 5d / issue #22)
+
+เจอแล้วแก้ทันทีก่อนบอกผู้ใช้ว่าเสร็จ — เช็คแค่ 4 ข้อนี้พอ ให้ค่าใช้จ่ายสเกลตามขนาด run
 
 ## Step 6 — Interactive loop (in chat)
 

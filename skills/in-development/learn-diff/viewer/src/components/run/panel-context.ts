@@ -20,6 +20,8 @@ const CLOSED: ReadingPanelState = {
   back: () => {},
   forward: () => {},
   setWidth: () => {},
+  fullscreen: false,
+  toggleFullscreen: () => {},
 }
 
 export const ReadingPanelContext = createContext<ReadingPanelState | null>(null)

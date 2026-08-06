@@ -10,6 +10,7 @@
  * registry อยู่ที่ $LEARN_DIFF_HOME/runs.json (default ~/.claude/learn-diff/runs.json)
  * skill เป็นคนเรียกสคริปต์นี้หลังเขียน content เสร็จ — ตัว server อ่านอย่างเดียว ไม่เขียน
  */
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -49,10 +50,29 @@ if (!fs.existsSync(path.join(contentDir, 'run.json'))) {
 const id = args.id ?? path.basename(contentDir)
 if (!/^[a-z0-9][a-z0-9._-]*$/i.test(id)) die(`run id "${id}" ใช้อักขระที่ไม่อนุญาต`)
 
+/**
+ * ชื่อ repo ตัวจริง — worktree ทำให้ basename(repoPath) กลายเป็นชื่อ branch/โฟลเดอร์ชั่วคราว
+ * (issue #21) จึงถาม git หา common git dir แล้วเอาชื่อโฟลเดอร์ของ repo หลักแทน ·
+ * resolve ครั้งเดียวตอนลงทะเบียน ฝั่งอ่าน (server/app) ไม่ต้องแตะ git · ถามไม่ได้ = ไม่ใส่ field
+ * (ผู้อ่าน fallback ไป basename แบบเดิม)
+ */
+function canonicalRepoName(repo) {
+  const probe = spawnSync('git', ['-C', repo, 'rev-parse', '--path-format=absolute', '--git-common-dir'], {
+    encoding: 'utf8',
+  })
+  if (probe.status !== 0) return undefined
+  let dir = probe.stdout.trim()
+  if (dir === '') return undefined
+  if (path.basename(dir) === '.git') dir = path.dirname(dir)
+  const name = path.basename(dir)
+  return name === '' ? undefined : name
+}
+
 const runJson = JSON.parse(fs.readFileSync(path.join(contentDir, 'run.json'), 'utf8'))
 const entry = {
   id,
   repoPath,
+  repoName: canonicalRepoName(repoPath),
   // เก็บเป็น relative เมื่อ content อยู่ใน repo — registry ย้ายเครื่องแล้วแก้ทีเดียวจบ
   contentDir: contentDir.startsWith(repoPath + path.sep)
     ? path.relative(repoPath, contentDir)

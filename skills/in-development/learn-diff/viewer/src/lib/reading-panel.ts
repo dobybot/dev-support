@@ -96,7 +96,12 @@ export interface WidthStore {
   setItem(key: string, value: string): void
 }
 
-export function readStoredWidth(store: WidthStore | null, viewportWidth: number): number {
+/**
+ * คืนค่าดิบที่จำไว้ ไม่ clamp ตามจอ — clamp ทำตอนแสดงผลเท่านั้น (issue #18)
+ * ถ้า clamp ตรงนี้ การเปิดในหน้าต่างแคบครั้งเดียวจะกินความกว้างที่ตั้งไว้หายถาวร
+ * (ค่า 760 กลายเป็น 360 ใน state ทั้งที่ localStorage ยังจำ 760)
+ */
+export function readStoredWidth(store: WidthStore | null): number {
   let raw: string | null = null
   try {
     raw = store?.getItem(PANEL_WIDTH_KEY) ?? null
@@ -104,7 +109,7 @@ export function readStoredWidth(store: WidthStore | null, viewportWidth: number)
     raw = null
   }
   const parsed = raw === null ? Number.NaN : Number(raw)
-  return clampPanelWidth(Number.isFinite(parsed) ? parsed : DEFAULT_PANEL_WIDTH, viewportWidth)
+  return Number.isFinite(parsed) ? parsed : DEFAULT_PANEL_WIDTH
 }
 
 export function writeStoredWidth(store: WidthStore | null, width: number): void {

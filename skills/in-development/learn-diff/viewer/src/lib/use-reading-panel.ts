@@ -41,6 +41,9 @@ export interface ReadingPanelState {
   forward(): void
   /** ระหว่างลาก: persist = false · ปล่อยเมาส์แล้วค่อยจำ */
   setWidth(width: number, persist?: boolean): void
+  /** อ่านเต็มหน้าจอ (issue #30) — ซ่อน sidebar+เนื้อหา ไม่ใช่ Fullscreen API ของ browser */
+  fullscreen: boolean
+  toggleFullscreen(): void
 }
 
 function viewport(): number {
@@ -50,11 +53,13 @@ function viewport(): number {
 export function useReadingPanel(runId: string): ReadingPanelState {
   const [history, setHistory] = useState<PanelHistory>(EMPTY_HISTORY)
   const [open, setOpen] = useState(false)
+  // เต็มหน้าจอเป็นค่าชั่วคราวเหมือน open — ไม่จำลง localStorage
+  const [fullscreen, setFullscreen] = useState(false)
   const [viewportWidth, setViewportWidth] = useState(viewport)
   // ความกว้างที่ "ผู้อ่านขอ" เก็บไว้ดิบ ๆ แล้ว clamp ตอนแสดงผลเท่านั้น —
   // ถ้าเก็บค่าที่ clamp แล้ว การย่อหน้าต่างครั้งเดียวจะกินความกว้างที่ตั้งไว้หายถาวร
   const [desiredWidth, setDesiredWidth] = useState(() =>
-    readStoredWidth(typeof window === 'undefined' ? null : window.localStorage, viewport()),
+    readStoredWidth(typeof window === 'undefined' ? null : window.localStorage),
   )
   // โหมด diff ก็เป็นของผู้อ่านเช่นกัน — ข้ามไฟล์ ข้าม run และข้าม session
   const [diffMode, setDiffModeState] = useState<DiffMode>(() =>
@@ -71,6 +76,7 @@ export function useReadingPanel(runId: string): ReadingPanelState {
     }
     setHistory(EMPTY_HISTORY)
     setOpen(false)
+    setFullscreen(false)
   }, [runId])
 
   const openTarget = useCallback((target: PanelTarget) => {
@@ -78,7 +84,11 @@ export function useReadingPanel(runId: string): ReadingPanelState {
     setOpen(true)
   }, [])
 
-  const close = useCallback(() => setOpen(false), [])
+  const close = useCallback(() => {
+    setOpen(false)
+    setFullscreen(false)
+  }, [])
+  const toggleFullscreen = useCallback(() => setFullscreen((value) => !value), [])
   const back = useCallback(() => setHistory((prev) => goBack(prev)), [])
   const forward = useCallback(() => setHistory((prev) => goForward(prev)), [])
 
@@ -116,7 +126,9 @@ export function useReadingPanel(runId: string): ReadingPanelState {
       back,
       forward,
       setWidth,
+      fullscreen,
+      toggleFullscreen,
     }),
-    [open, target, width, history, diffMode, setDiffMode, openTarget, close, back, forward, setWidth],
+    [open, target, width, history, diffMode, setDiffMode, openTarget, close, back, forward, setWidth, fullscreen, toggleFullscreen],
   )
 }
