@@ -218,7 +218,26 @@ export async function collectWarnings(input: ValidateInput): Promise<ContentWarn
   const complete = data.sections.every((section) => pages.has(section.id))
 
   const sectionIds = new Set(data.sections.map((s) => s.id))
-  for (const row of data.boxMap ?? []) {
+  // key ที่ contract รู้จัก (BoxMapRow ใน shared/types.ts) — key แปลกปลอม (เช่น `what` ที่ agent
+  // เดา schema เอง) render ไม่ขึ้นเงียบ ๆ จึงต้องดังตั้งแต่ตอน validate (issue #33)
+  const boxMapKeys = new Set(['id', 'title', 'files', 'box', 'reason', 'section', 'readingList'])
+  for (const [i, row] of (data.boxMap ?? []).entries()) {
+    const where = `boxMap[${typeof row.id === 'string' && row.id ? row.id : i}]`
+    if (typeof row.id !== 'string' || row.id === '' || typeof row.title !== 'string' || row.title === '') {
+      warnings.push({
+        code: 'box_map_row_invalid',
+        message: `แถว box map ต้องมี id กับ title เป็น string ไม่ว่าง — ดู schema ใน content-format.md`,
+        where,
+      })
+    }
+    const unknown = Object.keys(row).filter((key) => !boxMapKeys.has(key))
+    if (unknown.length > 0) {
+      warnings.push({
+        code: 'box_map_row_invalid',
+        message: `แถว box map มี key ที่ contract ไม่รู้จัก: ${unknown.join(', ')} — viewer จะไม่แสดงค่าเหล่านี้`,
+        where,
+      })
+    }
     if (row.section && !sectionIds.has(row.section)) {
       warnings.push({
         code: 'box_map_unknown_section',
@@ -276,19 +295,32 @@ export async function collectWarnings(input: ValidateInput): Promise<ContentWarn
     }
   }
 
-  /* ── nodeMap: node id ต้องมีอยู่จริงในไดอะแกรมสักอันของ run นี้ ──────────────── */
+  /* ── ไดอะแกรม: source ต้องอยู่ใน subset + node id ใน nodeMap ต้องมีจริง ──────── */
+
+  // parse ครั้งเดียวต่อไดอะแกรม แล้วใช้ผลทั้งสองทาง (violations + รายชื่อ node)
+  // violation รายงานทันทีไม่รอ complete — หน้าที่เขียนเสร็จแล้วมี syntax หลุด subset
+  // คือของจริง ผู้อ่านเห็นแถบแดงบนรูปอยู่แล้ว ฝั่ง API ต้องดังตาม (issue #15)
+  // หมายเหตุ: parseDiagram ไม่ throw — source ที่อ่านไม่ออกเลย (บรรทัดแรกผิด / diagram ว่าง)
+  // ก็โผล่เป็น violations เหมือนกัน จึงใช้ code เดียวพอ
+  const nodes = new Set<string>()
+  const subgraphs = new Set<string>()
+  for (const [sectionId, scan] of scans) {
+    for (const source of scan.diagrams) {
+      const parsed = parseDiagram(source)
+      for (const node of parsed.nodes) nodes.add(node)
+      for (const id of parsed.subgraphs) subgraphs.add(id)
+      for (const violation of parsed.violations) {
+        warnings.push({
+          code: 'diagram_out_of_subset',
+          message: violation.message,
+          where: `${sectionId}:${violation.line}`,
+        })
+      }
+    }
+  }
 
   const nodeMap = data.nodeMap ?? {}
   if (complete && Object.keys(nodeMap).length > 0) {
-    const nodes = new Set<string>()
-    const subgraphs = new Set<string>()
-    for (const scan of scans.values()) {
-      for (const source of scan.diagrams) {
-        const parsed = parseDiagram(source)
-        for (const node of parsed.nodes) nodes.add(node)
-        for (const id of parsed.subgraphs) subgraphs.add(id)
-      }
-    }
     for (const nodeId of Object.keys(nodeMap)) {
       if (nodes.has(nodeId)) continue
       warnings.push({

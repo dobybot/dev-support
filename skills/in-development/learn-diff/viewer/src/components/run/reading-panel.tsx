@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, ChevronsDownUp, ChevronsUpDown, Columns2, Rows3, Search, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronsDownUp, ChevronsUpDown, Columns2, Maximize2, Minimize2, Rows3, Search, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { CodeView, SplitCodeView, type CodeControls } from '@/components/run/code-view'
@@ -333,7 +333,7 @@ export function ReadingPanel() {
   const panel = useReadingPanelState()
   const { data, run } = useRun()
   const scroller = useRef<HTMLDivElement>(null)
-  const { close, setWidth } = panel
+  const { close, setWidth, fullscreen, toggleFullscreen } = panel
 
   const resolved = useMemo(
     () => (panel.target ? resolveTarget(data, panel.target) : null),
@@ -362,14 +362,16 @@ export function ReadingPanel() {
   }, [resolved])
 
   // Esc ปิด panel · แต่ Esc ที่ถูกใช้ไปแล้ว (เช่นปิดช่องค้นหาของ CodeMirror) ต้องไม่ปิดตามไปด้วย
+  // ตอนเต็มหน้าจอ Esc ครั้งแรกออกจากเต็มหน้าจอก่อน ครั้งที่สองค่อยปิด (issue #30)
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return
-      close()
+      if (fullscreen) toggleFullscreen()
+      else close()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [close])
+  }, [close, fullscreen, toggleFullscreen])
 
   // เปลี่ยนรายการ = เริ่มอ่านจากช่วงแรกเสมอ
   useEffect(() => {
@@ -413,18 +415,21 @@ export function ReadingPanel() {
 
   return (
     <div
-      className="relative shrink-0 border-l bg-background"
-      style={{ width: `${panel.width}px` }}
+      className={cn('relative shrink-0 border-l bg-background', fullscreen && 'w-full flex-1')}
+      // เต็มหน้าจอ = ปล่อยให้ flex ยืดเอง — desiredWidth ไม่ถูกแตะ ออกแล้วได้ความกว้างเดิมคืน
+      style={fullscreen ? undefined : { width: `${panel.width}px` }}
       data-reading-panel
     >
-      {/* ขอบซ้ายลากได้ — อยู่ในกล่องของ panel เอง จึงไม่เคยทับเนื้อหา */}
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="ลากเพื่อปรับความกว้าง panel"
-        onPointerDown={onHandleDown}
-        className="absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize hover:bg-ring/40 active:bg-ring/60"
-      />
+      {/* ขอบซ้ายลากได้ — อยู่ในกล่องของ panel เอง จึงไม่เคยทับเนื้อหา · เต็มหน้าจอไม่มีอะไรให้ลาก */}
+      {fullscreen ? null : (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="ลากเพื่อปรับความกว้าง panel"
+          onPointerDown={onHandleDown}
+          className="absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize hover:bg-ring/40 active:bg-ring/60"
+        />
+      )}
 
       <div className="sticky top-0 flex h-screen flex-col">
         <header className="border-b px-4 py-3">
@@ -437,6 +442,16 @@ export function ReadingPanel() {
             </IconButton>
             <IconButton label="รายการถัดไป" onClick={panel.forward} disabled={!panel.canForward}>
               <ArrowRight className="size-3.5" aria-hidden />
+            </IconButton>
+            <IconButton
+              label={fullscreen ? 'ออกจากเต็มหน้าจอ (Esc)' : 'อ่านเต็มหน้าจอ'}
+              onClick={toggleFullscreen}
+            >
+              {fullscreen ? (
+                <Minimize2 className="size-3.5" aria-hidden />
+              ) : (
+                <Maximize2 className="size-3.5" aria-hidden />
+              )}
             </IconButton>
             <IconButton label="ปิด panel (Esc)" onClick={panel.close}>
               <X className="size-3.5" aria-hidden />

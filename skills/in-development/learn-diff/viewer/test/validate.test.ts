@@ -301,6 +301,41 @@ describe('นิยามที่ไม่มีใครอ้าง', () => {
   })
 })
 
+describe('แถว box map ที่หลุด schema', () => {
+  it('ขาด title/id หรือมี key แปลกปลอม (เช่น `what`) = warning `box_map_row_invalid`', async () => {
+    await writeRun(
+      'pr-boxmap-invalid',
+      runData({
+        id: 'pr-boxmap-invalid',
+        // agent เดา schema เอง: ใช้ `what` + `files` เป็น array — แบบที่ issue #33 รายงาน
+        boxMap: [
+          { id: 'guessed', box: 'greybox', reason: 'x', what: 'ของที่เดามาเอง' },
+        ] as unknown as RunData['boxMap'],
+        sections: [{ id: 'index', title: 'ภาพรวม', kind: 'index' }],
+      }),
+      { 'index.md': '# ภาพรวม\n' },
+    )
+    const warnings = (await warningsOf('pr-boxmap-invalid')).filter(
+      (w) => w.code === 'box_map_row_invalid',
+    )
+    expect(warnings.map((w) => w.where)).toEqual(['boxMap[guessed]', 'boxMap[guessed]'])
+    expect(warnings.map((w) => w.message).join('\n')).toContain('what')
+  })
+
+  it('files เป็น array ของ basename ถือว่าถูก schema — ไม่เตือน', async () => {
+    await writeRun(
+      'pr-boxmap-files-array',
+      runData({
+        id: 'pr-boxmap-files-array',
+        boxMap: [{ id: 'ok', title: 'แถวปกติ', files: ['a.ts', 'b.ts'], box: 'blackbox', reason: 'x' }],
+        sections: [{ id: 'index', title: 'ภาพรวม', kind: 'index' }],
+      }),
+      { 'index.md': '# ภาพรวม\n' },
+    )
+    expect(codes(await warningsOf('pr-boxmap-files-array'))).not.toContain('box_map_row_invalid')
+  })
+})
+
 describe('node id ที่ไม่มีในไดอะแกรม', () => {
   it('บอกว่า id ไหนสะกดไม่ตรง', async () => {
     const warning = find(await warningsOf('pr-broken'), 'diagram_node_not_found')
@@ -335,6 +370,25 @@ describe('node id ที่ไม่มีในไดอะแกรม', () =>
     )
     const warning = find(await warningsOf('pr-subgraph'), 'diagram_node_not_found')
     expect(warning?.message).toContain('subgraph')
+  })
+})
+
+describe('ไดอะแกรมที่หลุด subset', () => {
+  it('shape นอก subset (เช่น `[(x)]`) = warning `diagram_out_of_subset` พร้อมพิกัด section:บรรทัด', async () => {
+    const outOfSubset = ['flowchart TB', '  A[หนึ่ง]', '  A --> B[(ฐานข้อมูล)]'].join('\n')
+    await writeRun(
+      'pr-out-of-subset',
+      runData({ id: 'pr-out-of-subset', sections: [{ id: 'index', title: 'ภาพรวม', kind: 'index' }] }),
+      { 'index.md': `# ภาพรวม\n\n\`\`\`mermaid\n${outOfSubset}\n\`\`\`\n` },
+    )
+    const warnings = (await warningsOf('pr-out-of-subset')).filter((w) => w.code === 'diagram_out_of_subset')
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0].where).toBe('index:3')
+  })
+
+  it('ไดอะแกรมที่อยู่ใน subset ไม่ถูกเตือน', async () => {
+    // pr-ok มีไดอะแกรมใน subset อยู่แล้ว และต้องไม่มี warning เลย (เช็คซ้ำเฉพาะ code นี้กันเทสต์บนเปลี่ยน)
+    expect(codes(await warningsOf('pr-ok'))).not.toContain('diagram_out_of_subset')
   })
 })
 

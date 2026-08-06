@@ -9,6 +9,7 @@ import { useReadingPanelState } from '@/components/run/panel-context'
 import { useRun, useRunChanges } from '@/components/run/run-context'
 import { ErrorBox, Loading, PendingSection } from '@/components/run/status'
 import { ApiClientError, fetchPage } from '@/lib/api'
+import { stripDuplicateH1 } from '@/lib/strip-duplicate-h1'
 import { useAsync } from '@/lib/use-async'
 import { sectionFileName } from '@/shared/sections'
 
@@ -67,7 +68,7 @@ export function SectionPage() {
       </div>
       {section.subtitle ? (
         <div className="mt-1 text-sm text-muted-foreground">
-          <InlineMd>{section.subtitle}</InlineMd>
+          <InlineMd diffstat>{section.subtitle}</InlineMd>
         </div>
       ) : null}
 
@@ -79,7 +80,10 @@ export function SectionPage() {
       ) : null}
       {/* key = section: การสลับหน้าต้อง mount prose ใหม่ทั้งก้อน เพื่อให้ตัว render ที่ทำงานกับ DOM ตรง ๆ
           (mermaid ของ #6, highlighter ของ #7) เริ่มรอบใหม่แทนที่จะเจอ container ของหน้าเดิม */}
-      {page.data ? <Prose key={sectionId} markdown={page.data.markdown} /> : null}
+      {/* h1 แรกที่ซ้ำกับ section.title ถูกกลืนทิ้ง (issue #19) — หัวข้อแสดงจาก run.json ข้างบนแล้ว */}
+      {page.data ? (
+        <Prose key={sectionId} markdown={stripDuplicateH1(page.data.markdown, section.title)} />
+      ) : null}
 
       <nav className="mt-12 flex justify-between gap-4 border-t pt-4 text-sm">
         {prev ? (

@@ -35,8 +35,11 @@ export interface RunSection {
 export interface BoxMapRow {
   id: string
   title: string
-  /** ไฟล์หลักที่เกี่ยวข้อง — โชว์ใต้ชื่อแถว */
-  files?: string
+  /**
+   * ไฟล์หลักที่เกี่ยวข้อง — โชว์ใต้ชื่อแถว · string = ข้อความพร้อมแสดง (basename คั่นด้วย ' · ')
+   * หรือเป็น array ของ basename ให้ viewer join ให้เอง (issue #33)
+   */
+  files?: string | string[]
   box: BoxLevel
   /** เหตุผลของการจัดกล่อง (markdown inline) — blackbox สั้น ๆ อธิบายจบในแถวได้เลย */
   reason: string
@@ -109,6 +112,12 @@ export interface RegistryEntry {
   id: string
   /** root ของ repo ที่ PR นี้อยู่ — file API (#7) resolve path เทียบกับตัวนี้ */
   repoPath: string
+  /**
+   * ชื่อ repo ตัวจริง (โฟลเดอร์ของ git common dir) — worktree ทำให้ basename(repoPath)
+   * เป็นชื่อ branch ไม่ใช่ชื่อ repo (issue #21) · register-run.mjs เติมให้ตอนลงทะเบียน ·
+   * entry เก่าไม่มี field นี้ — ผู้อ่านทุกฝั่งต้อง fallback ไป basename(repoPath)
+   */
+  repoName?: string
   /** โฟลเดอร์ที่มี run.json (absolute หรือ relative กับ repoPath) */
   contentDir: string
   commit: string
@@ -245,6 +254,11 @@ export interface HealthResponse {
   service: 'learn-diff-viewer'
   schemaVersion: 1
   registry: string
+  /**
+   * LEARN_DIFF_HOME ที่ resolve แล้วของ process นี้ — `serve.mjs --stop` ใช้เทียบว่า
+   * ตัวที่กำลังจะปิดเป็น instance ของ home เดียวกันจริง ไม่ใช่ instance อื่นบนพอร์ต default
+   */
+  home: string
   pid: number
   /** โฟลเดอร์ viewer ที่ process นี้รันอยู่ — ใช้ประกอบคำสั่ง "สั่งรันเอง" ให้ผู้อ่าน */
   root: string

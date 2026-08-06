@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ErrorBox, Loading } from '@/components/run/status'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { fetchHealth, fetchRuns } from '@/lib/api'
-import { filterRuns, formatDateTime, formatRunDate, repoName, shortCommit } from '@/lib/run-list'
+import { displayRepoName, filterRuns, formatCommitRange, formatDateTime, formatRunDate, repoName } from '@/lib/run-list'
 import { useAsync } from '@/lib/use-async'
 import type { HealthResponse, RunSummary } from '@/shared/types'
 
@@ -30,9 +31,12 @@ export function HomePage() {
             run ที่เคยสร้างไว้ทั้งหมด — ข้ามทุก repo ในเครื่องนี้
           </p>
         </div>
-        {runs.length > 0 ? (
-          <span className="text-xs text-muted-foreground">{runs.length} run</span>
-        ) : null}
+        <div className="flex items-center gap-3">
+          {runs.length > 0 ? (
+            <span className="text-xs text-muted-foreground">{runs.length} run</span>
+          ) : null}
+          <ThemeToggle />
+        </div>
       </header>
 
       {runs.length > 3 ? (
@@ -95,9 +99,19 @@ function RunCard({ run }: { run: RunSummary }) {
         ) : null}
       </Link>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 pb-3 pt-1.5 text-xs text-muted-foreground">
-        <span title={run.repoPath}>{repoName(run.repoPath)}</span>
-        <span className="font-mono" title={run.commit}>
-          {shortCommit(run.commit)}
+        {/* ชื่อ repo ตัวจริงนำ · ถ้า run มาจาก worktree (basename ต่างจากชื่อ repo) โชว์โฟลเดอร์กำกับ (issue #21) */}
+        <span title={run.repoPath}>
+          {displayRepoName(run)}
+          {displayRepoName(run) !== repoName(run.repoPath) ? (
+            <span className="text-muted-foreground/70"> · {repoName(run.repoPath)}</span>
+          ) : null}
+        </span>
+        {/* base…head — base เปลี่ยนความหมายของ run จึงโชว์คู่กันตั้งแต่หน้าแรก (issue #17) */}
+        <span
+          className="font-mono"
+          title={run.baseCommit ? `base ${run.baseCommit} → ${run.commit}` : run.commit}
+        >
+          {formatCommitRange(run.baseCommit, run.commit)}
         </span>
         {/* ลิงก์ออกนอกแอปต้องอยู่นอก <Link> — <a> ซ้อน <a> เป็น markup ที่เบราว์เซอร์แยกให้ไม่ได้ */}
         {run.pr.url ? (

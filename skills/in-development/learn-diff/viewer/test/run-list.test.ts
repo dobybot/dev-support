@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { filterRuns, formatRunDate, repoName, shortCommit } from '../src/lib/run-list'
+import { displayRepoName, filterRuns, formatRunDate, repoName, shortCommit } from '../src/lib/run-list'
 import type { RunSummary } from '../src/shared/types'
 
 /** ตรรกะของหน้าแรกที่เทสต์ได้จริง — ตัวหน้าเองเป็น component จึงไม่มีเทสต์ (SPEC-v3) */
@@ -23,6 +23,14 @@ describe('ข้อมูลที่หน้าแรกโชว์ต่อ 
     expect(repoName('/Users/dev/Projects/dobybot-monorepo')).toBe('dobybot-monorepo')
     expect(repoName('C:\\Users\\dev\\Projects\\dobybot-monorepo')).toBe('dobybot-monorepo')
     expect(repoName('/Users/dev/repo/')).toBe('repo')
+  })
+
+  it('ชื่อ repo ที่แสดงใช้ repoName จาก registry ก่อน — entry เก่า fallback ไป basename (issue #21)', () => {
+    // worktree: basename เป็นชื่อ branch แต่ repoName คือชื่อ repo ตัวจริง
+    expect(
+      displayRepoName(run({ repoPath: '/Users/dev/wt/feat-x', repoName: 'dobybot-monorepo' })),
+    ).toBe('dobybot-monorepo')
+    expect(displayRepoName(run())).toBe('dobybot-monorepo')
   })
 
   it('ย่อ commit แบบเดียวกับที่ git แสดง', () => {
@@ -61,6 +69,14 @@ describe('ค้นหา run', () => {
     expect(filterRuns(runs, 'dobysync').map((r) => r.id)).toEqual(['pr-99-billing'])
     expect(filterRuns(runs, 'ETax').map((r) => r.id)).toEqual(['pr-230-etax'])
     expect(filterRuns(runs, 'e2b2696').map((r) => r.id)).toEqual(['pr-230-etax'])
+  })
+
+  it('ค้นด้วยชื่อ repo ตัวจริงหรือชื่อโฟลเดอร์ worktree ก็เจอ (issue #21)', () => {
+    const worktree = [
+      run({ id: 'pr-7-wt', repoPath: '/Users/dev/wt/feat-x', repoName: 'dobybot-monorepo' }),
+    ]
+    expect(filterRuns(worktree, 'dobybot-monorepo').map((r) => r.id)).toEqual(['pr-7-wt'])
+    expect(filterRuns(worktree, 'feat-x').map((r) => r.id)).toEqual(['pr-7-wt'])
   })
 
   it('หลายคำต้องเจอครบทุกคำ และคำว่างคือไม่กรอง', () => {

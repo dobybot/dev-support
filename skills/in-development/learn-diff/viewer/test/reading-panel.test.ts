@@ -108,25 +108,37 @@ describe('ความกว้างของ panel', () => {
     expect(clampPanelWidth(800, 600)).toBe(MIN_PANEL_WIDTH)
   })
 
-  it('อ่านค่าที่จำไว้ข้าม session และ clamp ตามจอปัจจุบัน', () => {
+  it('อ่านค่าดิบที่จำไว้ข้าม session — ไม่ clamp ตอนอ่าน (issue #18)', () => {
     const store = new Map<string, string>([[PANEL_WIDTH_KEY, '720']])
     const fake: WidthStore = {
       getItem: (k) => store.get(k) ?? null,
       setItem: (k, v) => void store.set(k, v),
     }
-    expect(readStoredWidth(fake, 1600)).toBe(720)
-    expect(readStoredWidth(fake, 1000)).toBe(1000 - 520)
+    // คืนค่าดิบเสมอ แม้จอปัจจุบันแคบ — จอกว้างขึ้นทีหลังต้องได้ค่าเดิมคืน
+    expect(readStoredWidth(fake)).toBe(720)
 
     writeStoredWidth(fake, 640)
     expect(store.get(PANEL_WIDTH_KEY)).toBe('640')
   })
 
+  it('เปิดในจอแคบไม่กินค่าที่จำไว้ — clamp ที่ตอนแสดงผลตามจอขณะนั้น (issue #18)', () => {
+    const store = new Map<string, string>([[PANEL_WIDTH_KEY, '760']])
+    const fake: WidthStore = {
+      getItem: (k) => store.get(k) ?? null,
+      setItem: (k, v) => void store.set(k, v),
+    }
+    const stored = readStoredWidth(fake)
+    expect(stored).toBe(760)
+    expect(clampPanelWidth(stored, 800)).toBe(MIN_PANEL_WIDTH)
+    expect(clampPanelWidth(stored, 1500)).toBe(760)
+  })
+
   it('ไม่เคยจำไว้ / ค่าเสีย = ค่าเริ่มต้น', () => {
     const empty: WidthStore = { getItem: () => null, setItem: () => {} }
     const junk: WidthStore = { getItem: () => 'ไม่ใช่ตัวเลข', setItem: () => {} }
-    expect(readStoredWidth(empty, 1600)).toBe(DEFAULT_PANEL_WIDTH)
-    expect(readStoredWidth(junk, 1600)).toBe(DEFAULT_PANEL_WIDTH)
-    expect(readStoredWidth(null, 1600)).toBe(DEFAULT_PANEL_WIDTH)
+    expect(readStoredWidth(empty)).toBe(DEFAULT_PANEL_WIDTH)
+    expect(readStoredWidth(junk)).toBe(DEFAULT_PANEL_WIDTH)
+    expect(readStoredWidth(null)).toBe(DEFAULT_PANEL_WIDTH)
   })
 
   it('storage ที่ throw (โหมดส่วนตัว) ไม่ทำให้พัง', () => {
@@ -138,7 +150,7 @@ describe('ความกว้างของ panel', () => {
         throw new Error('nope')
       },
     }
-    expect(readStoredWidth(hostile, 1600)).toBe(DEFAULT_PANEL_WIDTH)
+    expect(readStoredWidth(hostile)).toBe(DEFAULT_PANEL_WIDTH)
     expect(() => writeStoredWidth(hostile, 500)).not.toThrow()
   })
 })

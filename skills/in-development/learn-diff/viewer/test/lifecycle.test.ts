@@ -109,6 +109,8 @@ beforeAll(async () => {
   await registerRun({
     id: 'pr-2-gone',
     repoPath: path.join(tmpRoot, 'ghost'),
+    // entry รุ่นใหม่มี repoName (ชื่อ repo ตัวจริง กรณี worktree) — issue #21
+    repoName: 'ghost-main',
     contentDir: path.join(tmpRoot, 'ghost', '.learn-diff', 'pr-2-gone'),
     commit: 'aaaabbbbccccddddeeeeffff0000111122223333',
     pr: { number: 2, title: 'ghost' },
@@ -260,6 +262,9 @@ describe('run registry ที่หน้าแรกใช้', () => {
     expect(first.title).toBe('pr-1-alive')
     expect(first.createdAt).toBe('2026-08-01T09:00:00+07:00')
     expect(first.commit).toHaveLength(40)
+    // entry เก่าไม่มี repoName ก็ยังโหลดได้ · entry ใหม่ส่ง repoName ผ่านออกมาครบ (issue #21)
+    expect(first.repoName).toBeUndefined()
+    expect(runs.find((r) => r.id === 'pr-2-gone')?.repoName).toBe('ghost-main')
   })
 
   it('บอกได้ว่า run ไหนโฟลเดอร์หายไปแล้ว โดยไม่ทำให้ทั้งรายการล้ม', async () => {
