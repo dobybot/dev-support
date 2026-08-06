@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "learn-diff-viewer",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "skills/in-development/learn-diff/viewer", "dev"],
+      "port": 5174
+    }
+  ]
+}
