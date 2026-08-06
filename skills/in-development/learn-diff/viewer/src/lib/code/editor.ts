@@ -18,6 +18,8 @@ import {
   type LineMeta,
 } from './decorations'
 import { languageExtension } from './languages'
+import { flashDocLine, flashHighlight, navigation, type NavConfigRef, type NavRequest } from './navigation'
+import { closePeek, openPeekAt, peekSupport } from './peek'
 import { codeTheme } from './theme'
 
 /** editor หนึ่งตัว — ตัวประกอบร่วมของทั้งมุมมองเดี่ยว, unified และสองฝั่งของ split */
@@ -42,6 +44,10 @@ export interface EditorOptions {
   /** เหมือน scrollToLine แต่ระบุเป็น "แถวที่เท่าไรของเอกสาร" — โหมด split ใช้ เพราะสองฝั่ง
    *  แถวตรงกันอยู่แล้ว ส่วนเลขบรรทัดของฝั่งซ้ายเป็นของ base จึงแปลจากเลขฝั่ง head ตรง ๆ ไม่ได้ */
   scrollToDocLine?: number | null
+  /** ผู้อ่านขอ go to definition / find references — ไม่ส่ง = ปิดฟีเจอร์ */
+  onNavigate?: (req: NavRequest) => void
+  /** false = ปิด navigation ของ editor ตัวนี้ (ฝั่ง base ของ split view) */
+  navigable?: boolean
 }
 
 function metaOf(options: EditorOptions): LineMeta {
@@ -65,8 +71,17 @@ export interface EditorHandle {
   view: EditorView
   update(next: EditorOptions): void
   openSearch(): void
-  /** เลื่อนไปยังบรรทัดของ "ไฟล์จริง" (เลขฝั่ง head) — ใช้โดยหมุดของ reading list */
-  scrollToFileLine(fileLine: number): void
+  /**
+   * เลื่อนไปยังบรรทัดของ "ไฟล์จริง" (เลขฝั่ง head) — ใช้โดยหมุดของ reading list
+   * `flash` = กะพริบบรรทัดนั้นให้ด้วย (ใช้ตอนกระโดดมาจาก definition/รายการ references)
+   */
+  scrollToFileLine(fileLine: number, options?: { flash?: boolean }): void
+  /**
+   * กางกล่อง peek (plain DOM ที่ผู้เรียกเป็นเจ้าของเนื้อหา) ใต้บรรทัดของไฟล์จริง (เลขฝั่ง head)
+   * เรียกซ้ำ = ย้ายกล่องไปบรรทัดใหม่ (peek มีได้ทีละอัน) — ปิดด้วย closePeek()
+   */
+  openPeek(fileLine: number, dom: HTMLElement): void
+  closePeek(): void
   destroy(): void
 }
 
@@ -79,6 +94,11 @@ export function createEditor(container: HTMLElement, options: EditorOptions): Ed
 
   const { highlight, theme } = codeTheme(options.dark)
   let meta = metaOf(options)
+  // config ของ navigation อ่านผ่านกล่องนี้ตลอดอายุ editor — callback จาก React เปลี่ยน
+  // identity ทุก render การ reconfigure ตามจึงเป็นงานเปล่า
+  const navRef: NavConfigRef = {
+    current: { language: options.language, onNavigate: options.onNavigate, navigable: options.navigable },
+  }
 
   const initialDoc =
     options.scrollToDocLine ??
@@ -107,6 +127,10 @@ export function createEditor(container: HTMLElement, options: EditorOptions): Ed
         EditorState.tabSize.of(4),
         search({ top: true }),
         highlightSelectionMatches(),
+        flashHighlight,
+        peekSupport,
+        // ก่อน defaultKeymap: F12 ต้องเป็นของ navigation ไม่ใช่ของ command ตัวอื่นที่กินคีย์นี้
+        navigation(navRef),
         keymap.of([...searchKeymap, ...defaultKeymap]),
         themeSlot.of([theme, syntaxHighlighting(highlight)]),
         languageSlot.of([]),
@@ -117,6 +141,7 @@ export function createEditor(container: HTMLElement, options: EditorOptions): Ed
   let current = options
   let alive = true
   let languageSeq = 0
+  let flashTimer: ReturnType<typeof setTimeout> | undefined
 
   const applyLanguage = (language: CodeLanguage | null): void => {
     const seq = ++languageSeq
@@ -132,6 +157,7 @@ export function createEditor(container: HTMLElement, options: EditorOptions): Ed
     view,
     update(next) {
       if (!alive) return
+      navRef.current = { language: next.language, onNavigate: next.onNavigate, navigable: next.navigable }
       const nextMeta = metaOf(next)
       const metaChanged =
         nextMeta.lines !== meta.lines || nextMeta.firstLine !== meta.firstLine || nextMeta.pins !== meta.pins
@@ -185,11 +211,15 @@ export function createEditor(container: HTMLElement, options: EditorOptions): Ed
      * ยังไม่ได้วาดเฟรมใหม่ (measure ของ CodeMirror ผูกกับ animation frame) — ผู้อ่านจะเจอ
      * หัวไฟล์แทนที่จะเป็นช่วงที่กำลังอ่านอยู่
      */
-    scrollToFileLine(fileLine) {
+    scrollToFileLine(fileLine, scrollOptions) {
       if (!alive) return
       const docLine = docLineForFileLine(meta, fileLine)
       if (docLine === null || docLine < 1 || docLine > view.state.doc.lines) return
       const line = view.state.doc.line(docLine)
+      if (scrollOptions?.flash) {
+        clearTimeout(flashTimer)
+        flashTimer = flashDocLine(view, docLine)
+      }
       view.dispatch({ effects: EditorView.scrollIntoView(line.from, { y: 'start', yMargin: 12 }) })
       try {
         view.scrollDOM.scrollTop = Math.max(0, view.lineBlockAt(line.from).top - 12)
@@ -197,8 +227,19 @@ export function createEditor(container: HTMLElement, options: EditorOptions): Ed
         // ตำแหน่งอยู่นอกช่วงที่ height map รู้จัก — ปล่อยให้ scrollIntoView จัดการอย่างเดียว
       }
     },
+    openPeek(fileLine, dom) {
+      if (!alive) return
+      const docLine = docLineForFileLine(meta, fileLine)
+      if (docLine === null) return
+      openPeekAt(view, docLine, dom)
+    },
+    closePeek() {
+      if (!alive) return
+      closePeek(view)
+    },
     destroy() {
       alive = false
+      clearTimeout(flashTimer)
       view.destroy()
     },
   }

@@ -6,6 +6,7 @@ import {
   type CodeControls,
   type CodePin,
   type CodeViewHandle,
+  type NavRequest,
   type SplitCodeViewHandle,
 } from '@/lib/code'
 import type { CodeLine } from '@/lib/diff'
@@ -27,6 +28,8 @@ export function CodeView({
   pins,
   height,
   scrollToLine,
+  onNavigate,
+  navigable,
   className,
   viewRef,
 }: {
@@ -40,6 +43,10 @@ export function CodeView({
   height?: string | null
   /** บรรทัดที่ต้องเห็นตั้งแต่แรกเปิด (มีผลตอน mount) */
   scrollToLine?: number | null
+  /** ผู้อ่านกด F12 / Shift-F12 / Cmd-click บน identifier — ไม่ส่ง = ปิดฟีเจอร์ */
+  onNavigate?: (req: NavRequest) => void
+  /** false = ปิด navigation ของมุมมองนี้ */
+  navigable?: boolean
   className?: string
   /** ที่ให้ผู้เรียกเก็บ handle ไว้สั่ง openSearch() / scrollToLine() เอง */
   viewRef?: React.RefObject<CodeControls | null>
@@ -59,6 +66,8 @@ export function CodeView({
       pins,
       height,
       scrollToLine,
+      onNavigate,
+      navigable,
       dark,
     })
     if (viewRef) viewRef.current = handle.current
@@ -72,8 +81,8 @@ export function CodeView({
   }, [])
 
   useEffect(() => {
-    handle.current?.update({ text, language, firstLine, lines, pins, height, dark })
-  }, [text, language, firstLine, lines, pins, height, dark])
+    handle.current?.update({ text, language, firstLine, lines, pins, height, onNavigate, navigable, dark })
+  }, [text, language, firstLine, lines, pins, height, onNavigate, navigable, dark])
 
   return <div ref={host} className={className} />
 }
@@ -89,6 +98,7 @@ export function SplitCodeView({
   pins,
   height,
   scrollToLine,
+  onNavigate,
   className,
   viewRef,
 }: {
@@ -99,6 +109,8 @@ export function SplitCodeView({
   height?: string | null
   /** บรรทัดที่ต้องเห็นตั้งแต่แรกเปิด (มีผลตอน mount) */
   scrollToLine?: number | null
+  /** navigation ทำงานเฉพาะฝั่งขวา (pinned commit) — ฝั่ง base ไม่ตอบสนองตามดีไซน์ */
+  onNavigate?: (req: NavRequest) => void
   className?: string
   viewRef?: React.RefObject<CodeControls | null>
 }) {
@@ -116,6 +128,7 @@ export function SplitCodeView({
       pins,
       height,
       scrollToLine,
+      onNavigate,
       dark,
     })
     if (viewRef) viewRef.current = handle.current
@@ -127,10 +140,10 @@ export function SplitCodeView({
   }, [])
 
   useEffect(() => {
-    handle.current?.update({ left, right, language, pins, height, dark })
-  }, [left, right, language, pins, height, dark])
+    handle.current?.update({ left, right, language, pins, height, onNavigate, dark })
+  }, [left, right, language, pins, height, onNavigate, dark])
 
   return <div ref={host} className={className} />
 }
 
-export type { CodeControls, CodeViewHandle }
+export type { CodeControls, CodeViewHandle, NavRequest }

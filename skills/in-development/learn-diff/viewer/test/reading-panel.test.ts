@@ -6,13 +6,16 @@ import {
   MAX_HISTORY,
   MIN_PANEL_WIDTH,
   PANEL_WIDTH_KEY,
+  backGoesToReferences,
   baseName,
   canGoBack,
   canGoForward,
   clampPanelWidth,
+  currentScrollTop,
   currentTarget,
   fileIndex,
   goBack,
+  goBackToReading,
   goForward,
   pushTarget,
   readStoredWidth,
@@ -79,7 +82,7 @@ describe('ประวัติของ panel', () => {
   it('ย้อนกลับแล้วเปิดอันใหม่ = ตัดประวัติฝั่งหน้าทิ้ง', () => {
     const h = goBack(history(list, other))
     const next = pushTarget(h, third)
-    expect(next.entries.map((t) => targetKey(t))).toEqual([targetKey(list), targetKey(third)])
+    expect(next.entries.map((e) => targetKey(e.target))).toEqual([targetKey(list), targetKey(third)])
     expect(canGoForward(next)).toBe(false)
   })
 
@@ -94,6 +97,131 @@ describe('ประวัติของ panel', () => {
     for (let i = 0; i < MAX_HISTORY + 10; i++) h = pushTarget(h, { kind: 'list', listId: `rl-${i}` })
     expect(h.entries).toHaveLength(MAX_HISTORY)
     expect(currentTarget(h)).toEqual({ kind: 'list', listId: `rl-${MAX_HISTORY + 9}` })
+  })
+})
+
+describe('targetKey ของ target ชนิด references และ file ที่มี focusLine (CONTRACT-f12 §4.1)', () => {
+  it('references ที่ตำแหน่ง cursor เดียวกันเป๊ะคือ target เดียวกัน', () => {
+    const a: PanelTarget = { kind: 'references', path: 'a.ts', line: 10, col: 5, symbol: 'foo' }
+    const b: PanelTarget = { kind: 'references', path: 'a.ts', line: 10, col: 5, symbol: 'foo' }
+    expect(targetKey(a)).toBe(targetKey(b))
+  })
+
+  // adjudication finding 4: ตำแหน่งเดิมแต่ symbol เปลี่ยน (ไฟล์ถูก reindex/คนละ commit) = คนละก้าว
+  it('references ตำแหน่งเดียวกันแต่คนละ symbol คือคนละ target', () => {
+    const a: PanelTarget = { kind: 'references', path: 'a.ts', line: 10, col: 5, symbol: 'foo' }
+    const b: PanelTarget = { kind: 'references', path: 'a.ts', line: 10, col: 5, symbol: 'bar' }
+    expect(targetKey(a)).not.toBe(targetKey(b))
+  })
+
+  it('references คนละตำแหน่งคือคนละ target', () => {
+    const a: PanelTarget = { kind: 'references', path: 'a.ts', line: 10, col: 5, symbol: 'foo' }
+    const b: PanelTarget = { kind: 'references', path: 'a.ts', line: 20, col: 5, symbol: 'foo' }
+    expect(targetKey(a)).not.toBe(targetKey(b))
+  })
+
+  it('ไฟล์เดียวกัน ช่วงเดียวกัน แต่ focusLine ต่างกัน = คนละ target (กระโดดมาจากคนละ reference)', () => {
+    const a: PanelTarget = { kind: 'file', path: 'a.ts', from: null, to: null, focusLine: 5 }
+    const b: PanelTarget = { kind: 'file', path: 'a.ts', from: null, to: null, focusLine: 9 }
+    expect(targetKey(a)).not.toBe(targetKey(b))
+  })
+})
+
+describe('ปุ่มกลับสองชั้น (CONTRACT-f12 §4.1)', () => {
+  const reading: PanelTarget = { kind: 'file', path: 'reading.ts', from: 1, to: 10 }
+  const refsTarget: PanelTarget = { kind: 'references', path: 'reading.ts', line: 3, col: 4, symbol: 'foo' }
+  const jump1: PanelTarget = { kind: 'file', path: 'caller1.ts', from: null, to: null, focusLine: 5 }
+  const jump2: PanelTarget = { kind: 'file', path: 'caller2.ts', from: null, to: null, focusLine: 9 }
+
+  it('backGoesToReferences: true เมื่อ entry ก่อนหน้าคือ references', () => {
+    const h = history(reading, refsTarget, jump1)
+    expect(backGoesToReferences(h)).toBe(true)
+  })
+
+  it('backGoesToReferences: false เมื่อ entry ก่อนหน้าไม่ใช่ references', () => {
+    const h = history(reading, jump1)
+    expect(backGoesToReferences(h)).toBe(false)
+  })
+
+  it('goBackToReading ข้าม references และ file ที่มี focusLine ทีเดียว กลับไปที่อ่านค้างไว้', () => {
+    const h = history(reading, refsTarget, jump1, jump2)
+    const back = goBackToReading(h)
+    expect(currentTarget(back)).toEqual(reading)
+  })
+
+  it('ไม่มีที่อ่านค้างไว้ก่อนหน้า = ไม่ทำอะไร (เดิมอยู่ที่เดิม)', () => {
+    const h = history(refsTarget, jump1)
+    expect(goBackToReading(h)).toBe(h)
+  })
+
+  it('เปิดจุดกระโดดตรง ๆ โดยไม่มี reading ก่อนหน้าเลย = ไม่มีที่กลับ', () => {
+    const h = history(jump1)
+    expect(goBackToReading(h)).toBe(h)
+  })
+})
+
+describe('scroll restore ต่อ entry (CONTRACT-f12 §4.1)', () => {
+  const a: PanelTarget = { kind: 'list', listId: 'rl-a' }
+  const b: PanelTarget = { kind: 'list', listId: 'rl-b' }
+
+  it('entry ใหม่เอี่ยมเริ่มที่ 0', () => {
+    const h = pushTarget(EMPTY_HISTORY, a)
+    expect(currentScrollTop(h)).toBe(0)
+  })
+
+  it('openTarget บันทึก scrollTop ของ entry ที่กำลังจะออกจากมันไว้ก่อน push', () => {
+    let h = pushTarget(EMPTY_HISTORY, a)
+    h = pushTarget(h, b, 240)
+    const back = goBack(h)
+    expect(currentTarget(back)).toEqual(a)
+    expect(currentScrollTop(back)).toBe(240)
+  })
+
+  it('goForward ก็คืน scrollTop ที่จำไว้ของ entry นั้นเหมือนกัน', () => {
+    let h = pushTarget(EMPTY_HISTORY, a)
+    h = pushTarget(h, b, 240)
+    const back = goBack(h)
+    const forward = goForward(back)
+    expect(currentTarget(forward)).toEqual(b)
+    // entry b ยังไม่เคยถูกออกจากมันเลย (ยังไม่ push ทับ) — ยังเป็น 0
+    expect(currentScrollTop(forward)).toBe(0)
+  })
+
+  it('history ว่างคือ scrollTop 0', () => {
+    expect(currentScrollTop(EMPTY_HISTORY)).toBe(0)
+  })
+
+  // adjudication finding 2: back แล้ว forward (โดยไม่ push) ต้องไม่ทำตำแหน่ง scroll หาย
+  it('goBack บันทึก scroll ของ entry ที่กำลังออก — forward กลับมาแล้วได้ตำแหน่งเดิม', () => {
+    let h = pushTarget(EMPTY_HISTORY, a)
+    h = pushTarget(h, b, 500) // ออกจาก a ที่ 500
+    const back = goBack(h, 320) // ออกจาก b ที่ 320
+    expect(currentTarget(back)).toEqual(a)
+    expect(currentScrollTop(back)).toBe(500)
+    const forward = goForward(back, 700) // ผู้อ่านเลื่อน a ต่อเป็น 700 แล้วค่อย forward
+    expect(currentTarget(forward)).toEqual(b)
+    expect(currentScrollTop(forward)).toBe(320)
+    const backAgain = goBack(forward)
+    expect(currentScrollTop(backAgain)).toBe(700)
+  })
+
+  it('goBackToReading ก็บันทึก scroll ของ entry ที่กำลังออกเช่นกัน', () => {
+    const reading: PanelTarget = { kind: 'file', path: 'reading.ts', from: 1, to: 10 }
+    const refsTarget: PanelTarget = { kind: 'references', path: 'reading.ts', line: 3, col: 4, symbol: 'foo' }
+    let h = pushTarget(EMPTY_HISTORY, reading)
+    h = pushTarget(h, refsTarget, 150)
+    const back = goBackToReading(h, 640)
+    expect(currentTarget(back)).toEqual(reading)
+    expect(currentScrollTop(back)).toBe(150)
+    // เดินหน้ากลับไปที่ references ต้องได้ 640 ที่เพิ่งบันทึก ไม่ใช่ 0
+    expect(currentScrollTop(goForward(back))).toBe(640)
+  })
+
+  it('goBack/goForward/goBackToReading ที่ขยับไม่ได้ ยังคืน object เดิมเป๊ะ (identity ใช้ตัดสินปุ่ม)', () => {
+    const h = pushTarget(EMPTY_HISTORY, a)
+    expect(goBack(h, 123)).toBe(h)
+    expect(goForward(h, 123)).toBe(h)
+    expect(goBackToReading(h, 123)).toBe(h)
   })
 })
 
