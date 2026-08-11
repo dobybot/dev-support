@@ -16,6 +16,15 @@ import { learnDiffApi } from './server/plugin'
 // เชื่อถือไม่ได้ (`pnpm run dev -- --port N` กลายเป็น `vite -- --port N` ซึ่ง vite ไม่สนใจ)
 const port = Number(process.env.LEARN_DIFF_PORT ?? 5174)
 
+// เข้าผ่าน tunnel (เช่น cloudflared + Cloudflare Access ตาม spec #49) Host header จะเป็น
+// hostname ของ tunnel ซึ่ง vite บล็อกโดย default (กัน DNS rebinding) — ประกาศ host ที่ยอมรับ
+// ผ่าน env เพราะ hostname ของ tunnel เป็นของแต่ละเครื่อง ไม่ hardcode ลง repo
+// ตัวอย่าง: LEARN_DIFF_ALLOWED_HOSTS=job5174.dobybot.com (คั่นหลายตัวด้วย comma)
+const allowedHosts = (process.env.LEARN_DIFF_ALLOWED_HOSTS ?? '')
+  .split(',')
+  .map((h) => h.trim())
+  .filter(Boolean)
+
 export default defineConfig({
   plugins: [react(), tailwindcss(), learnDiffApi()],
   resolve: {
@@ -27,11 +36,13 @@ export default defineConfig({
     host: '127.0.0.1',
     port,
     strictPort: true,
+    allowedHosts,
   },
   preview: {
     host: '127.0.0.1',
     port,
     strictPort: true,
+    allowedHosts,
   },
   test: {
     // seam เดียวที่ automated test ยิงใส่คือ HTTP surface ของ server

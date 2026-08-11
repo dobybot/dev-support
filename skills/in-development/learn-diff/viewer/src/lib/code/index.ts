@@ -1,5 +1,6 @@
 import type { CodeLine } from '@/lib/diff'
 import type { CodeLanguage } from '@/shared/languages'
+import type { CommentRequest } from './comments'
 import { docLineForFileLine, type CodePin } from './decorations'
 import { createEditor, type EditorHandle } from './editor'
 import type { NavRequest } from './navigation'
@@ -15,7 +16,7 @@ import type { NavRequest } from './navigation'
  * ห้าม import '@/lib/code/<ไฟล์>' จากนอกโฟลเดอร์นี้ (มีเทสต์คุมไว้ที่ test/code.test.ts)
  */
 
-export type { CodePin, NavRequest }
+export type { CodePin, CommentRequest, NavRequest }
 
 export interface CodeViewOptions {
   /** เนื้อโค้ดของช่วงที่ขอ (ไม่มี newline ปิดท้าย) */
@@ -45,6 +46,12 @@ export interface CodeViewOptions {
   onNavigate?: (req: NavRequest) => void
   /** false = ปิด navigation ของมุมมองนี้ แม้จะส่ง onNavigate มา */
   navigable?: boolean
+  /**
+   * comment ของ PR ต่อบรรทัด (issue #49) — จำนวนต่อบรรทัดสำหรับ badge บนแถบ comment
+   * และ callback ตอนกดแถบ · ไม่ส่ง `onComment` = ไม่มีแถบ comment เลย
+   */
+  commentCounts?: Readonly<Record<number, number>>
+  onComment?: (req: CommentRequest) => void
 }
 
 /** สิ่งที่สั่งได้จากภายนอกโดยไม่ต้องรู้ว่าเป็นมุมมองเดี่ยวหรือสองฝั่ง (panel ถือ ref แบบนี้) */
@@ -109,6 +116,9 @@ export interface SplitCodeViewOptions {
    * ฝั่ง base ไม่ underline และไม่ตอบสนอง เพราะ index มีชุดเดียวที่ commit ที่ pin ไว้
    */
   onNavigate?: (req: NavRequest) => void
+  /** แถบ comment ก็อยู่ฝั่งขวาเท่านั้น — บรรทัดฝั่ง base ไม่มีตัวตนที่ commit ที่ pin ไว้ */
+  commentCounts?: Readonly<Record<number, number>>
+  onComment?: (req: CommentRequest) => void
 }
 
 export interface SplitCodeViewHandle extends CodeControls {
@@ -162,6 +172,8 @@ export function mountSplitCodeView(
     pins: options.pins,
     scrollToDocLine: startRow,
     onNavigate: options.onNavigate,
+    commentCounts: options.commentCounts,
+    onComment: options.onComment,
   })
 
   /**
@@ -206,6 +218,8 @@ export function mountSplitCodeView(
         lines: next.right,
         pins: next.pins,
         onNavigate: next.onNavigate,
+        commentCounts: next.commentCounts,
+        onComment: next.onComment,
       })
       current = next
     },

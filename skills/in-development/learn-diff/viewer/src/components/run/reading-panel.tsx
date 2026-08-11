@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowRight, ChevronsDownUp, ChevronsUpDown, CircleHelp, Colu
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { CodeView, SplitCodeView, type CodeControls } from '@/components/run/code-view'
+import { useLineComments } from '@/components/run/line-comments'
 import { useReadingPanelState } from '@/components/run/panel-context'
 import { ReferencesPanel } from '@/components/run/references-panel'
 import { useRun } from '@/components/run/run-context'
@@ -132,6 +133,9 @@ function SpanCard({
   // F12 / Shift+F12 / Cmd+click จากกำแพง CodeMirror → definition/references (issue #36, §4.3)
   // ส่ง editor ref ให้ด้วย เพื่อให้ Alt+F12 กาง peek widget ใต้บรรทัดใน editor ตัวที่กดได้
   const nav = useCodeNavigation(span.path, editor)
+  // comment ของ PR ต่อบรรทัด (issue #49) — เปิดจาก **แถบ gutter** คนละ target กับ navigation
+  // ที่เปิดจากตัว symbol จึงอยู่ร่วมกันบน touch ได้โดยไม่แย่งการกดกัน
+  const comments = useLineComments(span.path)
   const [expanded, setExpanded] = useState(false)
   // pin ชั่วคราวที่จางหายเอง — ใช้กลไก pin ที่มีอยู่แล้วแทนการเปิด seam ใหม่เข้าไปในกำแพง CodeMirror
   const [flashPin, setFlashPin] = useState<CodePin | null>(null)
@@ -279,6 +283,8 @@ function SpanCard({
               height={height}
               scrollToLine={expanded ? span.from : (focusLine ?? null)}
               onNavigate={nav.onNavigate}
+              commentCounts={comments.commentCounts}
+              onComment={comments.onComment}
             />
           ) : (
             <CodeView
@@ -291,6 +297,8 @@ function SpanCard({
               height={height}
               scrollToLine={expanded ? span.from : (focusLine ?? null)}
               onNavigate={nav.onNavigate}
+              commentCounts={comments.commentCounts}
+              onComment={comments.onComment}
             />
           )}
         </div>
@@ -298,6 +306,8 @@ function SpanCard({
 
       {/* candidate list ของ go-to-definition — โผล่เฉพาะการ์ดที่กดจริง */}
       {nav.overlay}
+      {/* กล่อง comment ของบรรทัดที่กดในการ์ดนี้ (issue #49) */}
+      {comments.overlay}
 
       {file.data ? (
         <footer className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t px-3 py-1 text-[11px] text-muted-foreground">

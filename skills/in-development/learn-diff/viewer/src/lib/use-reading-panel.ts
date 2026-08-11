@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import {
   DEFAULT_DIFF_MODE,
@@ -8,6 +8,7 @@ import {
 } from '@/lib/diff'
 import {
   EMPTY_HISTORY,
+  NO_PAGE_SCROLL,
   backGoesToReferences,
   canGoBack,
   canGoForward,
@@ -17,9 +18,11 @@ import {
   goBack,
   goBackToReading,
   goForward,
+  pageScrollTransition,
   pushTarget,
   readStoredWidth,
   writeStoredWidth,
+  type PageScrollState,
   type PanelHistory,
   type PanelTarget,
 } from '@/lib/reading-panel'
@@ -85,6 +88,10 @@ export function useReadingPanel(runId: string): ReadingPanelState {
   const firstRun = useRef(true)
   // scrollTop สดของ scroller ปัจจุบัน — ไม่ผ่าน state เพราะไม่ควร re-render ทุกครั้งที่เลื่อน
   const liveScrollRef = useRef(0)
+  // ตำแหน่ง scroll ของหน้าหลักที่จำไว้ตอนเข้าเต็มหน้าจอ (issue #39) — ไม่ผ่าน state เช่นกัน
+  const pageScrollRef = useRef<PageScrollState>(NO_PAGE_SCROLL)
+  // ค่าที่รอ scroll กลับหลัง React วาดคอลัมน์เนื้อหากลับมาแล้ว (ก่อนหน้านั้นเอกสารยังหดอยู่ — browser clamp ทิ้ง)
+  const pendingRestoreRef = useRef<number | null>(null)
 
   // ย้าย run = ประวัติของ run เดิมใช้ไม่ได้แล้ว (reading list id เป็นของแต่ละ run)
   // ส่วนความกว้างเป็นค่าของ "ผู้อ่าน" ไม่ใช่ของ run — ไม่รีเซ็ต
@@ -96,6 +103,9 @@ export function useReadingPanel(runId: string): ReadingPanelState {
     setHistory(EMPTY_HISTORY)
     setOpen(false)
     setFullscreen(false)
+    // หน้าใหม่เริ่มที่บนสุดอยู่แล้ว — ตำแหน่งที่จำไว้ของ run เก่าคืนไปก็ผิดที่
+    pageScrollRef.current = NO_PAGE_SCROLL
+    pendingRestoreRef.current = null
   }, [runId])
 
   const openTarget = useCallback((target: PanelTarget) => {
@@ -106,11 +116,37 @@ export function useReadingPanel(runId: string): ReadingPanelState {
     liveScrollRef.current = scrollTop
   }, [])
 
+  /** ทางออกจากเต็มหน้าจอทุกทางผ่านที่นี่ — คิดครั้งเดียวว่าจะคืน scroll ไหม แล้วฝากไว้ให้ layout effect ทำ */
+  const movePageScroll = useCallback((event: 'enter-fullscreen' | 'exit-fullscreen' | 'close') => {
+    const result = pageScrollTransition(
+      pageScrollRef.current,
+      event,
+      typeof window === 'undefined' ? 0 : window.scrollY,
+    )
+    pageScrollRef.current = result.state
+    if (result.restoreTo !== null) pendingRestoreRef.current = result.restoreTo
+  }, [])
+
   const close = useCallback(() => {
+    movePageScroll('close')
     setOpen(false)
     setFullscreen(false)
-  }, [])
-  const toggleFullscreen = useCallback(() => setFullscreen((value) => !value), [])
+  }, [movePageScroll])
+  // อ่าน `fullscreen` จาก closure ไม่ใช่ใน updater — StrictMode เรียก updater ซ้ำสองรอบ
+  // side effect (จำ/คืน scroll) ที่อยู่ในนั้นจึงทำงานสองครั้ง
+  const toggleFullscreen = useCallback(() => {
+    movePageScroll(fullscreen ? 'exit-fullscreen' : 'enter-fullscreen')
+    setFullscreen(!fullscreen)
+  }, [fullscreen, movePageScroll])
+
+  // คืนตำแหน่งหลัง DOM commit แล้วเท่านั้น (useLayoutEffect) — คอลัมน์เนื้อหากลับมา เอกสารสูงพอ
+  // ให้ scroll กลับได้จริง · ทำก่อน browser วาด จึงไม่เห็นการกระโดด
+  useLayoutEffect(() => {
+    const target = pendingRestoreRef.current
+    if (target === null) return
+    pendingRestoreRef.current = null
+    window.scrollTo(0, target)
+  })
   // ส่ง scroll สดของ entry ที่กำลังออกไปให้ทุกทางออก — ไม่งั้น back แล้ว forward ตำแหน่งหาย (§4.1)
   const back = useCallback(() => setHistory((prev) => goBack(prev, liveScrollRef.current)), [])
   const forward = useCallback(() => setHistory((prev) => goForward(prev, liveScrollRef.current)), [])
