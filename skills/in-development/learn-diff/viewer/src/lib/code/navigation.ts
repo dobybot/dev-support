@@ -11,6 +11,14 @@ import {
 
 import type { CodeLanguage } from '@/shared/languages'
 import { EMPTY_META, fileLineAt, lineMetaField } from './decorations'
+import {
+  LONG_PRESS,
+  LONG_PRESS_IDLE,
+  longPressReduce,
+  type LongPressEvent,
+  type LongPressState,
+} from './long-press'
+import { openNavMenu } from './nav-menu'
 
 /**
  * go to definition (F12 / Cmd-click) และ find references (Shift-F12) ฝั่ง editor
@@ -327,7 +335,152 @@ const navigationTheme = EditorView.baseTheme({
  */
 export const flashHighlight: Extension = [flashField, navigationTheme]
 
-/** keymap + Cmd-click — ใส่ครั้งเดียวตอนสร้าง editor แล้วอ่าน config ผ่าน ref ตลอดอายุ */
+/**
+ * ชนิดของ pointer ที่ให้ "กดค้าง" เปิดเมนูได้ — เฉพาะนิ้ว/ปากกาเท่านั้น (issue #43)
+ *
+ * เมาส์ไม่รวมด้วยตั้งใจ: บน desktop การกดค้างโดยไม่ขยับคือจังหวะปกติของการเริ่มลากเลือกข้อความ
+ * และช่องทางเดิม (F12 / Cmd-click) ก็ครบอยู่แล้ว — เมนูที่เด้งขวางของเดิมคือ regression
+ * (user story 10) · โค้ดยังเป็น pointer event ชุดเดียวตามสเปก ต่างกันแค่เงื่อนไขที่ยอมให้ติด
+ */
+const LONG_PRESS_POINTERS: ReadonlySet<string> = new Set(['touch', 'pen'])
+
+/** ช่วงเวลาหลังเมนูติดที่ต้องกลืน click/contextmenu ซึ่งตามมาจากนิ้วเดิม */
+const AFTER_FIRE_MS = 700
+
+/**
+ * กดค้างบน symbol → เมนู 3 คำสั่งเดียวกับ F12 / Shift+F12 / Alt+F12 (issue #43)
+ *
+ * อยู่ที่นี่เพราะเป็นแหล่งเดียวกับ mousedown handler เดิม — ทุกคำสั่งลงท้ายที่ `dispatchNav()`
+ * ตัวเดียวกัน ไม่มีเส้นทาง logic ที่สอง · การตัดสิน "ค้างครบ/ยกเลิก" อยู่ใน long-press.ts
+ * (ฟังก์ชันล้วน มีเทสต์) ที่นี่ทำแค่แปลง event เป็นตัวเลข ตั้ง timer และเปิดเมนู
+ */
+function longPressMenu(ref: NavConfigRef): Extension {
+  return ViewPlugin.fromClass(
+    class {
+      private state: LongPressState = LONG_PRESS_IDLE
+      private timer: ReturnType<typeof setTimeout> | undefined
+      private closeMenu: (() => void) | undefined
+      private readonly view: EditorView
+
+      constructor(view: EditorView) {
+        this.view = view
+        this.view.dom.addEventListener('pointerdown', this.onDown)
+        // move/up ฟังที่ window ไม่ใช่ที่ editor — นิ้วเลื่อนออกนอกกล่องแล้วปล่อยก็ต้องยกเลิกได้
+        window.addEventListener('pointermove', this.onMove)
+        window.addEventListener('pointerup', this.onUp)
+        window.addEventListener('pointercancel', this.onUp)
+      }
+
+      destroy(): void {
+        this.view.dom.removeEventListener('pointerdown', this.onDown)
+        window.removeEventListener('pointermove', this.onMove)
+        window.removeEventListener('pointerup', this.onUp)
+        window.removeEventListener('pointercancel', this.onUp)
+        this.clearTimer()
+        this.closeMenu?.()
+      }
+
+      private clearTimer(): void {
+        if (this.timer === undefined) return
+        clearTimeout(this.timer)
+        this.timer = undefined
+      }
+
+      private readonly onDown = (event: PointerEvent): void => {
+        if (!LONG_PRESS_POINTERS.has(event.pointerType) || !enabled(ref.current)) return
+        this.feed({
+          kind: 'down',
+          pointerId: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+          at: Date.now(),
+        })
+      }
+
+      private readonly onMove = (event: PointerEvent): void => {
+        this.feed({ kind: 'move', pointerId: event.pointerId, x: event.clientX, y: event.clientY })
+      }
+
+      private readonly onUp = (event: PointerEvent): void => {
+        this.feed({
+          kind: event.type === 'pointercancel' ? 'cancel' : 'up',
+          pointerId: event.pointerId,
+        })
+      }
+
+      private feed(event: LongPressEvent): void {
+        const before = this.state.status
+        const { state, fire } = longPressReduce(this.state, event)
+        this.state = state
+        if (state.status === 'pressing') {
+          // เพิ่งเริ่มกดครั้งใหม่ = เริ่มจับเวลาใหม่ (กดค้างมีได้ทีละครั้งอยู่แล้ว)
+          if (before !== 'pressing') {
+            this.clearTimer()
+            this.timer = setTimeout(
+              () => this.feed({ kind: 'tick', at: Date.now() }),
+              LONG_PRESS.delayMs,
+            )
+          }
+        } else {
+          this.clearTimer()
+        }
+        if (fire) this.open(fire.x, fire.y)
+      }
+
+      private open(clientX: number, clientY: number): void {
+        const pos = this.view.posAtCoords({ x: clientX, y: clientY })
+        // ไม่ได้กดค้างบน identifier (ที่ว่าง/gutter/comment) = ปล่อยให้เป็นการกดค้างธรรมดาของ
+        // เบราว์เซอร์ (เลือกข้อความ — user story 7) ไม่ใช่เด้งเมนูที่ทุกคำสั่งทำอะไรไม่ได้
+        if (pos === null) return
+        const target = navTargetAt(this.view, pos)
+        if (!target) return
+
+        this.suppressAfterFire()
+        this.closeMenu = openNavMenu({
+          x: clientX,
+          y: clientY,
+          symbol: target.range.text,
+          items: [
+            {
+              label: 'ไปที่ definition',
+              hint: 'F12',
+              run: () => dispatchNav(this.view, ref, pos, 'definition'),
+            },
+            {
+              label: 'หา references',
+              hint: 'Shift+F12',
+              run: () => dispatchNav(this.view, ref, pos, 'references'),
+            },
+            {
+              label: 'peek references',
+              hint: 'Alt+F12',
+              run: () => dispatchNav(this.view, ref, pos, 'peek'),
+            },
+          ],
+        })
+      }
+
+      /**
+       * นิ้วที่เปิดเมนูยังไม่ยกขึ้น — พอยกแล้วเบราว์เซอร์ยิง click (และ contextmenu บน Android)
+       * ตามมาที่ symbol เดิม ซึ่งจะกลายเป็นการวาง cursor/เมนูของระบบซ้อนทับเมนูเรา
+       */
+      private suppressAfterFire(): void {
+        const swallow = (event: Event): void => {
+          event.preventDefault()
+          event.stopPropagation()
+        }
+        this.view.dom.addEventListener('click', swallow, true)
+        this.view.dom.addEventListener('contextmenu', swallow, true)
+        setTimeout(() => {
+          this.view.dom.removeEventListener('click', swallow, true)
+          this.view.dom.removeEventListener('contextmenu', swallow, true)
+        }, AFTER_FIRE_MS)
+      }
+    },
+  )
+}
+
+/** keymap + Cmd-click + กดค้าง — ใส่ครั้งเดียวตอนสร้าง editor แล้วอ่าน config ผ่าน ref ตลอดอายุ */
 export function navigation(ref: NavConfigRef): Extension {
   return [
     keymap.of([
@@ -357,5 +510,6 @@ export function navigation(ref: NavConfigRef): Extension {
     }),
     hoverField,
     hoverLinks(ref),
+    longPressMenu(ref),
   ]
 }

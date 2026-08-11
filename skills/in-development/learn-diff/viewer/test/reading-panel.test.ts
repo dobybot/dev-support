@@ -5,6 +5,7 @@ import {
   EMPTY_HISTORY,
   MAX_HISTORY,
   MIN_PANEL_WIDTH,
+  NO_PAGE_SCROLL,
   PANEL_WIDTH_KEY,
   backGoesToReferences,
   baseName,
@@ -17,6 +18,7 @@ import {
   goBack,
   goBackToReading,
   goForward,
+  pageScrollTransition,
   pushTarget,
   readStoredWidth,
   resolveTarget,
@@ -240,6 +242,62 @@ describe('scroll restore ต่อ entry (CONTRACT-f12 §4.1)', () => {
     expect(goBack(h, 123)).toBe(h)
     expect(goForward(h, 123)).toBe(h)
     expect(goBackToReading(h, 123)).toBe(h)
+  })
+})
+
+/**
+ * ตำแหน่ง scroll ของหน้าหลักตอนเข้า-ออกเต็มหน้าจอ (issue #39) — คนละอันกับ scroll ใน panel
+ * ข้างบน · full-screen ซ่อนคอลัมน์เนื้อหา เอกสารหด browser clamp scroll เป็น 0 เอง
+ */
+describe('scroll ของหน้าหลักตอนเข้า-ออกเต็มหน้าจอ (issue #39)', () => {
+  it('เข้าเต็มหน้าจอ = จำตำแหน่งไว้ ยังไม่คืนอะไร', () => {
+    const entered = pageScrollTransition(NO_PAGE_SCROLL, 'enter-fullscreen', 1240)
+    expect(entered.restoreTo).toBeNull()
+    expect(entered.state.saved).toBe(1240)
+  })
+
+  it('ออกจากเต็มหน้าจอ = คืนตำแหน่งที่จำไว้ แล้วลืมมัน', () => {
+    const entered = pageScrollTransition(NO_PAGE_SCROLL, 'enter-fullscreen', 1240)
+    const exited = pageScrollTransition(entered.state, 'exit-fullscreen', 0)
+    expect(exited.restoreTo).toBe(1240)
+    expect(exited.state.saved).toBeNull()
+  })
+
+  it('ปิด panel ขณะเต็มหน้าจอก็คืนตำแหน่งเหมือนกัน (user story 2)', () => {
+    const entered = pageScrollTransition(NO_PAGE_SCROLL, 'enter-fullscreen', 640)
+    const closed = pageScrollTransition(entered.state, 'close', 0)
+    expect(closed.restoreTo).toBe(640)
+    expect(closed.state.saved).toBeNull()
+  })
+
+  it('ปิด panel ตอนไม่ได้เต็มหน้าจอ ไม่คืนอะไร — window scroll ไม่เคยถูกแตะ', () => {
+    const closed = pageScrollTransition(NO_PAGE_SCROLL, 'close', 800)
+    expect(closed.restoreTo).toBeNull()
+    expect(closed.state.saved).toBeNull()
+  })
+
+  it('ออกจากเต็มหน้าจอสองครั้ง ครั้งที่สองไม่คืนซ้ำ', () => {
+    const entered = pageScrollTransition(NO_PAGE_SCROLL, 'enter-fullscreen', 500)
+    const exited = pageScrollTransition(entered.state, 'exit-fullscreen', 0)
+    expect(pageScrollTransition(exited.state, 'exit-fullscreen', 0).restoreTo).toBeNull()
+  })
+
+  it('เข้าเต็มหน้าจอซ้ำทั้งที่จำไว้แล้ว ไม่ทับค่าเดิม (ตอนนั้น scroll เป็น 0 ไปแล้ว)', () => {
+    const entered = pageScrollTransition(NO_PAGE_SCROLL, 'enter-fullscreen', 900)
+    const again = pageScrollTransition(entered.state, 'enter-fullscreen', 0)
+    expect(again.state.saved).toBe(900)
+    expect(pageScrollTransition(again.state, 'exit-fullscreen', 0).restoreTo).toBe(900)
+  })
+
+  it('อยู่บนสุด (0) ก็ยังนับว่ามีตำแหน่งให้คืน ไม่ใช่ "ไม่มีอะไรจำ"', () => {
+    const entered = pageScrollTransition(NO_PAGE_SCROLL, 'enter-fullscreen', 0)
+    expect(entered.state.saved).toBe(0)
+    expect(pageScrollTransition(entered.state, 'exit-fullscreen', 0).restoreTo).toBe(0)
+  })
+
+  it('ค่าติดลบ/ทศนิยมจาก browser ถูกปัดให้ใช้ได้', () => {
+    expect(pageScrollTransition(NO_PAGE_SCROLL, 'enter-fullscreen', -12).state.saved).toBe(0)
+    expect(pageScrollTransition(NO_PAGE_SCROLL, 'enter-fullscreen', 320.6).state.saved).toBe(321)
   })
 })
 

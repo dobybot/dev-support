@@ -47,7 +47,7 @@ Type จริงอยู่ที่ [`viewer/src/shared/types.ts`](../viewer/
 | ฟิลด์ | ใช้ทำอะไร |
 |---|---|
 | `schemaVersion` | ต้องเป็น `1` |
-| `id`, `title`, `subtitle` | ชื่อ run · `subtitle` เป็น markdown inline (บรรทัดสถิติ) |
+| `id`, `title`, `subtitle` | ชื่อ run · `title` **ห้ามขึ้นต้นด้วย `PR #<N>`** (viewer ประกอบ `PR #<N> — ` ให้เองทุกที่) · `subtitle` เป็น markdown inline (บรรทัดสถิติ) |
 | `pr` | `{ number, title, url }` — header ลิงก์ไป GitHub จากตรงนี้ |
 | `commit` | head sha ของ PR ที่ pin ไว้ — file API อ่านไฟล์ที่ commit นี้ |
 | `baseCommit` | sha ฐานของ PR (merge-base ของ base branch กับ head) — **ต้องใส่** ไม่งั้นลงสี diff ไม่ได้ · viewer โชว์เป็นช่วง `base…head` ใน header ให้ผู้อ่านเห็นเสมอ เพราะ merge-base ขยับตาม base branch — base คนละตัว = ความหมายของ run คนละอย่าง |

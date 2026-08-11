@@ -255,6 +255,71 @@ export interface CoverageBaseResponse {
 }
 
 /**
+ * comment ของ PR ที่ viewer ส่งขึ้น GitHub จริงผ่าน gh CLI (issue #49)
+ *
+ * `review` = comment ที่ผูกกับบรรทัดในไฟล์ (ต้องอยู่ใน diff ของ PR เท่านั้น GitHub ถึงรับ)
+ * `issue` = comment ระดับ PR — ใช้ทั้งกล่องท้ายหน้า run และบรรทัดที่อยู่นอก diff
+ * (บรรทัดนอก diff ถูกแนบ permalink ของไฟล์+บรรทัดที่ pinned commit นำหน้าข้อความให้อัตโนมัติ)
+ */
+export type PrCommentKind = 'review' | 'issue'
+
+export interface PrComment {
+  id: number
+  kind: PrCommentKind
+  /** login ของผู้เขียน (ว่าง = GitHub ไม่ได้ส่งมา) */
+  author: string
+  body: string
+  /** ลิงก์ไปยัง comment นั้นบน GitHub */
+  url: string
+  /** ISO 8601 */
+  createdAt: string
+  updatedAt: string
+  /** review comment เท่านั้น — path เทียบ root ของ repo */
+  path: string | null
+  /** review comment เท่านั้น — บรรทัดฝั่ง head */
+  line: number | null
+  /** review comment ที่ GitHub บอกว่าหลุดจาก diff ปัจจุบันแล้ว (position = null) */
+  outdated: boolean
+}
+
+export interface CommentsResponse {
+  runId: string
+  prNumber: number
+  /** commit ที่ run pin ไว้ — comment ใหม่ทุกอันผูกกับ sha นี้ */
+  commit: string
+  /** login ของบัญชีที่ gh ใช้อยู่ (null = ถามไม่ได้) — UI ใช้บอกว่า comment ไหนของผู้อ่านเอง */
+  viewer: string | null
+  review: PrComment[]
+  issue: PrComment[]
+}
+
+/**
+ * ทำไม comment ที่ผูกบรรทัดถึงกลายเป็น comment ระดับ PR
+ *
+ * `outside-diff` = เทียบ diff ได้แล้วและบรรทัดนั้นอยู่นอก diff จริง ๆ
+ * `diff-unavailable` = **เทียบไม่ได้เลย** (ไม่มี baseCommit / ยังไม่ `git fetch` base มา) —
+ * ต้องแยกจากกัน เพราะบอกผู้ส่งว่า "บรรทัดนี้ไม่อยู่ใน diff" ทั้งที่ไม่มีใครรู้ คือการยืนยัน
+ * สิ่งที่ไม่รู้ (user story 11 ขอให้ "รู้ผลชัดเจน" ไม่ใช่ "ได้เหตุผลอะไรก็ได้")
+ */
+export type CommentFallbackKind = 'outside-diff' | 'diff-unavailable'
+
+export interface CommentFallback {
+  kind: CommentFallbackKind
+  /** เหตุผลจาก diff API เมื่อ kind = 'diff-unavailable' (null = ไม่มีคำอธิบายเพิ่ม) */
+  reason: string | null
+}
+
+/** ผลของการสร้าง comment — บอกด้วยว่ากลายเป็นชนิดไหน (บรรทัดนอก diff ถูกแปลงเป็น issue comment) */
+export interface CommentCreatedResponse {
+  runId: string
+  comment: PrComment
+  /** true = ไม่ได้ส่งเป็น review comment ที่บรรทัดนั้น แต่ส่งเป็น PR comment พร้อม permalink แทน */
+  fellBackToIssue: boolean
+  /** เหตุผลของการ fallback — null เมื่อ fellBackToIssue = false */
+  fallback: CommentFallback | null
+}
+
+/**
  * SSE ที่ `/api/runs/<id>/events` — agent เขียนไฟล์ระหว่างที่ผู้อ่านเปิดหน้าอยู่
  * event แรกคือ `ready` (บอกว่าเฝ้าโฟลเดอร์ไหนอยู่) จากนั้นเป็น `change` ทุกครั้งที่ไฟล์เปลี่ยน
  */
