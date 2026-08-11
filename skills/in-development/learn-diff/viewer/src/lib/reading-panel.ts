@@ -21,6 +21,10 @@ export type PanelTarget =
   | { kind: 'list'; listId: string }
   | { kind: 'file'; path: string; from: number | null; to: number | null; focusLine?: number }
   | { kind: 'references'; path: string; line: number; col: number; symbol: string }
+  /** synthetic reading list ของ uncovered hunks (SPEC-reading-checklist) — เนื้อ span สร้างสด
+      จาก coverage ฝั่ง component (ไม่อยู่ใน run.json จึงไม่ผ่าน resolveTarget)
+      `hash` = hunk ที่กดมา (ถ้ามี) — panel เลื่อนไปหาการ์ดใบนั้น ไม่ใช่แค่เปิดรายการทิ้งไว้ */
+  | { kind: 'uncovered'; hash?: string }
 
 /** ช่วงโค้ดหนึ่งก้อนในรูปที่ panel ใช้ — `null` = ทั้งไฟล์ */
 export interface PanelSpan {
@@ -43,6 +47,10 @@ export function targetKey(target: PanelTarget): string {
       // เปิดซ้ำจุดเดิม (ตำแหน่ง cursor เดิมเป๊ะ) ไม่นับก้าวใหม่ (CONTRACT-f12 §4.1)
       // symbol เข้าคีย์ด้วย — ตำแหน่งเดียวกันคนละ symbol (ไฟล์ถูก reindex/คนละ commit) ต้องเป็นคนละก้าว
       return `refs\0${target.path}\0${target.line}\0${target.col}\0${target.symbol}`
+    case 'uncovered':
+      // รายการเดียวต่อ run แต่ hunk ที่กดมาเข้าคีย์ด้วย: กดคนละ hunk = คนละก้าว (ต้องเลื่อนไปหามัน)
+      // ไม่งั้นปุ่ม "เปิดอ่าน" ของทุก hunk หลังใบแรกกลายเป็น dead click — ไม่มีอะไรเปลี่ยนเลย
+      return `uncovered:${target.hash ?? ''}`
   }
 }
 
@@ -202,9 +210,13 @@ export interface ResolvedList {
 
 /**
  * resolve เฉพาะ `list`/`file` — target ชนิด `references` ไม่ผ่านที่นี่ (ไม่มี "resolved list" ให้มัน)
- * component เลือก render `<ReferencesPanel>` แทนตั้งแต่ก่อนเรียกฟังก์ชันนี้
+ * และ `uncovered` ก็ไม่ผ่าน (เนื้อ span มาจาก coverage ไม่ใช่ run.json) —
+ * component เลือก render ทางอื่นตั้งแต่ก่อนเรียกฟังก์ชันนี้
  */
-export function resolveTarget(data: RunData, target: Exclude<PanelTarget, { kind: 'references' }>): ResolvedList {
+export function resolveTarget(
+  data: RunData,
+  target: Exclude<PanelTarget, { kind: 'references' } | { kind: 'uncovered' }>,
+): ResolvedList {
   if (target.kind === 'file') {
     const range = target.from == null ? '' : ` บรรทัด ${target.from}${target.to && target.to !== target.from ? `–${target.to}` : ''}`
     return {

@@ -3,13 +3,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { CodeView, SplitCodeView, type CodeControls } from '@/components/run/code-view'
 import { useReadingPanelState } from '@/components/run/panel-context'
+import { useOptionalReadState } from '@/components/run/read-state-context'
 import { ReferencesPanel } from '@/components/run/references-panel'
 import { useRun } from '@/components/run/run-context'
 import { useCodeNavigation } from '@/components/run/use-code-navigation'
 import { ApiClientError, fetchDiff, fetchFile } from '@/lib/api'
 import type { CodePin } from '@/lib/code'
 import { buildRows, docText, splitDocs, unifiedDoc, type DiffMode } from '@/lib/diff'
-import { baseName, fileIndex, resolveTarget, type PanelSpan } from '@/lib/reading-panel'
+import { UNCOVERED_LIST_TITLE, spanHash, syntheticSpans } from '@/lib/read-state'
+import { baseName, fileIndex, resolveTarget, type PanelSpan, type ResolvedList } from '@/lib/reading-panel'
 import { useAsync } from '@/lib/use-async'
 import { cn } from '@/lib/utils'
 
@@ -117,6 +119,7 @@ function SpanCard({
   runId,
   pins,
   focusLine,
+  readHash,
 }: {
   index: number
   span: PanelSpan
@@ -125,8 +128,11 @@ function SpanCard({
   pins: CodePin[]
   /** บรรทัดที่ต้อง flash highlight — มาจาก navigation (F12 / คลิก reference) ไม่ใช่ agent (CONTRACT-f12 §4.3) */
   focusLine?: number
+  /** identity ของช่วงนี้สำหรับ checkbox "อ่านแล้ว" — undefined = ช่วงที่ track ไม่ได้ (เปิดจากชื่อไฟล์) */
+  readHash?: string
 }) {
   const panel = useReadingPanelState()
+  const readState = useOptionalReadState()
   const tone = TONE[span.kind]
   const editor = useRef<CodeControls | null>(null)
   // F12 / Shift+F12 / Cmd+click จากกำแพง CodeMirror → definition/references (issue #36, §4.3)
@@ -225,6 +231,22 @@ function SpanCard({
             {/* "อ่านอันนี้ทำไม" — ห้ามให้ผู้อ่านจ้องโค้ดโดยไม่รู้ว่ามันตอบคำถามอะไร (user story 12) */}
             <p className="mt-1 text-xs leading-relaxed">{span.why}</p>
           </div>
+          {/* checkbox "อ่านแล้ว" (SPEC-reading-checklist story 1) — mark manual เท่านั้น ไม่เดาจาก scroll */}
+          {readHash && readState ? (
+            <label
+              className="mt-0.5 flex shrink-0 cursor-pointer items-center gap-1 text-[11px] text-muted-foreground select-none hover:text-foreground"
+              title="ทำเครื่องหมายว่าอ่านช่วงนี้แล้ว — จำไว้ข้ามครั้งที่เปิด"
+              data-span-read={readState.isSpanRead(readHash) ? 'true' : 'false'}
+            >
+              <input
+                type="checkbox"
+                className="accent-foreground"
+                checked={readState.isSpanRead(readHash)}
+                onChange={() => readState.toggleSpan(readHash)}
+              />
+              อ่านแล้ว
+            </label>
+          ) : null}
           <span
             className={cn('mt-0.5 shrink-0 rounded-full border px-1.5 text-[10px] leading-4', tone.badge)}
           >
@@ -421,20 +443,55 @@ export function ReadingPanel() {
   const scroller = useRef<HTMLDivElement>(null)
   const { close, setWidth, fullscreen, toggleFullscreen } = panel
 
+  const readState = useOptionalReadState()
   const isReferences = panel.target?.kind === 'references'
-  // `resolveTarget` รับแค่ list/file — target ชนิด references render ผ่าน <ReferencesPanel> แทน (§4.1)
-  const resolved = useMemo(
-    () => (panel.target && !isReferences ? resolveTarget(data, panel.target as Exclude<typeof panel.target, { kind: 'references' }>) : null),
-    [data, panel.target, isReferences],
+  const isUncovered = panel.target?.kind === 'uncovered'
+  // `resolveTarget` รับแค่ list/file — references render ผ่าน <ReferencesPanel> ส่วน uncovered
+  // เป็น synthetic list ที่สร้างสดจาก coverage (SPEC-reading-checklist) ไม่ได้อยู่ใน run.json
+  // แยก memo ของ synthetic list ออกมา: `uncovered` มี identity นิ่ง (useReadState การันตีไว้)
+  // ส่วน `coverage` ทั้งก้อนเป็น object ใหม่ทุกครั้งที่ติ๊ก checkbox — ถ้าผูก resolved ไว้กับมัน
+  // การติ๊กหนึ่งครั้งจะสร้าง pins ชุดใหม่แล้ว reconfigure CodeMirror ทุกใบในรายการ (แม้ target
+  // จะเป็น list ธรรมดาที่ไม่เกี่ยวกับ coverage เลย)
+  const uncoveredSpans = useMemo(
+    () => syntheticSpans(readState?.coverage?.uncovered ?? []),
+    [readState?.coverage?.uncovered],
   )
+  const resolved = useMemo<ResolvedList | null>(() => {
+    const target = panel.target
+    if (!target || target.kind === 'references') return null
+    if (target.kind === 'uncovered') return { title: UNCOVERED_LIST_TITLE, spans: uncoveredSpans }
+    return resolveTarget(data, target)
+  }, [data, panel.target, uncoveredSpans])
   const files = useMemo(() => (resolved ? fileIndex(resolved.spans) : []), [resolved])
   const targetLabel = panel.target
     ? panel.target.kind === 'list'
       ? panel.target.listId
       : panel.target.kind === 'references'
         ? `refs:${panel.target.path}:${panel.target.line}:${panel.target.col}`
-        : `${panel.target.path}:${panel.target.from ?? ''}-${panel.target.to ?? ''}:${panel.target.focusLine ?? ''}`
+        : panel.target.kind === 'uncovered'
+          ? `uncovered:${panel.target.hash ?? ''}`
+          : `${panel.target.path}:${panel.target.from ?? ''}-${panel.target.to ?? ''}:${panel.target.focusLine ?? ''}`
     : ''
+
+  // checkbox โผล่เฉพาะรายการที่มี identity นิ่ง (list ของ agent / synthetic list) —
+  // การเปิดจากชื่อไฟล์เฉย ๆ ไม่ใช่หน่วยของ checklist
+  const checkable = panel.target?.kind === 'list' || isUncovered
+  const readHashes = useMemo(
+    () =>
+      checkable && resolved
+        ? resolved.spans.map((span) =>
+            span.from == null ? undefined : spanHash(span.path, span.from, span.to ?? span.from),
+          )
+        : [],
+    [checkable, resolved],
+  )
+  const definedHashes = useMemo(
+    () => readHashes.filter((hash): hash is string => hash !== undefined),
+    [readHashes],
+  )
+  const allRead =
+    definedHashes.length > 0 && readState !== null && definedHashes.every((hash) => readState.isSpanRead(hash))
+  const readCount = readState ? definedHashes.filter((hash) => readState.isSpanRead(hash)).length : 0
   // บรรทัดที่ต้อง flash highlight — มีความหมายเฉพาะตอนเปิด target เดียวที่ไม่ใช่ list (kind='file')
   const focusLine = panel.target?.kind === 'file' ? panel.target.focusLine : undefined
 
@@ -504,6 +561,8 @@ export function ReadingPanel() {
     [setWidth],
   )
 
+  /** ตำแหน่งที่ jumpTo พาไปล่าสุด — ใช้ดูว่าผู้อ่านเลื่อนเองไปแล้วหรือยัง */
+  const lastJump = useRef(-1)
   const jumpTo = useCallback((spanIndex: number) => {
     const container = scroller.current
     const target = container?.querySelector<HTMLElement>(`#${spanDomId(spanIndex)}`)
@@ -511,7 +570,25 @@ export function ReadingPanel() {
     // เลื่อนแบบทันที ไม่ใช่ smooth: CodeMirror ในช่วงอื่น ๆ วัดขนาดตัวเองอยู่ตลอด
     // การ scroll ที่มันทำระหว่างนั้นยกเลิก smooth scroll ทิ้ง แล้วหมุดก็ "กดแล้วไม่ไปไหน"
     container.scrollTop = target.offsetTop - 8
+    lastJump.current = container.scrollTop
   }, [])
+
+  // กด "เปิดอ่าน" ของ hunk ไหนใน coverage view ต้องไปโผล่ที่การ์ดใบนั้น (story 12) — ไม่ใช่แค่
+  // "เปิดรายการ" ซึ่งเมื่อรายการเปิดอยู่แล้วเท่ากับคลิกตาย (dead click ต้องดังเสมอ — DEVELOPMENT.md)
+  const uncoveredIndex =
+    panel.target?.kind === 'uncovered' && panel.target.hash ? readHashes.indexOf(panel.target.hash) : -1
+  useEffect(() => {
+    if (uncoveredIndex < 0) return
+    jumpTo(uncoveredIndex)
+    // การ์ดใบก่อนหน้าเพิ่งขอโค้ดจาก server อยู่ ความสูงจึงยังโตได้อีก — เล็งซ้ำอีกจังหวะหนึ่ง
+    // แต่ไม่แย่งพวงมาลัยถ้าผู้อ่านเลื่อนเองไปแล้ว
+    const timer = window.setTimeout(() => {
+      const container = scroller.current
+      if (!container || Math.abs(container.scrollTop - lastJump.current) > 4) return
+      jumpTo(uncoveredIndex)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [targetLabel, uncoveredIndex, jumpTo])
 
   if (!panel.open || !panel.target || (!isReferences && !resolved)) return null
 
@@ -577,6 +654,27 @@ export function ReadingPanel() {
                 {resolved.spans.length} ช่วง · {files.length} ไฟล์ · commit {run.commit.slice(0, 9)}
               </p>
 
+              {/* mark ทั้งรายการทีเดียว (story 2) — อยู่ในหัวที่ pin ไว้ ไม่เลื่อนหายไปกับ span */}
+              {checkable && readState && definedHashes.length > 0 ? (
+                <div className="mt-2 flex items-center gap-2 text-[11px]" data-list-read-controls>
+                  <span className="font-mono text-muted-foreground">
+                    อ่านแล้ว {readCount}/{definedHashes.length} ช่วง
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => readState.markSpans(definedHashes, !allRead)}
+                    title={
+                      allRead
+                        ? 'ล้างเครื่องหมายอ่านแล้วของทุกช่วงในรายการนี้'
+                        : 'ทำเครื่องหมายว่าอ่านทุกช่วงในรายการนี้แล้ว'
+                    }
+                    className="rounded border px-1.5 py-0.5 hover:bg-muted"
+                  >
+                    {allRead ? 'ล้างว่าอ่านแล้วทั้งรายการ' : 'อ่านแล้วทั้งรายการ'}
+                  </button>
+                </div>
+              ) : null}
+
               {/* ดัชนีไฟล์ปักหมุด — กระโดดข้ามไฟล์ในรายการนี้ได้โดยไม่เสียลำดับ (user story 17) */}
               {files.length > 0 ? (
                 <nav className="mt-2 flex flex-wrap gap-1">
@@ -620,6 +718,11 @@ export function ReadingPanel() {
               </p>
             </div>
           ) : null}
+          {isUncovered && resolved?.spans.length === 0 ? (
+            <p className="px-1 py-2 text-xs text-muted-foreground">
+              ไม่มีโค้ดที่ reading list ไม่ครอบคลุมแล้ว — ปิด panel นี้ได้เลย
+            </p>
+          ) : null}
           {!isReferences
             ? resolved?.spans.map((span, i) => (
                 <SpanCard
@@ -629,6 +732,7 @@ export function ReadingPanel() {
                   runId={run.id}
                   pins={pinsByFile.get(span.path) ?? []}
                   focusLine={resolved.spans.length === 1 ? focusLine : undefined}
+                  readHash={readHashes[i]}
                 />
               ))
             : null}

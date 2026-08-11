@@ -225,6 +225,36 @@ export interface FileDiffResponse {
 }
 
 /**
+ * ผลของ coverage-base API (`/api/runs/<id>/coverage-base`) — ช่วงบรรทัดที่เปลี่ยนต่อไฟล์
+ * ของทั้ง PR (base → commit ที่ pin ไว้) คิดจาก commit range เดียวกับ diff API
+ *
+ * ฝั่งแอปเอาไป intersect กับ span ของ reading list เพื่อวัด coverage — วัดกับ `git diff`
+ * ไม่ใช่กับ reading list (SPEC-reading-checklist → Coverage computation) · บรรทัดที่ถูกลบล้วน
+ * ไม่นับ (Out of Scope: coverage วัดเฉพาะบรรทัดที่มีอยู่ที่ commit ที่ pin ไว้)
+ */
+export interface CoverageRange {
+  /** 1-based, inclusive — เลขบรรทัดฝั่ง head */
+  from: number
+  to: number
+}
+
+export interface CoverageBaseFile {
+  /** path เทียบ root ของ repo (posix) */
+  path: string
+  ranges: CoverageRange[]
+}
+
+export interface CoverageBaseResponse {
+  runId: string
+  commit: string
+  /** null = เทียบไม่ได้ (ไม่มี baseCommit / base ยังไม่ fetch) — ดู reason */
+  baseCommit: string | null
+  files: CoverageBaseFile[]
+  /** เหตุผลภาษาไทยเมื่อเทียบไม่ได้ — files ว่างพร้อมกันเสมอ */
+  reason?: string
+}
+
+/**
  * SSE ที่ `/api/runs/<id>/events` — agent เขียนไฟล์ระหว่างที่ผู้อ่านเปิดหน้าอยู่
  * event แรกคือ `ready` (บอกว่าเฝ้าโฟลเดอร์ไหนอยู่) จากนั้นเป็น `change` ทุกครั้งที่ไฟล์เปลี่ยน
  */

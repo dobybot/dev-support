@@ -127,6 +127,24 @@ describe('targetKey ของ target ชนิด references และ file ท�
   })
 })
 
+describe('uncovered target (SPEC-reading-checklist story 12) — คนละ hunk = คนละก้าว', () => {
+  it('กด "เปิดอ่าน" ของคนละ hunk ต้องไม่ถูกยุบเป็นก้าวเดียว (ไม่งั้นเป็นคลิกตาย)', () => {
+    const first: PanelTarget = { kind: 'uncovered', hash: 'aaaaaaaa' }
+    const second: PanelTarget = { kind: 'uncovered', hash: 'bbbbbbbb' }
+    expect(targetKey(first)).not.toBe(targetKey(second))
+
+    const history = pushTarget(pushTarget(EMPTY_HISTORY, first), second)
+    expect(history.entries.map((e) => targetKey(e.target))).toEqual([targetKey(first), targetKey(second)])
+    expect(currentTarget(history)).toEqual(second)
+  })
+
+  it('hunk เดิมซ้ำ = ก้าวเดิม · ไม่ระบุ hunk (เปิดทั้งรายการ) ก็ยังเป็น target ของตัวเอง', () => {
+    const same: PanelTarget = { kind: 'uncovered', hash: 'aaaaaaaa' }
+    expect(pushTarget(pushTarget(EMPTY_HISTORY, same), { ...same }).entries).toHaveLength(1)
+    expect(targetKey({ kind: 'uncovered' })).not.toBe(targetKey(same))
+  })
+})
+
 describe('ปุ่มกลับสองชั้น (CONTRACT-f12 §4.1)', () => {
   const reading: PanelTarget = { kind: 'file', path: 'reading.ts', from: 1, to: 10 }
   const refsTarget: PanelTarget = { kind: 'references', path: 'reading.ts', line: 3, col: 4, symbol: 'foo' }

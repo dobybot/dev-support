@@ -3,9 +3,11 @@ import { useCallback, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { BoxBadge } from '@/components/run/box-badge'
+import { CoverageView } from '@/components/run/coverage-view'
 import { InlineMd } from '@/components/run/inline-md'
 import { Prose } from '@/components/run/markdown'
 import { useReadingPanelState } from '@/components/run/panel-context'
+import { useReadStateValue } from '@/components/run/read-state-context'
 import { useRun, useRunChanges } from '@/components/run/run-context'
 import { ErrorBox, Loading, PendingSection } from '@/components/run/status'
 import { ApiClientError, fetchPage } from '@/lib/api'
@@ -17,6 +19,7 @@ import { sectionFileName } from '@/shared/sections'
 export function SectionPage() {
   const { data, run } = useRun()
   const panel = useReadingPanelState()
+  const readState = useReadStateValue()
   const params = useParams()
   const sectionId = params.sectionId ?? data.sections[0].id
   const section = data.sections.find((s) => s.id === sectionId)
@@ -81,8 +84,29 @@ export function SectionPage() {
       {/* key = section: การสลับหน้าต้อง mount prose ใหม่ทั้งก้อน เพื่อให้ตัว render ที่ทำงานกับ DOM ตรง ๆ
           (mermaid ของ #6, highlighter ของ #7) เริ่มรอบใหม่แทนที่จะเจอ container ของหน้าเดิม */}
       {/* h1 แรกที่ซ้ำกับ section.title ถูกกลืนทิ้ง (issue #19) — หัวข้อแสดงจาก run.json ข้างบนแล้ว */}
+      {/* coverage view อยู่บนหน้า verify เหนือ checklist เดิม (SPEC-reading-checklist → UI placement)
+          — annotate เฉย ๆ ไม่เขียนอะไรลง checklist (กฎ PD-by-default ไม่ถูกแตะ) */}
+      {section.kind === 'verify' ? <CoverageView /> : null}
       {page.data ? (
         <Prose key={sectionId} markdown={stripDuplicateH1(page.data.markdown, section.title)} />
+      ) : null}
+
+      {/* ติ๊ก "อ่านจบ" ท้าย prose — mark manual เท่านั้น (story 5) แล้ว nav สะท้อนเอง */}
+      {page.data ? (
+        <div className="mt-10 border-t pt-4">
+          <label
+            className="flex w-fit cursor-pointer items-center gap-2 text-sm select-none"
+            data-section-read={readState.isSectionRead(sectionId) ? 'true' : 'false'}
+          >
+            <input
+              type="checkbox"
+              className="accent-foreground"
+              checked={readState.isSectionRead(sectionId)}
+              onChange={() => readState.toggleSection(sectionId)}
+            />
+            อ่านหน้านี้จบแล้ว
+          </label>
+        </div>
       ) : null}
 
       <nav className="mt-12 flex justify-between gap-4 border-t pt-4 text-sm">

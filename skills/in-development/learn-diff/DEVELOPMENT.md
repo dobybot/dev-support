@@ -835,6 +835,51 @@ LSP: ต้องพึ่ง venv/interpreter ของ repo เป้าหม
   (index มีชุดเดียวที่ pinned commit) · peek widget แบบ VSCode ทดลองแยกใน worktree ต่างหาก
   (สำเร็จค่อยรวม) ไม่อยู่ใน scope PR นี้
 
+## Aug 7, 2026 — reading checklist + coverage meter (SPEC-reading-checklist.md)
+
+viewer จำได้ว่าผู้อ่านอ่านอะไรไปแล้ว (checkbox ต่อ span, "อ่านหน้านี้จบแล้ว" ต่อ section, ไอคอนสถานะใน nav,
+ตัวนับบน header) และตอบคำถามที่เดิมถามไม่ได้เลยว่า "reading list พาไปเห็นครบทั้ง diff หรือยัง" (coverage
+meter + รายการ hunk ที่ไม่มี list ไหนครอบ) · สเปกเต็มอยู่ที่ `SPEC-reading-checklist.md` ตรงนี้บันทึกเฉพาะ
+สิ่งที่ตัดสินใจแล้วและอ่านจากโค้ดเองไม่ออก
+
+- **identity ของ span คือ content hash `hash(path:from:to)` ไม่ใช่ id ที่ agent เขียน** — `ReadingSpan`
+  ไม่ได้ field ใหม่ ทั้ง content format และ prompt ใน SKILL.md ไม่ถูกแตะ · ผลที่ **ตั้งใจรับ**: regenerate
+  แล้วบรรทัดเลื่อน = hash เปลี่ยน = กลับเป็น "ยังไม่อ่าน" เพราะบรรทัดที่เลื่อนคือโค้ดคนละก้อน · span
+  เดียวกันในสองรายการแชร์สถานะเดียว ("อ่านแล้ว" เป็นของโค้ด ไม่ใช่ของ list entry) · ทางเลือก "ให้ agent
+  เขียน id" ถูกปฏิเสธ: ผลัก id-stability ไปให้ตัวเขียนที่ stochastic แล้วยังต้องมี fallback อยู่ดี
+- **coverage วัดกับ `git diff` ไม่ใช่กับ reading list** — นี่คือเหตุผลทั้งหมดที่ฟีเจอร์นี้มีอยู่: อ่านครบทุก
+  list ไม่เท่ากับเห็นครบทั้ง change · endpoint ใหม่ตัวเดียว (`/coverage-base`) อ่าน git อย่างเดียวเหมือนเดิม
+  ไม่มี state ฝั่ง server
+- **`parseChangedRanges` ต้องตัดขอบเขตไฟล์จาก `diff --git` ห้ามเชื่อ `+++`** — ใน `-U0` บรรทัดที่ถูกเพิ่ม
+  ซึ่งเนื้อหาขึ้นต้นด้วย `++ ` (bullet ของ markdown, ตัวอย่าง diff ในเอกสาร) ออกมาเป็น `+++ ...`
+  เหมือน header เป๊ะ · เชื่อผิดครั้งเดียวได้ทั้งไฟล์ผีใน denominator (coverage ไม่มีวันถึง 100%) และ hunk
+  จริงหายไปจากไฟล์ที่ถูกต้อง — พังเงียบทั้งคู่ · `gitDiffAll` บังคับ `--src-prefix/--dst-prefix` ด้วย
+  เพราะ parser ตัด `b/` ออก (ผู้ใช้ที่ตั้ง `diff.noprefix=true` + repo ที่มีโฟลเดอร์ชื่อ `b` จะได้ path ผิด)
+- **เทียบไม่ได้ = 200 + `reason` เสมอ ไม่ใช่ error** — รวมถึง diff ทั้ง PR ที่ใหญ่เกิน maxBuffer ของ git
+  (PR ที่ regenerate lockfile ถึงจริง) · ฝั่ง client ก็ต้องแสดง error ของ request เป็น `coverageReason`
+  ด้วย ไม่ใช่ปล่อยให้ `coverage` เป็น null เงียบ ๆ — หน้าที่ไม่มีทั้งมิเตอร์และข้อความ แยกไม่ออกจาก
+  "ยังไม่มีฟีเจอร์นี้" (ข้อ 9: ความล้มเหลวต้องดัง) · มีปุ่ม "ลองวัดใหม่" เพราะสาเหตุส่วนใหญ่แก้ได้ระหว่าง
+  หน้ายังเปิดอยู่ (`git fetch` base)
+- **ปุ่ม "เปิดอ่าน" ของ uncovered hunk พา target ของ hunk นั้นไปด้วย (`{kind:'uncovered', hash}`)** —
+  รายการที่เปิดยังเป็นรายการเดียว (synthetic list) เหมือนเดิม แต่ถ้าทุกปุ่มส่ง target เดียวกัน `pushTarget`
+  จะยุบให้เป็นก้าวเดิม แล้วปุ่มของ hunk ที่สองเป็นต้นไปกลายเป็นคลิกตายทันทีที่ panel เปิดอยู่ (ข้อ 9)
+- **localStorage เก็บ raw intent เท่านั้น** (`{v, spans, sections}` ต่อ run) — เปอร์เซ็นต์/รวมยอด/coverage
+  derive สดทุกครั้ง ตามกฎเดียวกับความกว้าง panel · ไม่มี persistence ฝั่ง server และไม่มี cross-device
+  (server ยังเป็น read-only view over git + content dir) · hash ที่ไม่รู้จักถูก prune ตอน write —
+  แต่ **เฉพาะตอนที่รู้ชุด hash ที่มีจริงครบแล้ว** (ต้องมี coverage base) ไม่งั้น prune แต่ section
+  เพราะ synthetic hash แยกจาก hash ค้างไม่ออก การเดาผิดข้างนั้นคือลบเครื่องหมายของผู้อ่านทิ้ง
+- **100% ต้องแปลว่าอ่านครบจริง** — pct ไม่ปัดขึ้นเป็น 100 (399/400 = 99%) ไม่งั้นมิเตอร์ขัดกับตัวเลขนับ
+  ที่โชว์ข้าง ๆ กันเอง และลบสัญญาณเดียวที่ฟีเจอร์นี้มีหน้าที่ส่ง · context span ไม่นับเป็น "ครอบ"
+  (ช่วงที่มีแต่ context span ยังโผล่เป็น uncovered) เพราะมันก็นับเข้า `coveredChanged` ไม่ได้เหมือนกัน —
+  ถ้านับข้างเดียว 100% จะไปไม่ถึงตลอดกาล · path ของ span ถูก normalize ก่อนจับคู่กับ path จาก git
+  (แบบเดียวกับ `repoRelativePath`) — `./src/x.py` ที่เปิดไฟล์ได้ปกติต้องไม่ถูกรายงานว่าเป็นช่องโหว่ของ curation
+- **โครงโค้ดตามแบบ reading panel เป๊ะ**: ตรรกะล้วนอยู่ที่ `src/lib/read-state.ts` (เทสต์ที่
+  `test/read-state.test.ts`) hook ตัวเดียวที่ `RunLayout` แชร์ผ่าน context — ไม่มีเทสต์ระดับ component
+  ตามกฎเดิม · panel ยังเป็น flex sibling และ coverage view ไม่เพิ่ม overlay ใด ๆ
+- **coverage view ไม่เขียนอะไรลง checklist ตรวจรับ** — มัน annotate หน้า verify เฉย ๆ กฎ PD-by-default
+  ("ห้ามทำเครื่องหมายความเข้าใจที่ผู้ใช้ไม่ได้แสดง") ไม่ถูกแตะ · ไม่มี auto-mark จาก scroll/เวลา —
+  ปฏิเสธ ไม่ใช่เลื่อน
+
 ## v2 candidate list (as of Jul 22, 2026 — re-prioritize with feedback)
 
 - Merge-or-differentiate decision vs `better-review`

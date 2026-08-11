@@ -3,6 +3,7 @@ import path from 'node:path'
 
 import type { HealthResponse } from '../src/shared/types'
 import { loadPage, loadRun } from './content'
+import { loadCoverageBase } from './coverage'
 import { loadDiff } from './diff'
 import { ApiError } from './errors'
 import { handleRunEvents } from './events'
@@ -109,6 +110,10 @@ async function route(url: URL): Promise<{ status: number; body: unknown }> {
     // "PR แตะบรรทัดไหนของไฟล์นี้" — hunk ทั้งไฟล์ ไม่ผูกกับช่วงที่กำลังเปิดอยู่
     if (parts.length === 3 && parts[2] === 'diff') {
       return { status: 200, body: await loadDiff(run, url.searchParams.get('path')) }
+    }
+    // "PR เปลี่ยนบรรทัดไหนบ้างทั้งหมด" — ground truth ของ coverage meter (SPEC-reading-checklist)
+    if (parts.length === 3 && parts[2] === 'coverage-base') {
+      return { status: 200, body: await loadCoverageBase(run) }
     }
     // code navigation — ตำแหน่ง cursor อยู่ใน query เหมือน /file (server ตัดชื่อ symbol เอง)
     if (parts.length === 3 && (parts[2] === 'definition' || parts[2] === 'references')) {

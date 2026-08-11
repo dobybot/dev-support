@@ -9,6 +9,7 @@ import { promisify } from 'node:util'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { createApiHandler } from '../server/api'
+import { clearCoverageCache, parseChangedRanges } from '../server/coverage'
 import { clearDiffCache } from '../server/diff'
 import { clearFileCache } from '../server/file'
 import { clearGitCache } from '../server/git'
@@ -22,7 +23,7 @@ import {
   writeStoredDiffMode,
   type PreferenceStore,
 } from '../src/lib/diff'
-import type { ApiErrorBody, FileDiffResponse } from '../src/shared/types'
+import type { ApiErrorBody, CoverageBaseResponse, FileDiffResponse } from '../src/shared/types'
 
 /**
  * diff API ยิงผ่าน HTTP surface เดียวกับที่แอปใช้ (SPEC-v3 → Testing Decisions)
@@ -65,6 +66,13 @@ const MAIN_HEAD = [
   '',
 ].join('\n')
 
+/**
+ * ไฟล์ที่มีบรรทัดขึ้นต้นด้วย `++ ` — ใน `git diff -U0` มันออกมาเป็น `+++ ...` หน้าตาเหมือน
+ * header ของไฟล์เป๊ะ ๆ · fixture นี้มีไว้ให้ parser ของ coverage พิสูจน์ว่าไม่หลงกิน
+ */
+const NOTES_BASE = ['a', 'b', 'c', 'd', ''].join('\n')
+const NOTES_HEAD = ['a', '++ bullet ที่หน้าตาเหมือน header ของ diff', 'b', 'c', 'd', 'e', ''].join('\n')
+
 async function git(...args: string[]): Promise<string> {
   const { stdout } = await exec('git', ['-C', repoPath, ...args])
   return stdout.trim()
@@ -97,12 +105,14 @@ beforeAll(async () => {
   await write('src/main.py', MAIN_BASE)
   await write('src/gone.py', 'ของเก่าที่ PR นี้ลบทิ้ง\n')
   await write('src/same.py', 'ไฟล์ที่ PR ไม่ได้แตะ\n')
+  await write('docs/notes.md', NOTES_BASE)
   await git('add', '-A')
   await git('commit', '-qm', 'base ของ PR')
   baseCommit = await git('rev-parse', 'HEAD')
 
   await write('src/main.py', MAIN_HEAD)
   await write('src/added.py', 'บรรทัดแรก\nบรรทัดสอง\n')
+  await write('docs/notes.md', NOTES_HEAD)
   await fs.rm(path.join(repoPath, 'src/gone.py'))
   await git('add', '-A')
   await git('commit', '-qm', 'head ของ PR')
@@ -173,6 +183,7 @@ beforeAll(async () => {
   })
 
   clearDiffCache()
+  clearCoverageCache()
   clearFileCache()
   clearGitCache()
   server = http.createServer(createApiHandler())
@@ -182,6 +193,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   clearDiffCache()
+  clearCoverageCache()
   clearFileCache()
   clearGitCache()
   await new Promise<void>((resolve) => server.close(() => resolve()))
@@ -262,6 +274,88 @@ describe('diff API', () => {
     const res = await fetch(`${baseUrl}/api/runs/pr-10-diff/diff`)
     expect(res.status).toBe(400)
     expect(((await res.json()) as ApiErrorBody).error.code).toBe('bad_file_path')
+  })
+})
+
+/* ── coverage-base API (SPEC-reading-checklist) — commit range เดียวกับ diff API ── */
+
+async function getCoverageBase(runId: string): Promise<{ status: number; body: CoverageBaseResponse }> {
+  const res = await fetch(`${baseUrl}/api/runs/${runId}/coverage-base`)
+  return { status: res.status, body: (await res.json()) as CoverageBaseResponse }
+}
+
+describe('coverage-base API', () => {
+  it('รวมช่วงบรรทัดที่เปลี่ยนต่อไฟล์ทั้ง PR — ไฟล์ที่ถูกลบล้วน/ไม่ถูกแตะไม่โผล่', async () => {
+    const { status, body } = await getCoverageBase('pr-10-diff')
+    expect(status).toBe(200)
+    expect(body.baseCommit).toBe(baseCommit)
+    expect(body.commit).toBe(headCommit)
+    expect(body.files).toEqual([
+      // บรรทัด 2 คือบรรทัดที่ขึ้นต้นด้วย `++ ` (ออกมาเป็น `+++ ...`) และบรรทัด 6 คือ hunk ถัดมา
+      // ทั้งคู่ต้องอยู่ใต้ไฟล์เดียวกัน — ห้ามมีไฟล์ผีชื่อ "bullet …" โผล่ และ hunk ที่สองห้ามหาย
+      { path: 'docs/notes.md', ranges: [{ from: 2, to: 2 }, { from: 6, to: 6 }] },
+      // เพิ่มไฟล์ใหม่ทั้งไฟล์ (2 บรรทัด)
+      { path: 'src/added.py', ranges: [{ from: 1, to: 2 }] },
+      // เพิ่มด่าน eligible (4–5) + เขียนท้ายไฟล์ใหม่ (8–9)
+      { path: 'src/main.py', ranges: [{ from: 4, to: 5 }, { from: 8, to: 9 }] },
+      // src/gone.py ถูกลบทั้งไฟล์ — coverage ไม่วัดบรรทัดที่ถูกลบ (Out of Scope)
+      // src/same.py ไม่ถูกแตะ — ไม่โผล่
+    ])
+    expect(body.files.map((file) => file.path)).not.toContain('bullet ที่หน้าตาเหมือน header ของ diff')
+  })
+
+  it('ไม่มี baseCommit = ตอบ 200 พร้อม baseCommit null + เหตุผล ไม่ใช่ error', async () => {
+    const { status, body } = await getCoverageBase('pr-11-nobase')
+    expect(status).toBe(200)
+    expect(body.baseCommit).toBeNull()
+    expect(body.files).toEqual([])
+    expect(body.reason).toContain('baseCommit')
+  })
+
+  it('base ที่ยังไม่ได้ fetch = baseCommit null พร้อมวิธีแก้', async () => {
+    const { body } = await getCoverageBase('pr-12-ghostbase')
+    expect(body.baseCommit).toBeNull()
+    expect(body.reason).toContain('git fetch')
+  })
+})
+
+describe('parseChangedRanges — ขอบเขตไฟล์ตัดจาก `diff --git` ไม่ใช่จาก `+++`', () => {
+  it('บรรทัดเนื้อหาที่ขึ้นต้นด้วย `++ ` / `-- ` ไม่ถูกอ่านเป็น header ของไฟล์ใหม่', () => {
+    // เนื้อหาแบบนี้เกิดจริงกับเอกสาร/fixture ที่ยกตัวอย่าง diff ไว้ข้างใน
+    const raw = [
+      'diff --git a/docs/x.md b/docs/x.md',
+      '--- a/docs/x.md',
+      '+++ b/docs/x.md',
+      '@@ -1,0 +2,2 @@ a',
+      '--- a/ของปลอม.py',
+      '+++ b/ของปลอม.py',
+      '@@ -3,0 +5 @@ c',
+      '+ZZZ',
+      '',
+    ].join('\n')
+    expect(parseChangedRanges(raw)).toEqual([
+      { path: 'docs/x.md', ranges: [{ from: 2, to: 3 }, { from: 5, to: 5 }] },
+    ])
+  })
+
+  it('ไฟล์ที่ถูกลบทั้งไฟล์ (`+++ /dev/null`) ไม่นับ และ hunk ของมันไม่ตกไปอยู่ไฟล์ก่อนหน้า', () => {
+    const raw = [
+      'diff --git a/keep.py b/keep.py',
+      '--- a/keep.py',
+      '+++ b/keep.py',
+      '@@ -1,0 +2 @@',
+      '+new',
+      'diff --git a/gone.py b/gone.py',
+      'deleted file mode 100644',
+      '--- a/gone.py',
+      '+++ /dev/null',
+      '@@ -1,3 +0,0 @@',
+      '-x',
+      '-y',
+      '-z',
+      '',
+    ].join('\n')
+    expect(parseChangedRanges(raw)).toEqual([{ path: 'keep.py', ranges: [{ from: 2, to: 2 }] }])
   })
 })
 
