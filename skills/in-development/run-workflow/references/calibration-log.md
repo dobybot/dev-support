@@ -23,6 +23,25 @@ log นี้คือความจำของ skill: ทุก run จบแ
 
 ## Entries (ใหม่สุดอยู่บนสุด)
 
+### 2026-08-11 · implement DBT-445 subtickets (voided-order e-tax fix)
+
+- **Task:** implement 5 subtickets (guard voided ใน resend/retry, admin filter, regression tests,
+  remediation command) — sequential impl → review ขนาน 2 lens → fix
+- **Design:** f2:impl-451-452-454, s2:impl-453, s2:impl-455-command, 2×o3:review (logic/spec), o3:fix
+- **Estimate → Actual:** $20–40 → **$16.83** (fable $4.37 / opus $11.43 / sonnet $1.03;
+  cr รวม ~15.8M, out 194k, ~72 นาที)
+- **Verdict:** ✅ model/effort เหมาะ · 🎯 estimate สูงไปเล็กน้อย (ยังในช่วง) ·
+  ⚠️ ล้มเหลวเชิง environment ไม่ใช่ tier
+- **เหตุผล/หลักฐาน:** o3:review-logic คุ้มมาก — เจอ HIGH 2 ตัวที่ implement มองข้าม
+  (ok=True reset ใน check_order_d1a_json_data, bypass_error_check ข้าม validate_status)
+  พร้อมยืนยันจาก prod replica ว่า reachable จริง · o3:fix บวม (117 turns, $7.77) เพราะแก้ 11 findings
+  + เขียน test ใหม่ทั้งไฟล์ — สมเหตุสมผล · **ปัญหาใหญ่: workflow รันใน main checkout ที่ session อื่น
+  ใช้อยู่พร้อมกัน** → commit หลงไปลง branch อื่น (DBT-398), agent ต้อง cherry-pick กู้เอง,
+  s2:impl-455 หยุดงานเพราะ HEAD ถูกสลับกลางคัน ($0.35 เสียเปล่า งานไม่ได้เริ่ม)
+- **ครั้งหน้า:** งาน implement ที่ commit จริง **ต้องใช้ isolation: 'worktree' เสมอ**
+  ถ้า checkout หลักอาจถูก session อื่นใช้ — อย่าเชื่อว่า branch ที่ prompt บอกคือ branch
+  ที่ checkout อยู่ · review 2 lens (logic vs spec) แยกชัด ไม่ overlap — ใช้ต่อ
+
 ### 2026-08-07 · implement learn-diff reading checklist + coverage meter
 
 - **Task:** implement SPEC-reading-checklist.md (span checkbox, section state, header
