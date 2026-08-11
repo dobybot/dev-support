@@ -1,3 +1,4 @@
+import { Maximize, Minus, Plus } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { useOptionalReadingPanel } from '@/components/run/panel-context'
@@ -10,6 +11,7 @@ import {
   type DiagramViolation,
 } from '@/lib/diagram'
 import { useDarkMode } from '@/lib/use-dark-mode'
+import { usePanZoom } from '@/lib/use-pan-zoom'
 
 /**
  * ``` ```mermaid ``` ``` ในเนื้อหา → ไดอะแกรมที่ layout ให้เอง
@@ -49,6 +51,8 @@ function Legend({ classes, linked }: { classes: string[]; linked: number }) {
         <span className="inline-block h-3 w-4 rounded-sm border border-neutral-400 bg-white dark:bg-neutral-900" />
         ของเดิมที่ไม่ถูกแตะ
       </span>
+      {/* gesture ที่มองไม่เห็นเท่ากับไม่มี — บอกไว้ตรงนี้เพราะบนมือถือไม่มี cursor ให้เดา */}
+      <span>ลากเพื่อเลื่อน · หนีบสองนิ้วเพื่อซูม</span>
     </div>
   )
 }
@@ -72,6 +76,47 @@ function Violations({ items }: { items: DiagramViolation[] }) {
   )
 }
 
+/**
+ * ปุ่มซูมสำหรับเมาส์/คีย์บอร์ด — นิ้วใช้หนีบเอา แต่ desktop ไม่มี gesture นั้น
+ * (ปุ่มรีเซ็ตโผล่เฉพาะตอนภาพถูกเลื่อน/ซูมไปแล้ว — ปุ่มที่กดแล้วไม่เกิดอะไรคือ dead click)
+ */
+function ViewportControls({
+  scale,
+  transformed,
+  onZoomIn,
+  onZoomOut,
+  onReset,
+}: {
+  scale: number
+  transformed: boolean
+  onZoomIn: () => void
+  onZoomOut: () => void
+  onReset: () => void
+}) {
+  const button =
+    'flex size-7 items-center justify-center rounded border bg-background/80 text-muted-foreground backdrop-blur hover:bg-muted hover:text-foreground'
+  return (
+    <div className="ld-viewport-controls absolute top-2 right-2 z-10 flex items-center gap-1">
+      {transformed ? (
+        <>
+          <span className="rounded border bg-background/80 px-1.5 py-0.5 text-[10px] text-muted-foreground backdrop-blur">
+            {Math.round(scale * 100)}%
+          </span>
+          <button type="button" onClick={onReset} className={button} title="รีเซ็ตมุมมอง" aria-label="รีเซ็ตมุมมอง">
+            <Maximize className="size-3.5" aria-hidden />
+          </button>
+        </>
+      ) : null}
+      <button type="button" onClick={onZoomOut} className={button} title="ซูมออก" aria-label="ซูมออก">
+        <Minus className="size-3.5" aria-hidden />
+      </button>
+      <button type="button" onClick={onZoomIn} className={button} title="ซูมเข้า" aria-label="ซูมเข้า">
+        <Plus className="size-3.5" aria-hidden />
+      </button>
+    </div>
+  )
+}
+
 export function Diagram({ source, title }: { source: string; title?: string }) {
   const { data } = useRun()
   const panel = useOptionalReadingPanel()
@@ -79,6 +124,9 @@ export function Diagram({ source, title }: { source: string; title?: string }) {
   const host = useRef<HTMLDivElement>(null)
   const [result, setResult] = useState<DiagramRenderResult | null>(null)
   const [error, setError] = useState<Error | null>(null)
+  // ลากเลื่อน/หนีบซูม (#40) — คณิตอยู่ใน lib/pan-zoom.ts, การผูก event อยู่ใน lib/use-pan-zoom.ts
+  const view = usePanZoom()
+  const resetView = view.reset
 
   // nodeMap เป็น object ใหม่ทุกครั้งที่ run ถูกโหลดซ้ำ (SSE) — เทียบด้วยเนื้อหา ไม่ใช่ identity
   // ไม่งั้นทุกครั้งที่ agent เขียนไฟล์ ไดอะแกรมทุกอันในหน้าจะถูกวาดใหม่ทั้งที่ไม่มีอะไรเปลี่ยน
@@ -97,6 +145,8 @@ export function Diagram({ source, title }: { source: string; title?: string }) {
     let cancelled = false
     setError(null)
     setResult(null)
+    // รูปถูกวาดใหม่ทั้งอัน (เปลี่ยน source/ธีม) = ตำแหน่งที่เลื่อนค้างไว้ไม่มีความหมายแล้ว
+    resetView()
 
     // กด node = เปิดลำดับการอ่านของ node นั้นใน panel ด้านขวา (user story 4)
     // ไม่ได้ใช้คำสั่ง `click` ของ mermaid (ที่ต้องเปิด securityLevel: loose) — ตัววาดเดินบน SVG
@@ -120,7 +170,7 @@ export function Diagram({ source, title }: { source: string; title?: string }) {
       cancelled = true
       clearDiagram(container)
     }
-  }, [source, nodeMapKey, title, dark, clickable])
+  }, [source, nodeMapKey, title, dark, clickable, resetView])
 
   // กล่องของไดอะแกรมต้องอยู่ใน DOM เสมอ แม้ตอนพัง — ถ้าเอาออกตอน error ref จะกลายเป็น null
   // แล้วรอบที่ agent แก้ source ให้ถูก (ผ่าน SSE) จะไม่มีที่ให้วาด รูปก็ไม่มีวันกลับมา
@@ -136,8 +186,23 @@ export function Diagram({ source, title }: { source: string; title?: string }) {
         </figcaption>
       ) : null}
       {error ? null : <Violations items={result?.violations ?? []} />}
-      <div className="overflow-x-auto p-4">
-        <div ref={host} className="ld-diagram" />
+      {/* กล่องมองภาพ: จับ gesture + ตัดส่วนที่ล้น · ของข้างในถูก transform ทั้งก้อน
+          (ตอน error ยังต้องมีอยู่ เพราะ host คือที่ที่รอบวาดถัดไปจะลงมา) */}
+      {/* ตอน error กลับไปเป็นกล่องเลื่อนธรรมดา — touch-action ของ viewport จะกินการเลื่อนหน้า
+          ทับ source ยาว ๆ ที่แสดงแทนรูปโดยไม่ได้อะไรกลับมา */}
+      <div ref={view.frameRef} className={`relative p-4 ${error ? 'overflow-x-auto' : 'ld-viewport'}`}>
+        {error || !result ? null : (
+          <ViewportControls
+            scale={view.scale}
+            transformed={view.transformed}
+            onZoomIn={view.zoomIn}
+            onZoomOut={view.zoomOut}
+            onReset={view.reset}
+          />
+        )}
+        <div ref={view.contentRef} className="ld-viewport-content">
+          <div ref={host} className="ld-diagram" />
+        </div>
         {error ? (
           <pre className="font-mono text-xs leading-relaxed">{source}</pre>
         ) : !result ? (

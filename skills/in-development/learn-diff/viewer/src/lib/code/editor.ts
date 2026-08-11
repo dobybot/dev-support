@@ -1,11 +1,18 @@
 import { defaultKeymap } from '@codemirror/commands'
 import { syntaxHighlighting } from '@codemirror/language'
 import { highlightSelectionMatches, openSearchPanel, search, searchKeymap } from '@codemirror/search'
-import { Compartment, EditorState } from '@codemirror/state'
+import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import { EditorView, highlightSpecialChars, keymap, lineNumbers } from '@codemirror/view'
 
 import type { CodeLine } from '@/lib/diff'
 import type { CodeLanguage } from '@/shared/languages'
+import {
+  commentGutter,
+  setCommentCounts,
+  type CommentConfig,
+  type CommentConfigRef,
+  type CommentRequest,
+} from './comments'
 import {
   EMPTY_META,
   docLineForFileLine,
@@ -48,6 +55,10 @@ export interface EditorOptions {
   onNavigate?: (req: NavRequest) => void
   /** false = ปิด navigation ของ editor ตัวนี้ (ฝั่ง base ของ split view) */
   navigable?: boolean
+  /** จำนวน comment ต่อบรรทัด (เลขฝั่ง head) — ใช้ทำ badge บนแถบ comment */
+  commentCounts?: Readonly<Record<number, number>>
+  /** ผู้อ่านกดแถบ comment ของบรรทัด — ไม่ส่ง = ไม่มีแถบ comment เลย */
+  onComment?: (req: CommentRequest) => void
 }
 
 function metaOf(options: EditorOptions): LineMeta {
@@ -91,6 +102,7 @@ export function createEditor(container: HTMLElement, options: EditorOptions): Ed
   const gutterSlot = new Compartment()
   const pinSlot = new Compartment()
   const wrapSlot = new Compartment()
+  const commentSlot = new Compartment()
 
   const { highlight, theme } = codeTheme(options.dark)
   let meta = metaOf(options)
@@ -99,6 +111,11 @@ export function createEditor(container: HTMLElement, options: EditorOptions): Ed
   const navRef: NavConfigRef = {
     current: { language: options.language, onNavigate: options.onNavigate, navigable: options.navigable },
   }
+  // เหตุผลเดียวกับ navRef: callback ของ React เปลี่ยน identity ทุก render
+  const commentRef: CommentConfigRef = {
+    current: { counts: options.commentCounts, onComment: options.onComment },
+  }
+  const commentExt = (config: CommentConfig): Extension => (config.onComment ? commentGutter(commentRef) : [])
 
   const initialDoc =
     options.scrollToDocLine ??
@@ -118,6 +135,7 @@ export function createEditor(container: HTMLElement, options: EditorOptions): Ed
         lineMetaField.init(() => meta),
         gutterSlot.of(gutterFor(meta)),
         pinSlot.of(meta.pins.length > 0 ? [pinGutter] : []),
+        commentSlot.of(commentExt(commentRef.current)),
         lineDecorations,
         highlightSpecialChars(),
         wrapSlot.of(options.wrap === false ? [] : EditorView.lineWrapping),
@@ -137,6 +155,11 @@ export function createEditor(container: HTMLElement, options: EditorOptions): Ed
       ],
     }),
   })
+
+  // จำนวน comment ที่รู้ตั้งแต่ตอน mount ต้องถูกใส่เข้า state เอง (field เริ่มจากว่างเสมอ)
+  if (options.onComment && options.commentCounts) {
+    view.dispatch({ effects: setCommentCounts.of(options.commentCounts) })
+  }
 
   let current = options
   let alive = true
@@ -158,6 +181,16 @@ export function createEditor(container: HTMLElement, options: EditorOptions): Ed
     update(next) {
       if (!alive) return
       navRef.current = { language: next.language, onNavigate: next.onNavigate, navigable: next.navigable }
+      const hadComments = commentRef.current.onComment !== undefined
+      const countsChanged = next.commentCounts !== commentRef.current.counts
+      commentRef.current = { counts: next.commentCounts, onComment: next.onComment }
+      if ((next.onComment !== undefined) !== hadComments) {
+        view.dispatch({ effects: commentSlot.reconfigure(commentExt(commentRef.current)) })
+      }
+      // จำนวน comment เปลี่ยนหลังส่ง/refresh โดยที่เอกสารไม่เปลี่ยน — ต้องสั่งวาด gutter ใหม่เอง
+      if (countsChanged && next.onComment) {
+        view.dispatch({ effects: setCommentCounts.of(next.commentCounts ?? {}) })
+      }
       const nextMeta = metaOf(next)
       const metaChanged =
         nextMeta.lines !== meta.lines || nextMeta.firstLine !== meta.firstLine || nextMeta.pins !== meta.pins

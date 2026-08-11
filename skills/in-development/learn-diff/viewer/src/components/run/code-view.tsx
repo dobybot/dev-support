@@ -6,6 +6,7 @@ import {
   type CodeControls,
   type CodePin,
   type CodeViewHandle,
+  type CommentRequest,
   type NavRequest,
   type SplitCodeViewHandle,
 } from '@/lib/code'
@@ -30,6 +31,8 @@ export function CodeView({
   scrollToLine,
   onNavigate,
   navigable,
+  commentCounts,
+  onComment,
   className,
   viewRef,
 }: {
@@ -47,6 +50,9 @@ export function CodeView({
   onNavigate?: (req: NavRequest) => void
   /** false = ปิด navigation ของมุมมองนี้ */
   navigable?: boolean
+  /** จำนวน comment ของ PR ต่อบรรทัด — ไม่ส่ง onComment = ไม่มีแถบ comment (issue #49) */
+  commentCounts?: Readonly<Record<number, number>>
+  onComment?: (req: CommentRequest) => void
   className?: string
   /** ที่ให้ผู้เรียกเก็บ handle ไว้สั่ง openSearch() / scrollToLine() เอง */
   viewRef?: React.RefObject<CodeControls | null>
@@ -68,6 +74,8 @@ export function CodeView({
       scrollToLine,
       onNavigate,
       navigable,
+      commentCounts,
+      onComment,
       dark,
     })
     if (viewRef) viewRef.current = handle.current
@@ -81,8 +89,20 @@ export function CodeView({
   }, [])
 
   useEffect(() => {
-    handle.current?.update({ text, language, firstLine, lines, pins, height, onNavigate, navigable, dark })
-  }, [text, language, firstLine, lines, pins, height, onNavigate, navigable, dark])
+    handle.current?.update({
+      text,
+      language,
+      firstLine,
+      lines,
+      pins,
+      height,
+      onNavigate,
+      navigable,
+      commentCounts,
+      onComment,
+      dark,
+    })
+  }, [text, language, firstLine, lines, pins, height, onNavigate, navigable, commentCounts, onComment, dark])
 
   return <div ref={host} className={className} />
 }
@@ -99,6 +119,8 @@ export function SplitCodeView({
   height,
   scrollToLine,
   onNavigate,
+  commentCounts,
+  onComment,
   className,
   viewRef,
 }: {
@@ -111,6 +133,9 @@ export function SplitCodeView({
   scrollToLine?: number | null
   /** navigation ทำงานเฉพาะฝั่งขวา (pinned commit) — ฝั่ง base ไม่ตอบสนองตามดีไซน์ */
   onNavigate?: (req: NavRequest) => void
+  /** แถบ comment ก็อยู่ฝั่งขวาเท่านั้นด้วยเหตุผลเดียวกัน */
+  commentCounts?: Readonly<Record<number, number>>
+  onComment?: (req: CommentRequest) => void
   className?: string
   viewRef?: React.RefObject<CodeControls | null>
 }) {
@@ -129,6 +154,8 @@ export function SplitCodeView({
       height,
       scrollToLine,
       onNavigate,
+      commentCounts,
+      onComment,
       dark,
     })
     if (viewRef) viewRef.current = handle.current
@@ -140,10 +167,10 @@ export function SplitCodeView({
   }, [])
 
   useEffect(() => {
-    handle.current?.update({ left, right, language, pins, height, onNavigate, dark })
-  }, [left, right, language, pins, height, onNavigate, dark])
+    handle.current?.update({ left, right, language, pins, height, onNavigate, commentCounts, onComment, dark })
+  }, [left, right, language, pins, height, onNavigate, commentCounts, onComment, dark])
 
   return <div ref={host} className={className} />
 }
 
-export type { CodeControls, CodeViewHandle, NavRequest }
+export type { CodeControls, CodeViewHandle, CommentRequest, NavRequest }

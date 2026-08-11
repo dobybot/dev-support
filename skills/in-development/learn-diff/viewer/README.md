@@ -112,7 +112,7 @@ run ที่ลงทะเบียนแล้วเปิดอ่านท�
 
 | ที่อยู่ | คืออะไร |
 |---|---|
-| `server/` | API (`/api/health`, `/api/runs`, `/api/runs/:id`, `/api/runs/:id/pages/:sectionId`, `/api/runs/:id/events`, `/api/runs/:id/file`) ต่อเข้า vite ผ่าน plugin ใน `server/plugin.ts` |
+| `server/` | API (`/api/health`, `/api/runs`, `/api/runs/:id`, `/api/runs/:id/pages/:sectionId`, `/api/runs/:id/events`, `/api/runs/:id/file`, `/api/runs/:id/comments`) ต่อเข้า vite ผ่าน plugin ใน `server/plugin.ts` |
 | `src/shared/types.ts` | **contract ของ content format** — server กับ app ใช้ type ชุดเดียวกัน |
 | `src/shared/sections.ts` | กติกาชื่อไฟล์ของ section — ทั้งสองฝั่งต้องคิดตรงกัน |
 | `src/components/run/` | ตัว render: markdown + directive, ตาราง reconciliation, box map, ไดอะแกรม |
@@ -146,6 +146,17 @@ format ที่ agent ต้องเขียน: [references/content-format.m
 - SVG ออกมาขนาดจริงแล้วให้กล่องนอกเลื่อนเอา (`useMaxWidth: false`) — ย่อให้พอดีคอลัมน์
   แล้วตัวหนังสืออ่านไม่ออก · กฎฝั่ง agent (`flowchart TB` เป็นค่าเริ่มต้น ฯลฯ) อยู่ที่
   [references/diagram-mermaid.md](../references/diagram-mermaid.md)
+- **ลากเลื่อน / หนีบซูมได้ทั้งเมาส์และนิ้ว** (#40): กล่องรอบไดอะแกรมเป็น "viewport" ที่ทำ
+  CSS transform ให้ wrapper ของ SVG — คณิตอยู่ที่ `src/lib/pan-zoom.ts` (ฟังก์ชันล้วน + เทสต์)
+  การผูก pointer event อยู่ที่ `src/lib/use-pan-zoom.ts` · `src/lib/diagram/` ไม่รู้เรื่องนี้เลย
+  · เมาส์: ลากเพื่อเลื่อน, ctrl/cmd + wheel เพื่อซูม, ปุ่ม +/− และรีเซ็ตมุมหน้าขวาบน ·
+  แตะ/คลิก node ยังเปิด reading list เหมือนเดิม (แยกจากการลากด้วย threshold 6px)
+- **พิกัดที่ส่งให้คณิตต้องวัดจากจุดกำเนิดของเนื้อหา ไม่ใช่ขอบกล่อง** — กล่องมี `p-4` อยู่
+  ถ้าวัดจากขอบ การซูมจะคลาดไป 16·(1−r) px ทุกครั้ง (pan ไม่รู้สึกเพราะเป็น delta ล้วน จึงรอด
+  สายตาได้ง่าย) · `contentOrigin()` วัด padding จาก rect จริงให้ ไม่ต้อง hardcode
+- **เพดานความสูง 75vh ใช้เฉพาะ `@media (pointer: coarse)`** — ที่นั่น `touch-action: none`
+  ทำให้ไดอะแกรมสูงเต็มจอกลายเป็นหลุมดักนิ้ว · บนเมาส์ไม่มีปัญหานั้นและการตัดความสูงมีแต่จะ
+  ซ่อนไดอะแกรมแนวตั้ง (`overflow: hidden` ไม่มี scrollbar บอกว่ายังมีต่อ)
 
 ## โค้ดจาก commit ที่ pin ไว้ (file API + CodeMirror)
 
@@ -190,6 +201,24 @@ GET /api/runs/<id>/file?path=<path เทียบ root ของ repo>&from=<�
 - ภาษาที่ไม่รู้จัก = plain text ไม่ใช่ error (แผนที่นามสกุลอยู่ที่ `src/shared/languages.ts`)
 - `test/code.test.ts` สแกน `src/` บังคับว่ามีแต่ไฟล์ใน `lib/code` ที่ import CodeMirror ได้
   และไม่มีใครนอกโฟลเดอร์ import ไฟล์ข้างในตรง ๆ — เหตุผลเดียวกับ boundary ของไดอะแกรม
+
+### code navigation (F12 / Shift+F12 / Alt+F12 / Cmd-click / กดค้าง)
+
+`navigation.ts` ตัดสินว่าตำแหน่งไหนคือ identifier แล้วยิง `NavRequest` (ตัวเลข/สตริงล้วน)
+ออกไปให้ `src/components/run/use-code-navigation.tsx` — การ resolve จริงเป็นงานของ index ฝั่ง
+server (`server/nav/`)
+
+| ช่องทาง | คำสั่ง |
+|---|---|
+| `F12` / Cmd(Ctrl)-click | go to definition |
+| `Shift+F12` | find references (เปิดใน panel) |
+| `Alt+F12` | peek references (block widget ใต้บรรทัด — `peek.ts`) |
+| **กดค้างบน symbol (นิ้ว/ปากกา)** | เมนู 3 คำสั่งข้างบน — `long-press.ts` (state machine ล้วน) + `nav-menu.ts` (DOM ของเมนู) |
+
+- ทุกช่องทางลงท้ายที่ `dispatchNav()` ตัวเดียวกัน — เพิ่มช่องทางใหม่ห้ามเปิดเส้นทาง logic ที่สอง
+- กดค้าง **ไม่รับ pointer ของเมาส์**: บน desktop การกดค้างนิ่ง ๆ คือจังหวะเริ่มลากเลือกข้อความ
+- ปล่อยก่อน 500ms / ขยับเกิน 10px / มีนิ้วที่สอง = ยกเลิก (การแตะ, การลากเลือก, การหนีบซูม
+  ต้องทำงานตามปกติ)
 
 ## Reading-list panel
 
@@ -255,6 +284,58 @@ GET /api/runs/<id>/diff?path=<path เทียบ root ของ repo>
 
 การกด node **ไม่ได้ใช้คำสั่ง `click` ของ mermaid** — `securityLevel` ยังเป็น `strict` และตัววาด
 เดินบน SVG แล้วผูก handler เองจาก `nodeMap` (เทสต์บังคับไว้ที่ `test/diagram.test.ts`)
+
+## comment ของ PR (ผ่าน gh CLI)
+
+```
+GET    /api/runs/<id>/comments                 อ่าน review + issue comment ของ PR
+POST   /api/runs/<id>/comments                 { body, path?, line? }
+PATCH  /api/runs/<id>/comments/<kind>/<id>     { body }        kind = review | issue
+DELETE /api/runs/<id>/comments/<kind>/<id>
+```
+
+**route เดียวใน API ที่เขียนได้** — ที่เหลือยังตอบ 405 กับทุก method ที่ไม่ใช่ GET/HEAD
+(guard อยู่ใน `createApiHandler()` และผ่อนเฉพาะ path ที่ segment ที่สามเป็น `comments`)
+
+- browser ไม่เคยแตะ GitHub เอง: server เรียก `gh api` ด้วย credential ของเครื่อง —
+  endpoint พวกนี้จึง **act ในนามบัญชี GitHub ของเจ้าของเครื่อง** ด่านกันคนนอกคือ Cloudflare
+  Access หน้า tunnel (viewer ไม่มี auth layer ของตัวเอง โดยตั้งใจ)
+- **กันการยิงข้ามเว็บ (CSRF) ที่ตัว handler เอง** — Cloudflare Access กันคนที่มาทาง tunnel
+  ไม่ได้กัน browser ของเจ้าของเครื่องที่ยิงมาที่ `127.0.0.1:5174` (พอร์ตกับ run id เดาได้ทั้งคู่
+  และ CORS ไม่ช่วยเพราะ side effect เกิดก่อน browser บล็อกการอ่านคำตอบ) · method เขียนทุกตัวต้อง
+  ผ่าน `Sec-Fetch-Site` ที่เป็น same-origin/none (ถ้า client ไม่ส่ง header นี้ ใช้ `Origin`
+  เทียบกับ host แทน) **และ** ต้องเป็น `content-type: application/json` — ปิดรูป
+  `<form enctype="text/plain">` ข้าม origin ที่ไม่ต้อง preflight (`test/comments.test.ts`)
+- ตัวรัน gh เป็น dependency ที่ inject ได้ (`createApiHandler({ gh })`) — เทสต์ใช้ fake
+  เพื่อพิสูจน์ payload ที่ส่งไป GitHub (`test/comments.test.ts`)
+- **การเลือกชนิด comment**: บรรทัดอยู่ใน diff (hunk ชุดเดียวกับที่ใช้ลงสี) → review comment
+  ผูก `commit_id` ที่ run pin ไว้ · นอก diff → issue comment ที่แนบ permalink
+  `blob/<sha>/<path>#L<n>` นำหน้าข้อความ · ไม่ระบุบรรทัด → issue comment ธรรมดา
+- **"เทียบ diff ไม่ได้" ไม่ใช่ "อยู่นอก diff"** — `loadDiff` คืน `status: 'unavailable'` +
+  `hunks: []` เมื่อไม่มี `baseCommit` หรือยังไม่ `git fetch` base มา (สถานะปกติของการ review PR
+  ของคนอื่นบน clone ใหม่) · fallback เหมือนกันแต่ `fallback.kind` ต่างกัน (`outside-diff` /
+  `diff-unavailable` + `reason` จริง) เพื่อไม่ให้ toast ยืนยันสิ่งที่ server ไม่รู้
+- gh ไม่มี / ยังไม่ login → error ที่บอกคำสั่งที่ต้องรัน (`gh_unavailable` / `gh_not_authenticated`)
+  แล้ว **แถบ comment ในกล่องโค้ดจะไม่โผล่เลย** เหตุผลถูกประกาศที่กล่องระดับ PR ท้ายหน้า run
+  (ปุ่มที่กดแล้วส่งไม่ได้คือ dead click)
+
+| ไฟล์ | หน้าที่ |
+|---|---|
+| `server/gh.ts` | ตัวรัน gh + แปลง stderr เป็น error ที่บอกวิธีแก้ + ตรวจ `gh auth status` (จำผลที่สำเร็จ) |
+| `server/comments.ts` | เลือกชนิด comment, ประกอบ payload, map ผลของ GitHub เป็น `PrComment` |
+| `src/lib/code/comments.ts` | แถบ gutter (หลังกำแพง CodeMirror) — ยิง `CommentRequest` ออกมาเป็น plain data |
+| `src/lib/comments.ts` | จับคู่ comment เข้ากับ path+line (ฟังก์ชันล้วน · `test/comments-map.test.ts`) |
+| `src/lib/use-comments.ts` | store ของทั้ง run — แขวนที่ `RunLayout` เหมือน reading panel |
+| `src/components/run/comment-box.tsx` | กล่องเขียน (markdown + preview ด้วย `<Prose>` เดิม) + comment หนึ่งอัน |
+| `src/components/run/line-comments.tsx` | กล่อง comment ของบรรทัดที่กดในการ์ดนั้น |
+| `src/components/run/pr-comments.tsx` | กล่องระดับ PR ท้ายหน้า run |
+
+- **comment เปิดจาก gutter, navigation เปิดจาก symbol** — คนละ target โดยตั้งใจ ไม่งั้นบน touch
+  ทั้งสองฟีเจอร์จะแย่งการกดเดียวกัน
+- ดึงตอนเปิด run + ปุ่ม refresh เท่านั้น (**ไม่ poll**) · ผลของการส่ง/แก้ถูก merge เข้า state
+  จากสิ่งที่ GitHub ตอบกลับ ไม่ใช่ค่าที่เดาเอง
+- ลบมียืนยันสองจังหวะในที่ ไม่ใช่ `window.confirm` (บนมือถือผ่าน tunnel กล่องของเบราว์เซอร์
+  เด้งคนละที่กับสิ่งที่กด)
 
 ## Validation warnings
 

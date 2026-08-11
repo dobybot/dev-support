@@ -108,6 +108,35 @@
   height: auto;
 }
 
+/* กล่องมองภาพของไดอะแกรม (#40) — ลากเลื่อน/หนีบซูมด้วย pointer event ชุดเดียวทั้งเมาส์และนิ้ว
+   `touch-action: none` จำกัดอยู่แค่กล่องนี้เท่านั้น: เบราว์เซอร์ต้องไม่แย่ง gesture ไปทำ scroll
+   ในกล่อง แต่ที่อื่นของหน้าต้องเลื่อนได้ตามปกติ (user story 5) */
+.ld-viewport {
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+
+/* เพดานความสูง **เฉพาะอุปกรณ์ที่ชี้ด้วยนิ้ว**: ที่นั่น `touch-action: none` ทำให้ไดอะแกรมสูงเต็มจอ
+   กลายเป็นหลุมดักนิ้ว (ไม่เหลือที่ว่างให้เลื่อนหน้าเลย) · บนเมาส์/trackpad ปัญหานั้นไม่มี —
+   wheel เปล่ายังเลื่อนหน้าได้ตามปกติ — การตัดความสูงที่นั่นมีแต่จะซ่อนไดอะแกรมแนวตั้งที่เคยเห็น
+   เต็ม ๆ (overflow: hidden ไม่มี scrollbar บอกด้วยว่ายังมีต่อ) โดยไม่มีใครขอ */
+@media (pointer: coarse) {
+  .ld-viewport {
+    max-height: 75vh;
+  }
+}
+
+.ld-viewport.ld-viewport-panning {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.ld-viewport-content {
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
 .ld-diagram .ld-node-link .nodeLabel {
   text-decoration: underline dotted;
   text-underline-offset: 3px;
@@ -120,6 +149,60 @@
 .ld-diagram .ld-node-clickable:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+
+/* เมนูจากการกดค้างบน symbol (#43) — DOM สร้างจาก src/lib/code/nav-menu.ts (อยู่ใน document.body
+   เพราะกล่องโค้ดมี overflow ของตัวเอง) สไตล์อยู่ที่นี่เพื่อให้ใช้ token ชุดเดียวกับทั้งแอป */
+.ld-nav-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 12rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 25%);
+  padding: 0.25rem;
+}
+
+.ld-nav-menu-head {
+  padding: 0.25rem 0.5rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ld-nav-menu-head-error {
+  font-family: inherit;
+  color: var(--destructive);
+}
+
+.ld-nav-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-radius: var(--radius-sm);
+  /* นิ้วต้องกดโดนแน่ ๆ — ปุ่มเตี้ยกว่านี้พลาดง่ายบนมือถือ */
+  padding: 0.5rem;
+  font-size: 0.8125rem;
+  text-align: left;
+}
+
+.ld-nav-menu-item:hover,
+.ld-nav-menu-item:focus-visible {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.ld-nav-menu-hint {
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
 }
 
 /* มุมมอง diff สองฝั่ง — โครงกล่องอยู่ที่นี่ ส่วนสีของบรรทัดอยู่ใน src/lib/code/theme.ts

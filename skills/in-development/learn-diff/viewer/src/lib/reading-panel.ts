@@ -146,6 +146,49 @@ export function backGoesToReferences(history: PanelHistory): boolean {
   return prev?.target.kind === 'references'
 }
 
+/* ── ตำแหน่ง scroll ของ "หน้าหลัก" ตอนเข้า-ออกเต็มหน้าจอ ─────────────────────
+   คนละเรื่องกับ scroll ภายใน panel ข้างบน (นั่นเป็นของแต่ละ entry) — อันนี้คือ window scroll
+   ของเอกสาร ซึ่งหายเพราะ full-screen ซ่อนคอลัมน์เนื้อหาด้วย CSS เอกสารจึงหดจน browser
+   clamp scroll เป็น 0 เอง (issue #39) · เก็บค่าดิบตอนเข้า แล้วคืนตอนออก */
+
+/** `saved === null` = ตอนนี้ไม่มีตำแหน่งค้างให้คืน (ไม่ได้อยู่ full-screen) */
+export interface PageScrollState {
+  saved: number | null
+}
+
+export const NO_PAGE_SCROLL: PageScrollState = { saved: null }
+
+/**
+ * ทางออกจาก full-screen มีสามทาง (ปุ่ม toggle, Esc, ปิด panel ทั้งอัน) — ทุกทางต้องคืน
+ * ตำแหน่งเดิม (user story 2) จึงรวมมาเป็นฟังก์ชันเดียวแทนที่จะกระจายตาม handler
+ */
+export type PageScrollEvent = 'enter-fullscreen' | 'exit-fullscreen' | 'close'
+
+export interface PageScrollTransition {
+  state: PageScrollState
+  /** ค่าที่ผู้เรียกต้อง scroll กลับไปหลัง DOM กลับมาแล้ว · null = ไม่ต้องทำอะไร */
+  restoreTo: number | null
+}
+
+/**
+ * `currentScrollY` = ตำแหน่งสดตอนเกิด event (ผู้เรียกอ่านจาก window) — ใช้เฉพาะตอนเข้า
+ * full-screen · เข้าซ้ำทั้งที่ยังอยู่ full-screen ไม่ทับค่าที่จำไว้ (ตอนนั้น window scroll = 0 แล้ว
+ * ทับไปก็คือทำตำแหน่งเดิมหาย) · ปิด panel ตอนไม่ได้อยู่ full-screen ไม่ restore อะไรทั้งสิ้น
+ * เพราะ window scroll ไม่เคยถูกแตะ (การกระโดดกลับจึงเป็นการทำลายตำแหน่งที่ผู้อ่านอยู่จริง)
+ */
+export function pageScrollTransition(
+  state: PageScrollState,
+  event: PageScrollEvent,
+  currentScrollY = 0,
+): PageScrollTransition {
+  if (event === 'enter-fullscreen') {
+    if (state.saved !== null) return { state, restoreTo: null }
+    return { state: { saved: Math.max(0, Math.round(currentScrollY)) }, restoreTo: null }
+  }
+  if (state.saved === null) return { state: NO_PAGE_SCROLL, restoreTo: null }
+  return { state: NO_PAGE_SCROLL, restoreTo: state.saved }
+}
+
 /* ── ความกว้าง ─────────────────────────────────────────────────────────────
    panel ดันเนื้อหาให้แคบลง ไม่ใช่ลอยทับ — ความกว้างจึงต้องเหลือที่ให้ prose อ่านได้เสมอ */
 
