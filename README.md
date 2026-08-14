@@ -9,7 +9,7 @@ Repo กลางสำหรับเก็บ **Claude Code skills** ที่
 dev-support/
 ├── install.sh              # ตัวติดตั้ง skill (macOS/Linux) — เลือกปลายทาง (Claude/Codex) แล้วเลือก skill
 ├── install.ps1             # ตัวเดียวกันสำหรับ Windows (PowerShell)
-├── install-mcp.sh          # ตัวติดตั้ง MCP server (ลง global ให้ Claude Code)
+├── install-mcp.sh          # ตัวติดตั้ง MCP server (เลือก Claude Code/Codex/ทั้งสอง)
 ├── install-mcp.ps1         # ตัวเดียวกันสำหรับ Windows (PowerShell)
 ├── skills/
 │   ├── in-development/     # skill ที่กำลังพัฒนา/ทดลองใช้ (เก็บ feedback อยู่)
@@ -103,7 +103,7 @@ git pull
 ## ติดตั้ง MCP server
 
 นอกจาก skill แล้ว repo นี้ยังแจก **MCP server** ที่ build ไว้พร้อมใช้ (bundle ไฟล์เดียว รันด้วย `node`
-ได้เลย ไม่ต้องมี repo ต้นทางหรือ build เอง) ตอนนี้มี **artemis** — ให้ Claude อ่าน/เขียนงานใน Artemis
+ได้เลย ไม่ต้องมี repo ต้นทางหรือ build เอง) ตอนนี้มี **artemis** — ให้ Claude Code หรือ Codex อ่าน/เขียนงานใน Artemis
 ได้ตรงจากแชต (21 tool)
 
 ```bash
@@ -114,16 +114,16 @@ git pull
 powershell -ExecutionPolicy Bypass -File .\install-mcp.ps1   # Windows
 ```
 
-สคริปต์จะถาม `ARTEMIS_API_URL` + API token (การพิมพ์ token จะไม่แสดงผล) แล้ว **ลงทะเบียนแบบ global**
-ด้วย `claude mcp add --scope user` — **ใช้ได้ทุกโปรเจกต์** ไม่ใช่แค่โฟลเดอร์เดียว · จากนั้น
-**restart Claude Code** แล้วลองพิมพ์ `list projects ใน artemis`
+สคริปต์จะถามว่าจะติดตั้งให้ **Claude Code, Codex หรือทั้งสอง** จากนั้นถาม `ARTEMIS_API_URL` + API token
+(การพิมพ์ token จะไม่แสดงผล) แล้ว **ลงทะเบียนแบบ global** — **ใช้ได้ทุกโปรเจกต์** ไม่ใช่แค่
+โฟลเดอร์เดียว · จากนั้น restart agent ที่เลือกแล้วลองพิมพ์ `list projects ใน artemis`
 
 - สร้าง token ที่หน้าเว็บ Artemis → **Admin → API Tokens** (เริ่มลองติ๊ก `projects:read` + `tickets:read`)
 - ค่าปริยาย `ARTEMIS_API_URL` = `https://artemis-actions.dobybot.com` · กด Enter ผ่านได้
 - ตั้ง env ล่วงหน้าเพื่อข้ามคำถาม: `ARTEMIS_API_TOKEN=… ./install-mcp.sh`
   (Windows: `$env:ARTEMIS_API_TOKEN='art_…'; .\install-mcp.ps1`)
-- **`git pull` อัปเดต bundle ให้เอง** (ทางที่ลงทะเบียนไว้ไม่เปลี่ยน) — แค่ restart Claude Code
-- ถอนออก: `claude mcp remove artemis --scope user`
+- **`git pull` อัปเดต bundle ให้เอง** (ทางที่ลงทะเบียนไว้ไม่เปลี่ยน) — แค่ restart agent
+- ถอนออก: `claude mcp remove artemis --scope user` หรือ `codex mcp remove artemis`
 
 รายละเอียดแต่ละตัว: [`mcp/artemis/README.md`](mcp/artemis/README.md)
 

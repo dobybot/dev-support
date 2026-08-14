@@ -20,7 +20,8 @@ Repo นี้คือศูนย์รวม **Claude Code skills ของ�
   ทำให้ข้อความไทยเพี้ยนจน parse ไม่ผ่าน (ตรวจได้ด้วย
   `[System.Management.Automation.Language.Parser]::ParseFile(...)`)
 - **MCP server** อยู่ที่ `mcp/<name>/<name>-mcp.mjs` (bundle ไฟล์เดียว build มาแล้ว) ติดตั้งด้วย `install-mcp.sh`
-  ซึ่งลงแบบ global ผ่าน `claude mcp add --scope user` (ไม่ symlink แบบ skill — ลงทะเบียนชี้มาที่ไฟล์ใน clone นี้
+  ซึ่งถามว่าจะลงให้ Claude Code, Codex หรือทั้งสอง แล้วลงแบบ global ผ่าน CLI ของ agent ที่เลือก
+  (ไม่ symlink แบบ skill — ลงทะเบียนชี้มาที่ไฟล์ใน clone นี้
   `git pull` จึงอัปเดต bundle ให้เอง) · bundle เป็น artifact ที่ build จาก repo ต้นทาง — refresh ตามวิธีใน
   `mcp/<name>/README.md` และอัปเดต version stamp ทุกครั้งที่เปลี่ยน
 

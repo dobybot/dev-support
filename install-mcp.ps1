@@ -8,7 +8,7 @@
     ลงด้วย CLI ของ client → ใช้ได้ทุกโปรเจกต์ · `git pull` อัปเดต bundle ให้เอง
 
     Usage:
-      .\install-mcp.ps1                    # ลง artemis ให้ Claude Code (ค่าเดิม)
+      .\install-mcp.ps1                    # ถามว่าจะลงให้ Claude Code, Codex หรือทั้งสอง
       .\install-mcp.ps1 -Target codex      # ลงให้ Codex
       .\install-mcp.ps1 -Both              # ลงให้ทั้ง Claude Code และ Codex
       $env:ARTEMIS_API_TOKEN='art_…'; .\install-mcp.ps1    # ตั้ง env ล่วงหน้าเพื่อข้ามคำถาม
@@ -21,8 +21,8 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('claude', 'codex', 'both')]
-    [string]$Target = 'claude',
+    [ValidateSet('', 'claude', 'codex', 'both')]
+    [string]$Target = '',
     [switch]$Claude,
     [switch]$Codex,
     [switch]$Both
@@ -76,7 +76,26 @@ function Resolve-CodexCli {
 if ($Both)       { $Target = 'both' }
 elseif ($Codex)  { $Target = 'codex' }
 elseif ($Claude) { $Target = 'claude' }
-$Target = $Target.ToLowerInvariant()
+
+if ($Target) {
+    $Target = $Target.Trim().ToLowerInvariant()
+} else {
+    Write-Host ''
+    Write-Host 'เลือกว่าจะติดตั้ง MCP ให้ agent ไหน'
+    Write-Host '  1) Claude Code'
+    Write-Host '  2) Codex'
+    Write-Host '  3) ทั้งสอง'
+    Write-Host ''
+    $targetReply = ([string](Read-Host 'เลือก [1]')).Trim()
+    switch -Regex ($targetReply) {
+        '^$'     { $Target = 'claude' }
+        '^1$'    { $Target = 'claude' }
+        '^2$'    { $Target = 'codex'  }
+        '^3$'    { $Target = 'both'   }
+        '^[qQ]$' { Write-Log 'cancelled'; exit 0 }
+        default  { Stop-Install "ไม่รู้จักตัวเลือก: $targetReply" }
+    }
+}
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     Stop-Install 'ไม่พบ node (ต้องใช้ Node 22+) — ติดตั้งจาก https://nodejs.org แล้วเปิด PowerShell ใหม่'

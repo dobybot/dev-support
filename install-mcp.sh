@@ -7,7 +7,7 @@
 # ลงด้วย CLI ของ client → ใช้ได้ทุกโปรเจกต์ · `git pull` อัปเดต bundle ให้เอง
 #
 # Usage:
-#   ./install-mcp.sh                 # ลง artemis ให้ Claude Code (ค่าเดิม)
+#   ./install-mcp.sh                 # ถามว่าจะลงให้ Claude Code, Codex หรือทั้งสอง
 #   ./install-mcp.sh --target codex  # ลงให้ Codex
 #   ./install-mcp.sh --both          # ลงให้ทั้ง Claude Code และ Codex
 #   ARTEMIS_API_TOKEN=… ./install-mcp.sh   # ตั้ง env ล่วงหน้าเพื่อข้ามคำถาม
@@ -20,7 +20,7 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NAME="artemis"
 BUNDLE="$REPO/mcp/$NAME/artemis-mcp.mjs"
-TARGET="claude"
+TARGET="" # claude | codex | both — ว่าง = ยังไม่ระบุ
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -35,7 +35,7 @@ while [ "$#" -gt 0 ]; do
   esac
   shift
 done
-case "$TARGET" in claude|codex|both) ;; *) printf '[install-mcp] ERROR: ไม่รู้จัก --target: %s (ใช้ได้: claude, codex, both)\n' "$TARGET" >&2; exit 1 ;; esac
+case "$TARGET" in ""|claude|codex|both) ;; *) printf '[install-mcp] ERROR: ไม่รู้จัก --target: %s (ใช้ได้: claude, codex, both)\n' "$TARGET" >&2; exit 1 ;; esac
 
 # ค่าปริยายชี้ prod
 DEFAULT_API_URL="https://artemis-actions.dobybot.com"   # โดเมน API/actions (โค้ดเติม /api/v1 เอง)
@@ -53,11 +53,34 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
     if [ -f "$ps1" ] && command -v powershell.exe >/dev/null 2>&1; then
       log "ตรวจพบ Windows — ส่งต่อให้ install-mcp.ps1"
       win_ps1="$(cygpath -w "$ps1" 2>/dev/null || printf '%s' "$ps1")"
-      exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$win_ps1" -Target "$TARGET"
+      if [ -n "$TARGET" ]; then
+        exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$win_ps1" -Target "$TARGET"
+      else
+        exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$win_ps1"
+      fi
     fi
     die "บน Windows ให้รัน: powershell -ExecutionPolicy Bypass -File .\\install-mcp.ps1"
     ;;
 esac
+
+# ไม่ระบุ --target: ถามเหมือนตัวติดตั้ง skill (กด Enter = Claude Code)
+if [ -z "$TARGET" ]; then
+  echo
+  echo "เลือกว่าจะติดตั้ง MCP ให้ agent ไหน"
+  echo "  1) Claude Code"
+  echo "  2) Codex"
+  echo "  3) ทั้งสอง"
+  echo
+  printf 'เลือก [1]: '
+  read -r target_reply || true
+  case "$(printf '%s' "$target_reply" | tr -d '[:space:]')" in
+    ""|1) TARGET="claude" ;;
+    2)    TARGET="codex"  ;;
+    3)    TARGET="both"   ;;
+    q|Q)  log "cancelled"; exit 0 ;;
+    *)    die "ไม่รู้จักตัวเลือก: $target_reply" ;;
+  esac
+fi
 
 command -v node >/dev/null 2>&1 || die "ไม่พบ node (ต้องใช้ Node 22+)"
 if [ "$TARGET" = "claude" ] || [ "$TARGET" = "both" ]; then

@@ -1,6 +1,6 @@
 # artemis — MCP server (bundle)
 
-MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI Agent (Claude Code) อ่าน/เขียนงานได้ **21 tool**
+MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI Agent (Claude Code/Codex) อ่าน/เขียนงานได้ **21 tool**
 (โปรเจกต์ · บอร์ด · งาน · sprint · backlog · คอมเมนต์ · label · ไฟล์แนบ)
 
 - `artemis-mcp.mjs` = **bundle ไฟล์เดียว** (esbuild รวม SDK + zod เข้าไปแล้ว) รันด้วย `node` ได้เลย
@@ -15,8 +15,9 @@ MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI 
 ./install-mcp.sh
 ```
 
-ลงแบบ **global** ด้วย `claude mcp add --scope user` (ใช้ได้ทุกโปรเจกต์) · จะถาม `ARTEMIS_API_URL` + token
-แล้ว smoke-test ให้ · จากนั้น **restart Claude Code** — ดูรายละเอียดใน [README หลัก](../../README.md#ติดตั้ง-mcp-server)
+เลือกได้ว่าจะลงให้ Claude Code, Codex หรือทั้งสองแบบ **global** (ใช้ได้ทุกโปรเจกต์) · จากนั้นจะถาม
+`ARTEMIS_API_URL` + token แล้ว smoke-test ให้ · เสร็จแล้ว restart agent ที่เลือก — ดูรายละเอียดใน
+[README หลัก](../../README.md#ติดตั้ง-mcp-server)
 
 ## เวอร์ชัน bundle
 
