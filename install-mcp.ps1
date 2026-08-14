@@ -44,6 +44,21 @@ function Write-Log  { param([string]$Message) Write-Host "[install-mcp] $Message
 function Write-Warn { param([string]$Message) Write-Host "[install-mcp] WARN: $Message" -ForegroundColor Yellow }
 function Stop-Install { param([string]$Message) Write-Host "[install-mcp] ERROR: $Message" -ForegroundColor Red; exit 1 }
 
+# การไม่มี registration เดิมเป็นสถานะปกติ แต่ Windows PowerShell 5.1 แปลง stderr
+# ของ native command เป็น error record ซึ่งจะหยุดสคริปต์เมื่อ ErrorActionPreference = Stop
+function Remove-McpRegistration {
+    param([string]$Cli, [string[]]$RemovalArgs)
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'SilentlyContinue'
+        & $Cli @RemovalArgs 2>$null | Out-Null
+    } catch {
+        # ลงต่อได้เสมอ ไม่ว่าจะไม่มี registration เดิมหรือ remove ล้มเหลว
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+}
+
 # หา CLI `claude` — บาง PowerShell session ยังไม่มี PATH ของ installer จึงเดาที่ติดตั้งมาตรฐานให้ด้วย
 function Resolve-ClaudeCli {
     $cmd = Get-Command claude -ErrorAction SilentlyContinue
@@ -155,7 +170,7 @@ if ($SiteUrl) { $SiteUrl = $SiteUrl.Trim().TrimEnd('/') }
 
 # ── ลงทะเบียน global ─────────────────────────────────────────────────────────
 if ($ClaudeCli) {
-    & $ClaudeCli mcp remove $Name --scope user 2>$null | Out-Null
+    Remove-McpRegistration -Cli $ClaudeCli -RemovalArgs @('mcp', 'remove', $Name, '--scope', 'user')
     $claudeArgs = @('mcp', 'add', $Name, '--scope', 'user',
                     '-e', "ARTEMIS_API_URL=$ApiUrl",
                     '-e', "ARTEMIS_API_TOKEN=$ApiToken")
@@ -170,7 +185,7 @@ if ($ClaudeCli) {
 }
 
 if ($CodexCli) {
-    & $CodexCli mcp remove $Name 2>$null | Out-Null
+    Remove-McpRegistration -Cli $CodexCli -RemovalArgs @('mcp', 'remove', $Name)
     $codexArgs = @('mcp', 'add', $Name,
                    '--env', "ARTEMIS_API_URL=$ApiUrl",
                    '--env', "ARTEMIS_API_TOKEN=$ApiToken")

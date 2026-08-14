@@ -134,12 +134,15 @@ assert raw.startswith(b"\xef\xbb\xbf"), "install-mcp.ps1 must keep its UTF-8 BOM
 text = raw.decode("utf-8-sig")
 assert "[string]$Target = ''" in text, "PowerShell target must start unset"
 assert "เลือกว่าจะติดตั้ง MCP ให้ agent ไหน" in text, "PowerShell target prompt is missing"
+assert "function Remove-McpRegistration" in text, "PowerShell remove must tolerate an absent MCP registration"
+assert text.count("Remove-McpRegistration -Cli") == 2, "Claude and Codex must both use tolerant removal"
 PY
 
 if command -v pwsh >/dev/null 2>&1; then
   pwsh -NoProfile -Command \
     '$errors = $null; [System.Management.Automation.Language.Parser]::ParseFile($args[0], [ref]$null, [ref]$errors) > $null; if ($errors.Count) { $errors | Out-String | Write-Error; exit 1 }' \
     "$ROOT/install-mcp.ps1"
+  pwsh -NoProfile -File "$ROOT/tests/install-mcp-powershell.ps1"
 fi
 
 printf 'PASS: MCP target selection\n'
