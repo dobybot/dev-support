@@ -1,6 +1,6 @@
 ---
 name: express-feature-scenarios
-description: "Create complete, human-readable Express Feature Scenarios from an Artemis ticket URL, the original Express manual, a feature screenshot, and a real database diff; then hold for Developer review and exact-phrase approval before attaching the unchanged Markdown draft to the same ticket without replacing its description. Use when the user gives an Artemis feature URL and asks to create, document, generate, or publish usage scenarios/use cases, or continues a pending Scenario review and upload-approval flow. Triggers: /express-feature-scenarios, 'สร้าง scenario จาก Artemis', 'ทำ feature scenario', 'อนุมัติให้อัปโหลด', 'approve upload'."
+description: "Create complete, human-readable Express Feature Scenarios from an Artemis ticket URL, the original Express manual, a feature screenshot, and a real database diff; then hold for Developer review and exact-phrase approval before attaching the unchanged Markdown draft to the same ticket without replacing its description. Use when the user invokes $express-feature-scenarios, gives an Artemis feature URL and asks to create, document, generate, or publish usage scenarios/use cases, or continues a pending Scenario review and upload-approval flow. Triggers: 'สร้าง scenario จาก Artemis', 'ทำ feature scenario', 'อนุมัติให้อัปโหลด', 'approve upload'."
 ---
 
 # Express Feature Scenarios

@@ -57,6 +57,10 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 skill ชุดเดียวกันใช้ได้ทั้งสอง agent — ต่างกันแค่โฟลเดอร์ปลายทางที่วางทางลัดไว้
 เลือก `3` ได้ถ้าใช้ทั้ง Claude Code และ Codex บนเครื่องเดียวกัน
 
+ถ้ามีตัวแปร `CODEX_HOME` ตัวติดตั้งจะใช้ `$CODEX_HOME/skills` เป็นปลายทาง Codex
+โดยอัตโนมัติ ซึ่งสำคัญเมื่อรันจาก WSL แต่ใช้ Codex Desktop บน Windows หลังติดตั้ง
+ให้เรียกด้วย `$<ชื่อ-skill>` หรือพิมพ์คำขอเป็นภาษาปกติ; skill ไม่ใช่ `/` command
+
 จากนั้นจะได้เมนูเลือก skill:
 
 ```

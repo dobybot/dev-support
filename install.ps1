@@ -45,7 +45,7 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 $Repo        = $PSScriptRoot
 $SrcRoot     = Join-Path $Repo 'skills'
 $ClaudeHome  = Join-Path $env:USERPROFILE '.claude'
-$CodexHome   = Join-Path $env:USERPROFILE '.codex'
+$CodexHome   = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
 $ClaudeDest  = Join-Path $ClaudeHome 'skills'
 $CodexDest   = Join-Path $CodexHome  'skills'
 $SettingsPath = Join-Path $ClaudeHome 'settings.json'
@@ -167,6 +167,7 @@ switch ($Target) {
 }
 foreach ($dir in $TargetDirs) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
 Write-Log "ปลายทาง: $TargetLabel"
+foreach ($dir in $TargetDirs) { Write-Log "  $dir" }
 
 # ---------- discover: skills\<group>\<name>\SKILL.md ----------
 # สถานะของ skill หนึ่งตัวในปลายทางหนึ่งที่

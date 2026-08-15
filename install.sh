@@ -5,7 +5,8 @@
 # Lists every skill under skills/<group>/ (e.g. skills/in-development/,
 # skills/old/) and lets the developer choose which ones to install or update
 # into the chosen agent's skills folder as symlinks — Claude Code
-# (~/.claude/skills), Codex (~/.codex/skills), or both. A symlink tracks this
+# (~/.claude/skills), Codex ($CODEX_HOME/skills when set, otherwise
+# ~/.codex/skills), or both. A symlink tracks this
 # clone, so `git pull` updates an installed skill's content automatically —
 # re-run this script only to add/remove skills, or after a skill moves to
 # another group.
@@ -35,7 +36,7 @@ shopt -s nullglob
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_ROOT="$REPO/skills"
 CLAUDE_DEST="$HOME/.claude/skills"
-CODEX_DEST="$HOME/.codex/skills"
+CODEX_DEST="${CODEX_HOME:-$HOME/.codex}/skills"
 SETTINGS="$HOME/.claude/settings.json"
 
 log()  { printf '[install] %s\n' "$*"; }
@@ -118,6 +119,7 @@ esac
 
 for dest in "${TARGET_DIRS[@]}"; do mkdir -p "$dest"; done
 log "ปลายทาง: $TARGET_LABEL"
+for dest in "${TARGET_DIRS[@]}"; do log "  $dest"; done
 
 # ---------- discover: skills/<group>/<name>/SKILL.md ----------
 # Parallel indexed arrays (macOS ships bash 3.2 — no associative arrays).
@@ -273,6 +275,11 @@ for idx in "${SELECTED[@]}"; do
       installed=$((installed + 1))
       linked_anywhere=1
     fi
+
+    if [ -L "$link" ] && [ ! -r "$link/SKILL.md" ]; then
+      warn "$name: link ถูกสร้างแล้วแต่เปิด SKILL.md ไม่ได้ที่ $link"
+      exit 1
+    fi
   done
 
   # dependency ติดตั้งที่ source — ครั้งเดียวต่อ skill ไม่ว่าจะ link กี่ปลายทาง
@@ -406,6 +413,9 @@ fi
 echo
 log "done: ${installed} linked, ${skipped} skipped, ${pruned} pruned"
 log "restart $TARGET_LABEL to pick up changes; 'git pull' keeps installed skills up to date"
+if [ "$TARGET" != "claude" ]; then
+  log 'เรียก skill ใน Codex ด้วย $<ชื่อ-skill> หรือพิมพ์คำขอเป็นภาษาปกติ (ไม่ใช่ /<ชื่อ-skill>)'
+fi
 
 if [ "$DEPS_FAILED" -ne 0 ]; then
   echo
