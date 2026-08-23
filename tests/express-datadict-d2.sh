@@ -13,7 +13,7 @@ fail() {
 }
 
 project="$tmp_dir/project"
-mkdir -p "$project/docs/data-dictionary/erd/tables" "$project/docs/data-dictionary/erd/views"
+mkdir -p "$project/docs/data-dictionary/erd/tables" "$project/docs/data-dictionary/erd/features" "$project/docs/data-dictionary/erd/views"
 project="$(cd "$project" && pwd -P)"
 git -C "$project" init -q
 
@@ -28,6 +28,12 @@ shape: sql_table
 id: uuid {constraint: primary_key}
 D2
 done
+
+cat > "$project/docs/data-dictionary/erd/features/acc-54.d2" <<'D2'
+CUSTOMER: {
+  searchPreference: string
+}
+D2
 
 cat > "$project/docs/data-dictionary/erd/views/accounting.d2" <<'D2'
 direction: right
@@ -61,6 +67,7 @@ erd_root="$project/docs/data-dictionary/erd"
 [[ -s "$erd_root/erd.d2" ]] || fail "render did not generate the D2 entrypoint"
 grep -q '^CUSTOMER: @tables/CUSTOMER$' "$erd_root/erd.d2" || fail "entrypoint did not import CUSTOMER"
 [[ "$(grep -c ': @tables/' "$erd_root/erd.d2")" -eq 70 ]] || fail "entrypoint did not include all 70 tables"
+grep -q '^\.\.\.@features/acc-54$' "$erd_root/erd.d2" || fail "entrypoint did not import the ACC-54 Feature fragment"
 [[ -s "$project/docs/data-dictionary/generated/erd.svg" ]] || fail "render did not create the project SVG"
 [[ -s "$project/docs/data-dictionary/generated/views/accounting.svg" ]] || fail "render did not create the accounting view"
 grep -Fq "$erd_root/erd.d2" "$D2_TEST_ARGS" || fail "D2 input was outside the current project"

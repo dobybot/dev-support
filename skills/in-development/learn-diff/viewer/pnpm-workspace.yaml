@@ -1,3 +1,5 @@
+allowBuilds:
+  esbuild: set this to true or false
 # pnpm 10+ บล็อก postinstall script โดย default — esbuild (ตัว bundler ของ vite)
 # ต้องได้รันเพื่อวาง binary ให้ตรง platform ไม่งั้น `vite` พังตอนรัน
 # (pnpm 10.13+ / 11 อ่าน setting จากไฟล์นี้ ไม่ใช่จาก package.json อีกแล้ว)

@@ -26,13 +26,13 @@ fi
 dictionary_root="$project_root/docs/data-dictionary"
 erd_root="$dictionary_root/erd"
 tables_root="$erd_root/tables"
-relations_root="$erd_root/relations"
+features_root="$erd_root/features"
 views_root="$erd_root/views"
 entrypoint="$erd_root/erd.d2"
 output="$dictionary_root/generated/erd.svg"
 views_output_root="$dictionary_root/generated/views"
 
-mkdir -p "$tables_root" "$relations_root" "$views_root" "$views_output_root"
+mkdir -p "$tables_root" "$features_root" "$views_root" "$views_output_root"
 
 tmp_entrypoint="$(mktemp "$erd_root/.erd.d2.XXXXXX")"
 cleanup() {
@@ -52,11 +52,11 @@ while IFS= read -r table_file; do
   printf '%s: @tables/%s\n' "$table_name" "$table_name" >> "$tmp_entrypoint"
 done < <(find "$tables_root" -maxdepth 1 -type f -name '*.d2' -print | LC_ALL=C sort)
 
-while IFS= read -r relation_file; do
-  [[ -n "$relation_file" ]] || continue
-  relation_name="$(basename "$relation_file" .d2)"
-  printf '...@relations/%s\n' "$relation_name" >> "$tmp_entrypoint"
-done < <(find "$relations_root" -maxdepth 1 -type f -name '*.d2' -print | LC_ALL=C sort)
+while IFS= read -r feature_file; do
+  [[ -n "$feature_file" ]] || continue
+  feature_name="$(basename "$feature_file" .d2)"
+  printf '...@features/%s\n' "$feature_name" >> "$tmp_entrypoint"
+done < <(find "$features_root" -maxdepth 1 -type f -name '*.d2' -print | LC_ALL=C sort)
 
 mv "$tmp_entrypoint" "$entrypoint"
 trap - EXIT

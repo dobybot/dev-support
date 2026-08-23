@@ -1,13 +1,13 @@
 ---
 name: express-datadict
-description: "Use when an Artemis feature has Database Diff and Feature Scenario evidence and the user asks to create, review, publish, or continue an Express Data Dictionary or system ERD. Triggers: '$express-datadict', 'สร้าง Data Dictionary จาก Artemis', 'ทำ data dict', 'อนุมัติให้อัปโหลด', 'approve upload'."
+description: "Use when an Artemis feature has Database Diff and Feature Scenario evidence and the user asks to create, review, publish, continue an Express Data Dictionary, or add its D2 fragment to the Master ERD JigSaw. Triggers: '$express-datadict', 'สร้าง Data Dictionary จาก Artemis', 'ทำ data dict', 'ต่อ ERD', 'อนุมัติให้อัปโหลด', 'approve upload'."
 ---
 
 # Express Data Dictionary
 
 สร้าง Data Dictionary จากหลักฐานของ Feature ใน Artemis เป็น Markdown รูปแบบมาตรฐาน
 รอ Developer อนุมัติก่อนแนบกลับ Ticket เดิม แล้วอัปเดต ER Diagram แบบ D2 ใน Git project
-ที่ Developer กำลังเปิดอยู่
+ที่ Developer กำลังเปิดอยู่ โดยต่อแต่ละ Feature เข้า Master ERD แบบ JigSaw
 
 ## 0. ล็อก Project ปัจจุบัน
 
@@ -111,8 +111,9 @@ technical identifier ตามต้นฉบับ
 
 ส่ง path, SHA-256, รายชื่อ Table และ relation ให้ Developer อ่านฉบับเต็ม แล้วปิดท้ายว่า:
 
-> ถ้าตรวจแล้วและอนุมัติให้แนบ Markdown ฉบับนี้ใน Artemis พร้อมอัปเดต ER Diagram ใน project
-> ให้ตอบว่า `อนุมัติให้อัปโหลด` หรือ `approve upload` เท่านั้น คำว่า `โอเค` จะยังไม่ดำเนินการ
+> ถ้าตรวจแล้วและอนุมัติให้แนบ Markdown ฉบับนี้ใน Artemis และต่อ ERD ของ Feature นี้
+> เข้า Master ERD ใน project ให้ตอบว่า
+> `อนุมัติให้อัปโหลด` หรือ `approve upload` เท่านั้น คำว่า `โอเค` จะยังไม่ดำเนินการ
 
 จากนั้นหยุดโดย **ไม่เรียก write tool ของ Artemis และไม่แก้ ERD**
 
@@ -137,7 +138,7 @@ technical identifier ตามต้นฉบับ
 
 หาก upload ไม่สำเร็จ ให้รายงานและหยุด ห้ามอัปเดต ERD เพราะ Artemis ยังไม่มีฉบับอนุมัติ
 
-## 7. อัปเดต ER Diagram แบบ D2 ใน Project
+## 7. ต่อ Master ERD แบบ D2 JigSaw ใน Project
 
 หลัง upload สำเร็จ ให้อัปเดต ERD กลางภายใต้:
 
@@ -145,7 +146,7 @@ technical identifier ตามต้นฉบับ
 docs/data-dictionary/
 ├── erd/
 │   ├── tables/<TABLE>.d2
-│   ├── relations/<ticket-key-lower>.d2
+│   ├── features/<ticket-key-lower>.d2
 │   ├── views/<domain>.d2
 │   └── erd.d2
 └── generated/
@@ -155,16 +156,16 @@ docs/data-dictionary/
 
 ทำดังนี้:
 
-1. อ่าน Table และ relation D2 ที่มีอยู่ทั้งหมดก่อนแก้ ห้ามสร้าง entity ซ้ำ
+1. อ่าน Table, Feature fragment และ relation D2 ที่มีอยู่ทั้งหมดก่อนแก้ ห้ามสร้าง entity ซ้ำ
 2. ใช้ชื่อ Table จริงเป็น stable identifier และ filename เช่น `GLACC.d2`
-3. เก็บ definition ของแต่ละ Table เพียงไฟล์เดียวใต้ `erd/tables/`; update ไฟล์เดิมเมื่อ
-   Feature เพิ่ม field ที่มีหลักฐานรองรับ
-4. เก็บ relation ที่ Feature ยืนยันใต้ `erd/relations/<ticket-key-lower>.d2`; ห้ามเดา FK
-   หรือ cardinality
-5. Table file ต้องเป็น D2 `sql_table` content ที่ import ได้ ใส่ field, data type และ
-   `primary_key`/`foreign_key`/`unique` เท่าที่หลักฐานรองรับ
-6. ห้ามแก้ `erd/erd.d2` ด้วยมือ เพราะ `scripts/d2-erd.sh` สร้าง manifest แบบเรียงชื่อ
-   เพื่อรวมทุก Table และ relation ลด merge conflict
+3. เก็บเฉพาะโครงและ field กลางของ Table ใต้ `erd/tables/`; สร้างไฟล์เมื่อ Feature พบ
+   Table ใหม่
+4. สร้างหรือแก้ `erd/features/<ticket-key-lower>.d2` ให้มีเฉพาะ field และ relation ที่ Data
+   Dictionary ฉบับอนุมัติยืนยัน หนึ่ง Feature ต่อหนึ่ง fragment และห้ามเดา FK/cardinality
+5. ใช้ entity เดิมตามชื่อ Table เดิมเพื่อให้ D2 merge Feature fragments เป็น Table เดียว
+   และใส่ data type กับ `primary_key`/`foreign_key`/`unique` เท่าที่หลักฐานรองรับ
+6. ห้ามแก้ `erd/erd.d2` ด้วยมือ เพราะ `scripts/d2-erd.sh` สร้าง Master manifest แบบเรียงชื่อ
+   เพื่อ import ทุก Table และทุก Feature fragment ลด merge conflict
 7. รองรับ ERD ทั้งระบบประมาณ 70 Table โดยให้ `generated/erd.svg` เป็น full ERD ที่ใช้
    ELK layout และสร้าง `erd/views/<domain>.d2` สำหรับภาพย่อยที่อ่านง่าย เช่น accounting,
    purchase, sales, inventory และ master-data
@@ -173,8 +174,8 @@ docs/data-dictionary/
 9. รัน `scripts/d2-erd.sh validate` แล้ว `scripts/d2-erd.sh render` จาก project ปัจจุบัน;
    script ต้อง validate/render full ERD และทุกไฟล์ใต้ `erd/views/`
 10. ตรวจว่า `generated/erd.svg` และ `generated/views/*.svg` มีอยู่ เปิดดูผล และเทียบ
-   Table/relation กับ Markdown
-   ฉบับที่อนุมัติ
+   field/relation กับ Markdown ฉบับที่อนุมัติ และตรวจว่า Feature เดิมอย่างน้อยหนึ่งรายการ
+   ยังอยู่ เพื่อยืนยันว่าการประกอบ JigSaw ไม่ทำชิ้นส่วนเดิมหาย
 
 หากไม่มีคำสั่ง `d2`, validation ไม่ผ่าน หรือ render ไม่สำเร็จ ให้รายงาน partial result ว่า
 Artemis สำเร็จแต่ ERD ยังไม่สำเร็จ พร้อม error จริง ห้ามอ้างว่าได้ตรวจภาพแล้วจาก source
@@ -194,4 +195,5 @@ Developer สามารถ render ใหม่ภายหลังจาก d
 
 1. เปลี่ยน review JSON เป็น `status: "published"`
 2. เก็บ attachment ID และ relative path ของ D2/SVG
-3. รายงาน Ticket, attachment filename, SHA-256, Table/relation ที่สร้าง และ ERD path
+3. รายงาน Ticket, attachment filename, SHA-256, Table/relation ที่สร้าง, Feature fragment
+   และ ERD path

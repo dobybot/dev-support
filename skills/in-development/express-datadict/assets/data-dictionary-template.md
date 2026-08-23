@@ -1,6 +1,7 @@
 # Data Dictionary: {{TICKET_KEY}} {{FEATURE_NAME}}
 
-สถานะเอกสาร: **รอ Developer review ก่อนนำ ERD ไปรวมกับ ERD หลัก**  
+สถานะเอกสาร: **รอ Developer review ก่อนแนบใน Artemis**
+
 Feature: [{{TICKET_KEY}}]({{TICKET_URL}})  
 เมนู Express: **{{EXPRESS_MENU_PATH}}**
 
