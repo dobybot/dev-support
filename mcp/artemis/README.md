@@ -1,7 +1,7 @@
 # artemis — MCP server (bundle)
 
-MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI Agent (Claude Code/Codex) อ่าน/เขียนงานได้ **21 tool**
-(โปรเจกต์ · บอร์ด · งาน · sprint · backlog · คอมเมนต์ · label · ไฟล์แนบ)
+MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI Agent (Claude Code/Codex) อ่าน/เขียนงานได้ **23 tool**
+(โปรเจกต์ · บอร์ด · งาน · sprint · backlog · คอมเมนต์ · label · ไฟล์แนบ · pull request)
 
 - `artemis-mcp.mjs` = **bundle ไฟล์เดียว** (esbuild รวม SDK + zod เข้าไปแล้ว) รันด้วย `node` ได้เลย
   ไม่ต้องมี `node_modules` หรือ repo artemis
@@ -24,8 +24,8 @@ MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI 
 | ฟิลด์ | ค่า |
 |---|---|
 | `@artemis/mcp` version | `0.1.0` |
-| build จาก artemis commit | `0a3b52e` — feat(mcp): เพิ่มแพ็กเกจ artemis-mcp |
-| อัปเดต bundle เมื่อ | 2026-07-22 |
+| build จาก artemis commit | `da34c86` — feat(ticket): รายการ Pull Request ของ Ticket ใน sidebar (ART-124 · เพิ่ม `link_pull_request` + `list_pull_requests`) |
+| อัปเดต bundle เมื่อ | 2026-08-24 |
 
 ## refresh bundle (สำหรับ maintainer)
 
