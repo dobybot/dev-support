@@ -1,0 +1,59 @@
+sequence: {
+  shape: sequence_diagram
+
+  developer: Developer
+  ui: dobybot-ui
+  sync: dobysync
+  auth: Platform Auth
+  api: Platform API
+  webhook: Platform Webhook
+  tasks: Cloud Tasks
+  dobybot: Dobybot
+
+  research: {
+    label: "Draft ก่อน implementation"
+    developer -> sync: "DECISION-01 [DOCS ONLY] ยืนยัน scope และ API inventory"
+  }
+
+  connect: {
+    label: "Connect และยืนยันร้าน"
+    developer -> ui: "AUTH-01 เปิด connect dialog"
+    ui -> auth: "AUTH-02 / AUTH-API-01 authorize หรือ verify API key"
+    auth -> sync: "AUTH-03 / AUTH-API-02 callback หรือ credential verification"
+    sync -> api: "AUTH-04 / AUTH-API-03 ดึง shop identity"
+    api -> sync: "AUTH-05 [DOCS ONLY] shop identity"
+    sync -> developer: "DECISION-02 เลือก OAuth/API key และ token lifecycle จาก live evidence"
+  }
+
+  initial_sync: {
+    label: "Initial order sync"
+    tasks -> sync: "POLL-01 เริ่ม sync task"
+    sync -> api: "ORDER-01 / ORDER-API-01 list orders + pagination"
+    api -> sync: "ORDER-02 [DOCS ONLY] order page + rate-limit metadata"
+    sync -> api: "ORDER-03 / ORDER-API-02 order detail"
+    api -> sync: "ORDER-04 [DOCS ONLY] items, recipient, shipping, totals"
+    sync -> sync: "ORDER-05 transform + deduplicate"
+    sync -> dobybot: "ORDER-06 ส่ง DobybotOrder"
+  }
+
+  event_sync: {
+    label: "Webhook และ polling fallback"
+    sync -> webhook: "WEBHOOK-01 / WEBHOOK-API-01 register callback/event"
+    webhook -> sync: "WEBHOOK-02 / WEBHOOK-API-02 signed order event"
+    sync -> sync: "WEBHOOK-03 verify signature + deduplicate"
+    sync -> dobybot: "WEBHOOK-04 อัปเดต order/status"
+    webhook -> sync: "ERROR-01 invalid signature หรือ duplicate event"
+    sync -> webhook: "ERROR-02 reject/ack ตาม contract"
+    webhook -> sync: "WEBHOOK-05 retry delivery ตาม contract"
+    tasks -> sync: "POLL-02 fallback เมื่อ event ไม่ครบหรือสูญหาย"
+  }
+
+  failures: {
+    label: "Failure และ developer decision"
+    api -> sync: "ERROR-03 401 / token expired"
+    sync -> auth: "AUTH-06 / AUTH-API-04 refresh token"
+    api -> sync: "ERROR-04 429 / transient 5xx"
+    sync -> tasks: "ERROR-05 bounded retry/backoff"
+    sync -> developer: "DECISION-03 [BLOCKED] behavior จริงต่างจาก diagram"
+  }
+}

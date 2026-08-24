@@ -1,0 +1,4 @@
+interface:
+  display_name: "Express Feature Scenarios"
+  short_description: "สร้าง Scenario จากหลักฐาน Express และ Artemis"
+  default_prompt: "Use $express-feature-scenarios to create evidence-backed feature scenarios from this Artemis ticket."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Express JigSaw ERD"
+  short_description: "ต่อ ERD ของแต่ละ Feature เข้า Master ด้วย D2"
+  default_prompt: "Use $express-jigsaw-erd with this Artemis ticket URL to add its verified D2 fragment to the Master ERD JigSaw."

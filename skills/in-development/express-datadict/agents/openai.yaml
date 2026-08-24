@@ -1,0 +1,4 @@
+interface:
+  display_name: "Express Data Dictionary"
+  short_description: "สร้าง Data Dictionary และต่อ Master ERD แบบ D2 JigSaw"
+  default_prompt: "Use $express-datadict to create and publish a reviewed Data Dictionary from this Artemis ticket, then add its D2 fragment to the Master ERD JigSaw."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Express Test Case"
+  short_description: "สร้าง Test Case จากหลักฐาน Express ใน Artemis"
+  default_prompt: "Use $express-testcase to create an evidence-backed Excel test case from this Artemis ticket."

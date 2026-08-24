@@ -1,0 +1,223 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* ฟอนต์ไทยถูก bundle มากับแอป (#34) — จะได้ไม่พึ่งฟอนต์ในเครื่อง ซึ่งต่างกันเครื่องต่อเครื่อง
+   จนกล่องของ mermaid วัดความกว้างเพี้ยน · ต้องตรงกับ FONT_STACK ใน lib/diagram/engine-mermaid.ts */
+@import '@fontsource/noto-sans-thai/400.css';
+@import '@fontsource/noto-sans-thai/500.css';
+@import '@fontsource/noto-sans-thai/600.css';
+@import '@fontsource/noto-sans-thai/700.css';
+
+@theme {
+  --font-sans:
+    'Noto Sans Thai', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+/* shadcn/ui design tokens (new-york, neutral). Keep this block as shadcn generates it —
+   `pnpm dlx shadcn@latest add <component>` expects these variable names. */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ไดอะแกรม — SVG มาจาก src/lib/diagram (สีอยู่ใน theme.ts ที่ฝั่ง TS เพราะ engine bake ลง SVG)
+   ตรงนี้เหลือแค่การจัดวางกับสัญญาณว่า node ไหนมีโค้ดให้อ่านต่อ */
+/* ขนาดจริงเสมอ แล้วให้กล่องรอบนอกเลื่อนซ้าย-ขวาเอา — ย่อให้พอดีความกว้างคอลัมน์
+   ทำให้ไดอะแกรมยาว ๆ เหลือสูงไม่กี่สิบ px จนอ่านตัวหนังสือไม่ออก (ตัวหนังสือสำคัญกว่าการเห็นทั้งภาพ) */
+.ld-diagram svg {
+  display: block;
+  margin-inline: auto;
+  max-width: none;
+  height: auto;
+}
+
+/* กล่องมองภาพของไดอะแกรม (#40) — ลากเลื่อน/หนีบซูมด้วย pointer event ชุดเดียวทั้งเมาส์และนิ้ว
+   `touch-action: none` จำกัดอยู่แค่กล่องนี้เท่านั้น: เบราว์เซอร์ต้องไม่แย่ง gesture ไปทำ scroll
+   ในกล่อง แต่ที่อื่นของหน้าต้องเลื่อนได้ตามปกติ (user story 5) */
+.ld-viewport {
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+
+/* เพดานความสูง **เฉพาะอุปกรณ์ที่ชี้ด้วยนิ้ว**: ที่นั่น `touch-action: none` ทำให้ไดอะแกรมสูงเต็มจอ
+   กลายเป็นหลุมดักนิ้ว (ไม่เหลือที่ว่างให้เลื่อนหน้าเลย) · บนเมาส์/trackpad ปัญหานั้นไม่มี —
+   wheel เปล่ายังเลื่อนหน้าได้ตามปกติ — การตัดความสูงที่นั่นมีแต่จะซ่อนไดอะแกรมแนวตั้งที่เคยเห็น
+   เต็ม ๆ (overflow: hidden ไม่มี scrollbar บอกด้วยว่ายังมีต่อ) โดยไม่มีใครขอ */
+@media (pointer: coarse) {
+  .ld-viewport {
+    max-height: 75vh;
+  }
+}
+
+.ld-viewport.ld-viewport-panning {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.ld-viewport-content {
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.ld-diagram .ld-node-link .nodeLabel {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.ld-diagram .ld-node-clickable {
+  cursor: pointer;
+}
+
+.ld-diagram .ld-node-clickable:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* เมนูจากการกดค้างบน symbol (#43) — DOM สร้างจาก src/lib/code/nav-menu.ts (อยู่ใน document.body
+   เพราะกล่องโค้ดมี overflow ของตัวเอง) สไตล์อยู่ที่นี่เพื่อให้ใช้ token ชุดเดียวกับทั้งแอป */
+.ld-nav-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 12rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 25%);
+  padding: 0.25rem;
+}
+
+.ld-nav-menu-head {
+  padding: 0.25rem 0.5rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ld-nav-menu-head-error {
+  font-family: inherit;
+  color: var(--destructive);
+}
+
+.ld-nav-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-radius: var(--radius-sm);
+  /* นิ้วต้องกดโดนแน่ ๆ — ปุ่มเตี้ยกว่านี้พลาดง่ายบนมือถือ */
+  padding: 0.5rem;
+  font-size: 0.8125rem;
+  text-align: left;
+}
+
+.ld-nav-menu-item:hover,
+.ld-nav-menu-item:focus-visible {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.ld-nav-menu-hint {
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+}
+
+/* มุมมอง diff สองฝั่ง — โครงกล่องอยู่ที่นี่ ส่วนสีของบรรทัดอยู่ใน src/lib/code/theme.ts
+   (CodeMirror bake สีลง StyleModule ของตัวเอง เหมือนที่ไดอะแกรม bake ลง SVG) */
+.ld-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+.ld-split .ld-split-side {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ld-split .ld-split-side + .ld-split-side {
+  border-left: 1px solid var(--border);
+}

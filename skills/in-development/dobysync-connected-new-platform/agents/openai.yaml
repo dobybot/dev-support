@@ -1,0 +1,4 @@
+interface:
+  display_name: "เชื่อมต่อแพลตฟอร์มใหม่"
+  short_description: "พิสูจน์ API และออกแบบ flow ก่อนเชื่อม platform"
+  default_prompt: "Use $dobysync-connected-new-platform to validate and integrate a marketplace into dobysync."

@@ -1,22 +1,41 @@
 #!/usr/bin/env bash
 #
-# install-mcp.sh — ลงทะเบียน MCP server ของทีม dobybot ให้ Claude Code แบบ global
+# install-mcp.sh — ลงทะเบียน MCP server ของทีม dobybot ให้ Claude Code/Codex แบบ global
 #
 # ตอนนี้มีตัวเดียว: artemis (ห่อ REST API /api/v1 ของ Artemis · 21 tool)
 # bundle ถูก commit ไว้ที่ mcp/<name>/<name>-mcp.mjs — ไม่ต้องมี repo artemis หรือ build เอง
-# ลงด้วย `claude mcp add --scope user` → ใช้ได้ทุกโปรเจกต์ · `git pull` อัปเดต bundle ให้เอง
+# ลงด้วย CLI ของ client → ใช้ได้ทุกโปรเจกต์ · `git pull` อัปเดต bundle ให้เอง
 #
 # Usage:
-#   ./install-mcp.sh                 # ลง artemis (ถามค่าที่จำเป็น)
+#   ./install-mcp.sh                 # ถามว่าจะลงให้ Claude Code, Codex หรือทั้งสอง
+#   ./install-mcp.sh --target codex  # ลงให้ Codex
+#   ./install-mcp.sh --both          # ลงให้ทั้ง Claude Code และ Codex
 #   ARTEMIS_API_TOKEN=… ./install-mcp.sh   # ตั้ง env ล่วงหน้าเพื่อข้ามคำถาม
 #
 # ถอนออก:  claude mcp remove artemis --scope user
+#           codex mcp remove artemis
 #
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NAME="artemis"
 BUNDLE="$REPO/mcp/$NAME/artemis-mcp.mjs"
+TARGET="" # claude | codex | both — ว่าง = ยังไม่ระบุ
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --target)
+      [ "$#" -ge 2 ] || { printf '%s\n' '[install-mcp] ERROR: --target ต้องตามด้วย claude, codex หรือ both' >&2; exit 1; }
+      TARGET="$2"; shift ;;
+    --target=*) TARGET="${1#--target=}" ;;
+    --claude)   TARGET="claude" ;;
+    --codex)    TARGET="codex" ;;
+    --both)     TARGET="both" ;;
+    *) printf '[install-mcp] ERROR: ไม่รู้จัก option: %s\n' "$1" >&2; exit 1 ;;
+  esac
+  shift
+done
+case "$TARGET" in ""|claude|codex|both) ;; *) printf '[install-mcp] ERROR: ไม่รู้จัก --target: %s (ใช้ได้: claude, codex, both)\n' "$TARGET" >&2; exit 1 ;; esac
 
 # ค่าปริยายชี้ prod
 DEFAULT_API_URL="https://artemis-actions.dobybot.com"   # โดเมน API/actions (โค้ดเติม /api/v1 เอง)
@@ -34,17 +53,50 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
     if [ -f "$ps1" ] && command -v powershell.exe >/dev/null 2>&1; then
       log "ตรวจพบ Windows — ส่งต่อให้ install-mcp.ps1"
       win_ps1="$(cygpath -w "$ps1" 2>/dev/null || printf '%s' "$ps1")"
-      exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$win_ps1" "$@"
+      if [ -n "$TARGET" ]; then
+        exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$win_ps1" -Target "$TARGET"
+      else
+        exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$win_ps1"
+      fi
     fi
     die "บน Windows ให้รัน: powershell -ExecutionPolicy Bypass -File .\\install-mcp.ps1"
     ;;
 esac
 
-command -v node   >/dev/null 2>&1 || die "ไม่พบ node (ต้องใช้ Node 22+)"
-command -v claude >/dev/null 2>&1 || die "ไม่พบคำสั่ง claude (Claude Code CLI) — ติดตั้ง Claude Code ก่อน"
+# ไม่ระบุ --target: ถามเหมือนตัวติดตั้ง skill (กด Enter = Claude Code)
+if [ -z "$TARGET" ]; then
+  echo
+  echo "เลือกว่าจะติดตั้ง MCP ให้ agent ไหน"
+  echo "  1) Claude Code"
+  echo "  2) Codex"
+  echo "  3) ทั้งสอง"
+  echo
+  printf 'เลือก [1]: '
+  read -r target_reply || true
+  case "$(printf '%s' "$target_reply" | tr -d '[:space:]')" in
+    ""|1) TARGET="claude" ;;
+    2)    TARGET="codex"  ;;
+    3)    TARGET="both"   ;;
+    q|Q)  log "cancelled"; exit 0 ;;
+    *)    die "ไม่รู้จักตัวเลือก: $target_reply" ;;
+  esac
+fi
+
+command -v node >/dev/null 2>&1 || die "ไม่พบ node (ต้องใช้ Node 22+)"
+if [ "$TARGET" = "claude" ] || [ "$TARGET" = "both" ]; then
+  command -v claude >/dev/null 2>&1 || die "ไม่พบคำสั่ง claude (Claude Code CLI) — ติดตั้ง Claude Code ก่อน"
+fi
+if [ "$TARGET" = "codex" ] || [ "$TARGET" = "both" ]; then
+  command -v codex >/dev/null 2>&1 || die "ไม่พบคำสั่ง codex (Codex CLI) — ติดตั้ง Codex ก่อน"
+fi
 [ -f "$BUNDLE" ] || die "ไม่พบ bundle ที่ $BUNDLE — ลอง 'git pull' แล้วรันใหม่"
 
-log "ลงทะเบียน MCP '$NAME' แบบ global (scope user) — ใช้ได้ทุกโปรเจกต์"
+case "$TARGET" in
+  claude) TARGET_LABEL="Claude Code" ;;
+  codex)  TARGET_LABEL="Codex" ;;
+  both)   TARGET_LABEL="Claude Code + Codex" ;;
+esac
+log "ลงทะเบียน MCP '$NAME' แบบ global ให้ $TARGET_LABEL — ใช้ได้ทุกโปรเจกต์"
 
 # ── ค่าที่จำเป็น ──────────────────────────────────────────────────────────────
 API_URL="${ARTEMIS_API_URL:-}"
@@ -82,15 +134,25 @@ fi
 SITE_URL="${SITE_URL%/}"
 
 # ── ลงทะเบียน global ─────────────────────────────────────────────────────────
-claude mcp remove "$NAME" --scope user >/dev/null 2>&1 || true   # ถอนของเดิม (ถ้ามี) เพื่อรันซ้ำได้
+if [ "$TARGET" = "claude" ] || [ "$TARGET" = "both" ]; then
+  claude mcp remove "$NAME" --scope user >/dev/null 2>&1 || true
+  CLAUDE_ENV_ARGS=(-e "ARTEMIS_API_URL=$API_URL" -e "ARTEMIS_API_TOKEN=$API_TOKEN")
+  if [ -n "$PROJECT_KEY" ]; then CLAUDE_ENV_ARGS+=(-e "ARTEMIS_PROJECT_KEY=$PROJECT_KEY"); fi
+  if [ -n "$SITE_URL" ];    then CLAUDE_ENV_ARGS+=(-e "ARTEMIS_SITE_URL=$SITE_URL");    fi
+  claude mcp add "$NAME" --scope user "${CLAUDE_ENV_ARGS[@]}" -- node "$BUNDLE" >/dev/null \
+    || die "ลงทะเบียนกับ Claude Code ไม่สำเร็จ — ลองมือ: claude mcp add $NAME --scope user -- node \"$BUNDLE\""
+  log "✅ ลงทะเบียน '$NAME' ให้ Claude Code ที่ scope user แล้ว"
+fi
 
-ENV_ARGS=(-e "ARTEMIS_API_URL=$API_URL" -e "ARTEMIS_API_TOKEN=$API_TOKEN")
-if [ -n "$PROJECT_KEY" ]; then ENV_ARGS+=(-e "ARTEMIS_PROJECT_KEY=$PROJECT_KEY"); fi
-if [ -n "$SITE_URL" ];    then ENV_ARGS+=(-e "ARTEMIS_SITE_URL=$SITE_URL");    fi
-
-claude mcp add "$NAME" --scope user "${ENV_ARGS[@]}" -- node "$BUNDLE" >/dev/null \
-  || die "ลงทะเบียนไม่สำเร็จ — ลองมือ: claude mcp add $NAME --scope user -- node \"$BUNDLE\""
-log "✅ ลงทะเบียน '$NAME' ที่ scope user แล้ว"
+if [ "$TARGET" = "codex" ] || [ "$TARGET" = "both" ]; then
+  codex mcp remove "$NAME" >/dev/null 2>&1 || true
+  CODEX_ENV_ARGS=(--env "ARTEMIS_API_URL=$API_URL" --env "ARTEMIS_API_TOKEN=$API_TOKEN")
+  if [ -n "$PROJECT_KEY" ]; then CODEX_ENV_ARGS+=(--env "ARTEMIS_PROJECT_KEY=$PROJECT_KEY"); fi
+  if [ -n "$SITE_URL" ];    then CODEX_ENV_ARGS+=(--env "ARTEMIS_SITE_URL=$SITE_URL");    fi
+  codex mcp add "$NAME" "${CODEX_ENV_ARGS[@]}" -- node "$BUNDLE" >/dev/null \
+    || die "ลงทะเบียนกับ Codex ไม่สำเร็จ — ลองมือ: codex mcp add $NAME -- node \"$BUNDLE\""
+  log "✅ ลงทะเบียน '$NAME' ให้ Codex แล้ว"
+fi
 
 # ── smoke-test (boot + ลิสต์ tool · ไม่แตะเน็ต ไม่ใช้ token จริง) ──────────────
 log "smoke-test: server boot + ลิสต์ tool …"
@@ -110,5 +172,10 @@ else
 fi
 
 echo
-log "เสร็จแล้ว! restart Claude Code แล้วลองพิมพ์:  \"list projects ใน artemis\""
-log "อัปเดต bundle → git pull แล้ว restart · ถอน → claude mcp remove $NAME --scope user"
+log "เสร็จแล้ว! restart $TARGET_LABEL แล้วลองพิมพ์:  \"list projects ใน artemis\""
+case "$TARGET" in
+  claude) REMOVE_HINT="claude mcp remove $NAME --scope user" ;;
+  codex)  REMOVE_HINT="codex mcp remove $NAME" ;;
+  both)   REMOVE_HINT="claude mcp remove $NAME --scope user / codex mcp remove $NAME" ;;
+esac
+log "อัปเดต bundle → git pull แล้ว restart · ถอน → $REMOVE_HINT"
