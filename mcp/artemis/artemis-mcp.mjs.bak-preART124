@@ -21259,7 +21259,6 @@ function createClient(cfg, fetchImpl) {
   return {
     get: (path, query) => request("GET", path, query),
     post: (path, body) => request("POST", path, void 0, body ?? {}),
-    put: (path, body) => request("PUT", path, void 0, body),
     patch: (path, body) => request("PATCH", path, void 0, body),
     del: (path) => request("DELETE", path)
   };
@@ -21660,14 +21659,6 @@ function withUrl(cfg, key, line) {
   const u = ticketUrl(cfg, key);
   return u === void 0 ? line : `${line} \xB7 ${u}`;
 }
-var COMMENT_PREVIEW_MAX = 1200;
-function commentLine(c, key) {
-  const head = `- [${c.author ?? "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E16\u0E39\u0E01\u0E25\u0E1A"}] `;
-  const edited = c.editedAt === null ? "" : " (\u0E41\u0E01\u0E49\u0E44\u0E02\u0E41\u0E25\u0E49\u0E27)";
-  if (c.body.length <= COMMENT_PREVIEW_MAX) return `${head}${c.body}${edited}`;
-  return `${head}${c.body.slice(0, COMMENT_PREVIEW_MAX)}${edited}
-  \u2026 \u0E15\u0E31\u0E14\u0E21\u0E32\u0E41\u0E2A\u0E14\u0E07 ${COMMENT_PREVIEW_MAX} \u0E08\u0E32\u0E01 ${c.body.length} \u0E15\u0E31\u0E27\u0E2D\u0E31\u0E01\u0E29\u0E23 \u2014 \u0E2D\u0E48\u0E32\u0E19\u0E09\u0E1A\u0E31\u0E1A\u0E40\u0E15\u0E47\u0E21\u0E14\u0E49\u0E27\u0E22 list_comments key=${key}`;
-}
 function encodeLabel(name) {
   if (name.includes("/")) {
     return {
@@ -21883,7 +21874,9 @@ ${cols}`);
         lines.push(
           "",
           `\u0E04\u0E2D\u0E21\u0E40\u0E21\u0E19\u0E15\u0E4C (${t.comments.length}${t.commentsTruncated ? " \u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14 \u2014 \u0E21\u0E35\u0E21\u0E32\u0E01\u0E01\u0E27\u0E48\u0E32\u0E19\u0E35\u0E49 \u0E43\u0E0A\u0E49 list_comments" : ""}):`,
-          ...t.comments.map((c) => commentLine(c, t.key))
+          ...t.comments.map(
+            (c) => `- [${c.author ?? "\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E16\u0E39\u0E01\u0E25\u0E1A"}] ${c.body}${c.editedAt === null ? "" : " (\u0E41\u0E01\u0E49\u0E44\u0E02\u0E41\u0E25\u0E49\u0E27)"}`
+          )
         );
       }
       const blocks = [text(lines.join("\n"))];
@@ -21918,7 +21911,7 @@ ${describeAttachments(t.attachments)}`));
         title: external_exports.string().describe("\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E07\u0E32\u0E19"),
         type: external_exports.enum(["bug", "feature", "task"]).describe("\u0E0A\u0E19\u0E34\u0E14\u0E07\u0E32\u0E19"),
         priority: external_exports.enum(["urgent", "high", "medium", "low"]).optional().describe("\u0E44\u0E21\u0E48\u0E23\u0E30\u0E1A\u0E38 = medium"),
-        description: external_exports.string().optional().describe("\u0E23\u0E32\u0E22\u0E25\u0E30\u0E40\u0E2D\u0E35\u0E22\u0E14 \u2014 \u0E40\u0E02\u0E35\u0E22\u0E19 markdown \u0E44\u0E14\u0E49 (\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D/\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23/\u0E15\u0E31\u0E27\u0E2B\u0E19\u0E32/\u0E42\u0E04\u0E49\u0E14/\u0E15\u0E32\u0E23\u0E32\u0E07) \u0E23\u0E30\u0E1A\u0E1A\u0E40\u0E23\u0E19\u0E40\u0E14\u0E2D\u0E23\u0E4C\u0E43\u0E2B\u0E49\u0E41\u0E2A\u0E14\u0E07\u0E43\u0E19\u0E2B\u0E19\u0E49\u0E32\u0E40\u0E27\u0E47\u0E1A\u0E40\u0E2D\u0E07"),
+        description: external_exports.string().optional().describe("\u0E23\u0E32\u0E22\u0E25\u0E30\u0E40\u0E2D\u0E35\u0E22\u0E14\u0E41\u0E1A\u0E1A\u0E02\u0E49\u0E2D\u0E04\u0E27\u0E32\u0E21\u0E25\u0E49\u0E27\u0E19"),
         assignees: external_exports.array(external_exports.string()).optional().describe("\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E02\u0E2D\u0E07\u0E2A\u0E21\u0E32\u0E0A\u0E34\u0E01\u0E42\u0E1B\u0E23\u0E40\u0E08\u0E01\u0E15\u0E4C"),
         parentKey: external_exports.string().optional().describe("\u0E23\u0E30\u0E1A\u0E38 = \u0E2A\u0E23\u0E49\u0E32\u0E07\u0E40\u0E1B\u0E47\u0E19\u0E07\u0E32\u0E19\u0E25\u0E39\u0E01\u0E02\u0E2D\u0E07\u0E43\u0E1A\u0E19\u0E31\u0E49\u0E19 (\u0E25\u0E36\u0E01\u0E44\u0E14\u0E49\u0E0A\u0E31\u0E49\u0E19\u0E40\u0E14\u0E35\u0E22\u0E27)")
       },
@@ -21954,7 +21947,7 @@ ${describeAttachments(t.attachments)}`));
         projectKey: PROJECT_KEY_ARG,
         title: external_exports.string().optional(),
         status: external_exports.string().optional().describe("\u0E0A\u0E37\u0E48\u0E2D\u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C\u0E1B\u0E25\u0E32\u0E22\u0E17\u0E32\u0E07"),
-        description: external_exports.string().optional().describe("\u0E40\u0E02\u0E35\u0E22\u0E19 markdown \u0E44\u0E14\u0E49 \xB7 \u0E2A\u0E48\u0E07\u0E21\u0E32 = \u0E41\u0E17\u0E19\u0E17\u0E35\u0E48\u0E23\u0E32\u0E22\u0E25\u0E30\u0E40\u0E2D\u0E35\u0E22\u0E14\u0E40\u0E14\u0E34\u0E21\u0E17\u0E31\u0E49\u0E07\u0E01\u0E49\u0E2D\u0E19 (\u0E17\u0E31\u0E49\u0E07\u0E02\u0E49\u0E2D\u0E04\u0E27\u0E32\u0E21\u0E41\u0E25\u0E30\u0E17\u0E35\u0E48\u0E41\u0E2A\u0E14\u0E07\u0E43\u0E19\u0E2B\u0E19\u0E49\u0E32\u0E40\u0E27\u0E47\u0E1A)"),
+        description: external_exports.string().optional(),
         priority: external_exports.enum(["urgent", "high", "medium", "low"]).optional(),
         type: external_exports.enum(["bug", "feature", "task"]).optional(),
         assignees: external_exports.array(external_exports.string()).optional().describe("\u0E23\u0E32\u0E22\u0E0A\u0E37\u0E48\u0E2D\u0E2A\u0E38\u0E14\u0E17\u0E49\u0E32\u0E22\u0E17\u0E31\u0E49\u0E07\u0E0A\u0E38\u0E14"),
@@ -22131,7 +22124,7 @@ sprint \u0E17\u0E35\u0E48\u0E21\u0E35\u0E08\u0E23\u0E34\u0E07\u0E43\u0E19\u0E42\
     name: "list_comments",
     config: {
       title: "\u0E04\u0E2D\u0E21\u0E40\u0E21\u0E19\u0E15\u0E4C\u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14\u0E02\u0E2D\u0E07\u0E07\u0E32\u0E19",
-      description: "\u0E40\u0E23\u0E35\u0E22\u0E07\u0E40\u0E01\u0E48\u0E32\u2192\u0E43\u0E2B\u0E21\u0E48 \xB7 get_ticket \u0E43\u0E2B\u0E49\u0E41\u0E04\u0E48 50 \u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14 \u0E41\u0E25\u0E30\u0E22\u0E48\u0E2D\u0E04\u0E2D\u0E21\u0E40\u0E21\u0E19\u0E15\u0E4C\u0E17\u0E35\u0E48\u0E22\u0E32\u0E27\u0E21\u0E32\u0E01 \u0E43\u0E0A\u0E49\u0E2D\u0E31\u0E19\u0E19\u0E35\u0E49\u0E40\u0E21\u0E37\u0E48\u0E2D\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E04\u0E23\u0E1A\u0E17\u0E38\u0E01\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E2B\u0E23\u0E37\u0E2D\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E02\u0E49\u0E2D\u0E04\u0E27\u0E32\u0E21\u0E40\u0E15\u0E47\u0E21\u0E02\u0E2D\u0E07\u0E04\u0E2D\u0E21\u0E40\u0E21\u0E19\u0E15\u0E4C\u0E22\u0E32\u0E27",
+      description: "\u0E40\u0E23\u0E35\u0E22\u0E07\u0E40\u0E01\u0E48\u0E32\u2192\u0E43\u0E2B\u0E21\u0E48 \xB7 get_ticket \u0E43\u0E2B\u0E49\u0E41\u0E04\u0E48 50 \u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14 \u0E43\u0E0A\u0E49\u0E2D\u0E31\u0E19\u0E19\u0E35\u0E49\u0E40\u0E21\u0E37\u0E48\u0E2D\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E04\u0E23\u0E1A\u0E17\u0E38\u0E01\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23",
       inputSchema: { key: external_exports.string().describe("\u0E23\u0E2B\u0E31\u0E2A\u0E07\u0E32\u0E19"), format: FORMAT, ...PAGE_ARGS },
       annotations: READ
     },
@@ -22372,86 +22365,7 @@ ${describeAttachments(list.data)}`
       return ok(blocks);
     }
   });
-  defs.push({
-    name: "list_pull_requests",
-    config: {
-      title: "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23 PR \u0E17\u0E35\u0E48\u0E1C\u0E39\u0E01\u0E01\u0E31\u0E1A\u0E07\u0E32\u0E19",
-      description: "PR \u0E02\u0E2D\u0E07 GitHub \u0E17\u0E35\u0E48\u0E16\u0E39\u0E01\u0E1C\u0E39\u0E01\u0E01\u0E31\u0E1A\u0E07\u0E32\u0E19\u0E43\u0E1A\u0E19\u0E35\u0E49 (\u0E41\u0E2A\u0E14\u0E07\u0E43\u0E19\u0E41\u0E16\u0E1A\u0E02\u0E49\u0E32\u0E07\u0E02\u0E2D\u0E07\u0E2B\u0E19\u0E49\u0E32\u0E07\u0E32\u0E19\u0E14\u0E49\u0E27\u0E22) \u0E40\u0E23\u0E35\u0E22\u0E07\u0E43\u0E2B\u0E21\u0E48\u2192\u0E40\u0E01\u0E48\u0E32 \xB7 \u0E43\u0E0A\u0E49\u0E40\u0E0A\u0E47\u0E04\u0E01\u0E48\u0E2D\u0E19 link_pull_request \u0E27\u0E48\u0E32 PR \u0E16\u0E39\u0E01\u0E1C\u0E39\u0E01\u0E44\u0E1B\u0E41\u0E25\u0E49\u0E27\u0E2B\u0E23\u0E37\u0E2D\u0E22\u0E31\u0E07",
-      inputSchema: { key: external_exports.string().describe("\u0E23\u0E2B\u0E31\u0E2A\u0E07\u0E32\u0E19"), format: FORMAT },
-      annotations: READ
-    },
-    handler: async (args) => {
-      const key = str(args.key);
-      if (key === void 0) return fail("\u0E15\u0E49\u0E2D\u0E07\u0E23\u0E30\u0E1A\u0E38 key \u0E02\u0E2D\u0E07\u0E07\u0E32\u0E19 \u0E40\u0E0A\u0E48\u0E19 ART-42");
-      const res = await client.get(
-        `/api/v1/tickets/${encodeURIComponent(key)}/pull-requests`
-      );
-      if (!res.ok) return failFrom(ctx, res.err, `ticket ${key}`);
-      if (str(args.format) === "json") return ok(asJson(res.data));
-      if (res.data.length === 0) return ok(`${key} \u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35 PR \u0E17\u0E35\u0E48\u0E1C\u0E39\u0E01\u0E44\u0E27\u0E49`);
-      return ok(res.data.map(pullRequestLine).join("\n"));
-    }
-  });
-  defs.push({
-    name: "link_pull_request",
-    config: {
-      title: "\u0E1C\u0E39\u0E01/\u0E2D\u0E31\u0E1B\u0E40\u0E14\u0E15 PR \u0E02\u0E2D\u0E07\u0E07\u0E32\u0E19",
-      description: "upsert \u0E14\u0E49\u0E27\u0E22\u0E04\u0E35\u0E22\u0E4C (\u0E07\u0E32\u0E19, url) \u2014 \u0E40\u0E23\u0E35\u0E22\u0E01\u0E0B\u0E49\u0E33\u0E14\u0E49\u0E27\u0E22 url \u0E40\u0E14\u0E34\u0E21\u0E08\u0E30\u0E41\u0E01\u0E49\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E40\u0E14\u0E34\u0E21 \u0E44\u0E21\u0E48\u0E2A\u0E23\u0E49\u0E32\u0E07\u0E0B\u0E49\u0E33 \xB7 field \u0E17\u0E35\u0E48\u0E44\u0E21\u0E48\u0E2A\u0E48\u0E07 = \u0E04\u0E07\u0E04\u0E48\u0E32\u0E40\u0E14\u0E34\u0E21 \u0E08\u0E36\u0E07\u0E40\u0E23\u0E35\u0E22\u0E01\u0E15\u0E2D\u0E19 merge \u0E14\u0E49\u0E27\u0E22\u0E41\u0E04\u0E48 status/mergedBy/environment \u0E44\u0E14\u0E49\n\u26A0\uFE0F \u0E43\u0E2B\u0E49\u0E2D\u0E48\u0E32\u0E19\u0E04\u0E48\u0E32\u0E08\u0E23\u0E34\u0E07\u0E08\u0E32\u0E01 GitHub \u0E40\u0E2A\u0E21\u0E2D \u0E2D\u0E22\u0E48\u0E32\u0E40\u0E14\u0E32: `gh pr view <url> --json title,state,author,mergedBy,baseRefName,createdAt,mergedAt`\nenvironment = \u0E1B\u0E25\u0E32\u0E22\u0E17\u0E32\u0E07 deploy \u0E17\u0E35\u0E48\u0E1C\u0E39\u0E49\u0E40\u0E23\u0E35\u0E22\u0E01\u0E1B\u0E23\u0E30\u0E01\u0E32\u0E28\u0E40\u0E2D\u0E07 (\u0E40\u0E0A\u0E48\u0E19 PROD, UAT) \u2014 \u0E23\u0E30\u0E1A\u0E1A\u0E44\u0E21\u0E48\u0E40\u0E14\u0E32\u0E08\u0E32\u0E01\u0E0A\u0E37\u0E48\u0E2D branch \xB7 \u0E1C\u0E39\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07\u0E41\u0E23\u0E01\u0E15\u0E49\u0E2D\u0E07\u0E21\u0E35 openedBy \xB7 PR \u0E40\u0E14\u0E35\u0E22\u0E27\u0E1C\u0E39\u0E01\u0E44\u0E14\u0E49\u0E2B\u0E25\u0E32\u0E22\u0E07\u0E32\u0E19 (\u0E40\u0E23\u0E35\u0E22\u0E01\u0E0B\u0E49\u0E33\u0E01\u0E31\u0E1A\u0E41\u0E15\u0E48\u0E25\u0E30\u0E07\u0E32\u0E19)",
-      inputSchema: {
-        key: external_exports.string().describe("\u0E23\u0E2B\u0E31\u0E2A\u0E07\u0E32\u0E19"),
-        url: external_exports.string().describe("\u0E25\u0E34\u0E07\u0E01\u0E4C PR \u0E02\u0E2D\u0E07 GitHub \u0E40\u0E0A\u0E48\u0E19 https://github.com/owner/repo/pull/218"),
-        title: external_exports.string().optional().describe("\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D PR (\u0E08\u0E32\u0E01 gh pr view)"),
-        status: external_exports.enum(["open", "merged", "closed"]).optional().describe("\u0E44\u0E21\u0E48\u0E2A\u0E48\u0E07 = open \u0E15\u0E2D\u0E19\u0E1C\u0E39\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07\u0E41\u0E23\u0E01"),
-        openedBy: external_exports.string().optional().describe("GitHub username \u0E04\u0E19\u0E40\u0E1B\u0E34\u0E14 (\u0E1A\u0E31\u0E07\u0E04\u0E31\u0E1A\u0E15\u0E2D\u0E19\u0E1C\u0E39\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07\u0E41\u0E23\u0E01)"),
-        mergedBy: external_exports.string().optional().describe("GitHub username \u0E04\u0E19\u0E01\u0E14 merge"),
-        targetBranch: external_exports.string().optional().describe("base branch \u0E1B\u0E25\u0E32\u0E22\u0E17\u0E32\u0E07 \u0E40\u0E0A\u0E48\u0E19 DEV"),
-        environment: external_exports.string().optional().describe("\u0E1B\u0E25\u0E32\u0E22\u0E17\u0E32\u0E07 deploy \u0E17\u0E35\u0E48\u0E1B\u0E23\u0E30\u0E01\u0E32\u0E28\u0E40\u0E2D\u0E07 \u0E40\u0E0A\u0E48\u0E19 PROD, UAT"),
-        openedAt: external_exports.string().optional().describe("\u0E40\u0E27\u0E25\u0E32\u0E40\u0E1B\u0E34\u0E14 PR \u0E41\u0E1A\u0E1A ISO 8601 (\u0E04\u0E48\u0E32 createdAt \u0E08\u0E32\u0E01 gh)"),
-        mergedAt: external_exports.string().optional().describe("\u0E40\u0E27\u0E25\u0E32 merge \u0E41\u0E1A\u0E1A ISO 8601 (\u0E04\u0E48\u0E32 mergedAt \u0E08\u0E32\u0E01 gh)")
-      },
-      annotations: IDEMPOTENT
-    },
-    handler: async (args) => {
-      const key = str(args.key);
-      const url = str(args.url);
-      if (key === void 0) return fail("\u0E15\u0E49\u0E2D\u0E07\u0E23\u0E30\u0E1A\u0E38 key \u0E02\u0E2D\u0E07\u0E07\u0E32\u0E19 \u0E40\u0E0A\u0E48\u0E19 ART-42");
-      if (url === void 0) return fail("\u0E15\u0E49\u0E2D\u0E07\u0E23\u0E30\u0E1A\u0E38 url \u0E02\u0E2D\u0E07 PR \u0E40\u0E0A\u0E48\u0E19 https://github.com/owner/repo/pull/218");
-      const body = { url };
-      for (const name of [
-        "title",
-        "status",
-        "openedBy",
-        "mergedBy",
-        "targetBranch",
-        "environment",
-        "openedAt",
-        "mergedAt"
-      ]) {
-        const value = str(args[name]);
-        if (value !== void 0) body[name] = value;
-      }
-      const res = await client.put(
-        `/api/v1/tickets/${encodeURIComponent(key)}/pull-requests`,
-        body
-      );
-      if (!res.ok) return failFrom(ctx, res.err, `ticket ${key}`);
-      return ok(`\u0E1C\u0E39\u0E01 PR \u0E40\u0E02\u0E49\u0E32 ${key} \u0E41\u0E25\u0E49\u0E27:
-${pullRequestLine(res.data.pullRequest)}`);
-    }
-  });
   return defs;
-}
-function pullRequestLine(pr) {
-  const bits = [
-    `[${pr.status}]`,
-    `${pr.repo}#${pr.number}`,
-    ...pr.title === null ? [] : [pr.title],
-    ...pr.targetBranch === null ? [] : [`\u2192${pr.targetBranch}`],
-    ...pr.environment === null ? [] : [`ENV:${pr.environment}`],
-    `\u0E40\u0E1B\u0E34\u0E14:${pr.openedBy}`,
-    ...pr.mergedBy === null ? [] : [`merge:${pr.mergedBy}`]
-  ];
-  return `${bits.join("  ")} \xB7 ${pr.url}`;
 }
 async function uploadAttachment(ctx, args) {
   const { client, cfg, fs } = ctx;
