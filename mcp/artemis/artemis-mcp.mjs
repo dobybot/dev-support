@@ -22573,7 +22573,7 @@ function configErrorTools(names, message) {
 }
 
 // src/stdio.ts
-var VERSION = "0.1.0";
+var VERSION = "0.2.0";
 function logStderr(level, cfgLevel, message) {
   if (cfgLevel === "silent") return;
   if (level === "debug" && cfgLevel !== "debug") return;

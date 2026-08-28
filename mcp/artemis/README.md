@@ -23,9 +23,9 @@ MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI 
 
 | ฟิลด์ | ค่า |
 |---|---|
-| `@artemis/mcp` version | `0.1.0` |
-| build จาก artemis commit | `da34c86` — feat(ticket): รายการ Pull Request ของ Ticket ใน sidebar (ART-124 · เพิ่ม `link_pull_request` + `list_pull_requests`) |
-| อัปเดต bundle เมื่อ | 2026-08-24 |
+| `@artemis/mcp` version | `0.2.0` |
+| build จาก artemis commit | `e60dd77` (ปลาย `DEV` ณ วันที่ build) + bump version เป็น 0.2.0 (รอ commit เข้า repo artemis) |
+| อัปเดต bundle เมื่อ | 2026-08-28 |
 
 ## refresh bundle (สำหรับ maintainer)
 
