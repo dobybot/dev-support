@@ -23,9 +23,9 @@ MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI 
 
 | ฟิลด์ | ค่า |
 |---|---|
-| `@artemis/mcp` version | `0.2.0` |
-| build จาก artemis commit | `89f394a` — chore(mcp): bump @artemis/mcp เป็น 0.2.0 (ปลาย `DEV`) |
-| อัปเดต bundle เมื่อ | 2026-08-28 |
+| `@artemis/mcp` version | `0.2.1` |
+| build จาก artemis commit | `06ba98e` — chore(mcp): bump @artemis/mcp เป็น 0.2.1 — docs subtask ของ PR tools เข้า bundle (ART-136) (#236) (ปลาย `DEV`) |
+| อัปเดต bundle เมื่อ | 2026-08-31 |
 
 ## refresh bundle (สำหรับ maintainer)
 

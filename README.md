@@ -20,7 +20,7 @@ dev-support/
 │       ├── generate-test-cases/
 │       └── ...
 ├── mcp/                    # MCP server แบบ bundle (รันได้เลย ไม่ต้อง build)
-│   └── artemis/            # ห่อ REST API ของ Artemis · 21 tool
+│   └── artemis/            # ห่อ REST API ของ Artemis · 23 tool
 ├── pyproject.toml          # Python env สำหรับ skill กลุ่ม Kiwi TCMS (อย่าลบ)
 └── rules/                  # (สำรองไว้สำหรับ rules ของทีมในอนาคต)
 ```

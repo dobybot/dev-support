@@ -2,7 +2,7 @@
 #
 # install-mcp.sh — ลงทะเบียน MCP server ของทีม dobybot ให้ Claude Code/Codex แบบ global
 #
-# ตอนนี้มีตัวเดียว: artemis (ห่อ REST API /api/v1 ของ Artemis · 21 tool)
+# ตอนนี้มีตัวเดียว: artemis (ห่อ REST API /api/v1 ของ Artemis · 23 tool)
 # bundle ถูก commit ไว้ที่ mcp/<name>/<name>-mcp.mjs — ไม่ต้องมี repo artemis หรือ build เอง
 # ลงด้วย CLI ของ client → ใช้ได้ทุกโปรเจกต์ · `git pull` อัปเดต bundle ให้เอง
 #
