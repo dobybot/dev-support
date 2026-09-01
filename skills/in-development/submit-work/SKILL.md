@@ -1,12 +1,13 @@
 ---
 name: submit-work
-version: 1.1.0
-description: เปิด PR + อัปเดต Artemis เมื่อโค้ดใน dobybot-monorepo พร้อม. อ่าน track จากชื่อ branch (`{TICKET}--{fast-track|normal-track}--{slug}`) แล้วทำตาม flow ของ track — fast-track PR เข้า main + side-merge uat, normal-track PR เข้า uat. Use when opening a PR for a finished ticket, submitting work, or shipping a DBT branch.
+version: 1.2.0
+description: เปิด PR + อัปเดต Artemis เมื่อโค้ดใน dobybot-monorepo พร้อม. อ่าน track จากชื่อ branch (`{TICKET}--{fast-track|normal-track}--{slug}`) แล้วทำตาม flow ของ track — fast-track เปิด PR 2 ใบ (main + uat), normal-track PR เข้า uat. Use when opening a PR for a finished ticket, submitting work, or shipping a DBT branch.
 ---
 
 # Submit Work (monorepo)
 
-dobybot เป็น **monorepo เดียว** — 1 ticket = 1 branch = **1 PR** (ไม่มี loop หลาย repo,
+dobybot เป็น **monorepo เดียว** — 1 ticket = 1 branch (fast-track เปิด PR 2 ใบจาก branch เดียว
+คือเข้า `main` และเข้า `uat`; normal-track ใบเดียวเข้า `uat`) (ไม่มี loop หลาย repo,
 ไม่มี base `main-v2`/`uat-v2` ของ dobysync อีกแล้ว) skill รันจากใน worktree ของ ticket
 
 ## Inputs
@@ -23,10 +24,16 @@ dobybot เป็น **monorepo เดียว** — 1 ticket = 1 branch = **1 
 
 ## Track → flow
 
-| Track | Base (PR เข้า) | side-merge (เทสต์) | label | Artemis status (คอลัมน์) |
-|-------|----------------|---------------------|-------|--------------------------|
-| **fast-track** | `main` | `uat` | `ENV:uat`, `TEST:testing` | `Testing` |
-| **normal-track** | `uat` | — (ไม่ merge) | `ENV:uat`, `TEST:review` | `In Review` |
+| Track | PR ที่เปิด | label | Artemis status (คอลัมน์) |
+|-------|-----------|-------|--------------------------|
+| **fast-track** | 2 ใบ: → `main` (ของจริง) และ → `uat` (เอาไปเทสต์) | `ENV:uat`, `TEST:testing` | `Testing` |
+| **normal-track** | 1 ใบ: → `uat` | `ENV:uat`, `TEST:review` | `In Review` |
+
+> **ห้าม merge เข้า `uat` ตรง ๆ จากเครื่อง** (เดิม fast-track ใช้ side-merge — เลิกแล้ว) เพราะ
+> 1. push ตรงเข้า `uat` โดน auto classifier block
+> 2. worktree อื่นอาจ checkout `uat` อยู่ → `git checkout uat` ในนี้พัง
+>
+> ใช้ PR เข้า `uat` แทน แล้วให้ merge ผ่าน GitHub
 
 > **status = ชื่อคอลัมน์บนบอร์ด** (Artemis ใช้คอลัมน์เป็นสถานะ ไม่มี workflow transition แยก
 > เหมือน Jira) ลำดับคอลัมน์ default: Triage / To Do / In Progress / In Review / **Testing** / Done
@@ -84,16 +91,23 @@ dobybot เป็น **monorepo เดียว** — 1 ticket = 1 branch = **1 
 > สั้นกระชับ — รายละเอียดเชิงลึกอยู่ใน PR body อยู่แล้ว คอมเมนต์แค่ช่วยให้ tester รู้ว่าจะจับอะไรต่อ
 
 ### fast-track
-1. **เปิด PR → `main`**
-2. **ผูก PR เข้า ticket** (`link_pull_request`) — ดูสเปกในบล็อก "ผูก PR เข้า ticket" ข้างบน
-3. **side-merge เข้า `uat`** เพื่อให้เทสต์บน UAT:
+เปิด PR **2 ใบจาก branch เดียวกัน** (GitHub อนุญาต head เดียว base ต่างกัน) — **ห้าม checkout
+หรือ merge `uat` ในเครื่อง**
+
+1. **เปิด PR → `main`** (ใบหลัก) — title/body ตามสเปกข้างบน
    ```bash
-   git checkout uat && git pull origin uat
-   git merge {branch}
-   git push origin uat
-   git checkout {branch}
+   gh pr create --base main --head {branch} --title "..." --body "..."
    ```
-   conflict → ให้ user resolve เองก่อนไปต่อ
+2. **เปิด PR → `uat`** (ใบเทสต์) — title เติมท้าย ` (→ uat)` เพื่อไม่ให้สับสนกับใบหลัก,
+   body อ้างถึง PR ใบ main
+   ```bash
+   gh pr create --base uat --head {branch} --title "... (→ uat)" --body "..."
+   ```
+   - ถ้า GitHub ตอบว่า **ไม่มี diff** เทียบกับ `uat` (branch นี้ merge เข้า uat ไปแล้ว) → ข้ามใบนี้
+     แล้วแจ้งใน summary
+   - conflict กับ `uat` → **ไม่ต้อง resolve เอง** ปล่อย PR ค้างไว้แล้วแจ้ง user ให้ resolve บน PR
+3. **ผูก PR เข้า ticket** (`link_pull_request`) — **ทั้งสองใบ** ดูสเปกในบล็อก "ผูก PR เข้า ticket"
+   ข้างบน (tool เป็น upsert ด้วยคีย์ (งาน, url) — คนละ url จึงได้สองแถว ไม่ทับกัน)
 4. **ติด label Artemis** (`add_label`): `ENV:uat`, `TEST:testing`
 5. **ย้าย status Artemis → `Testing`** (`update_ticket` status=`Testing`; `get_board` ยืนยันชื่อคอลัมน์ก่อน)
 6. **เพิ่มคอมเมนต์ส่งต่อ tester** (`add_comment`) — สรุปย่อ + ลิงก์ PR (ดูสเปกในบล็อก "คอมเมนต์ส่งต่อ tester" ข้างบน)
@@ -109,8 +123,9 @@ dobybot เป็น **monorepo เดียว** — 1 ticket = 1 branch = **1 
 
 ## Summary (หลังเสร็จ)
 - ลิงก์ Artemis ticket (`https://artemis.dobybot.com/browse/{TICKET}`)
-- ลิงก์ PR (+ target branch) และยืนยันว่า**ผูกเข้า ticket แล้ว** (`link_pull_request`)
-- (fast-track) side-merge เข้า `uat` สำเร็จหรือไม่
+- ลิงก์ PR ทุกใบ (+ target branch) และยืนยันว่า**ผูกเข้า ticket แล้ว** (`link_pull_request`) —
+  fast-track มี 2 ใบ (`main`, `uat`)
+- (fast-track) PR เข้า `uat` เปิดได้ หรือถูกข้าม/ติด conflict
 - label / status ที่อัปเดต
 - คอมเมนต์ส่งต่อ tester ที่เพิ่มลง ticket
 - สถานะ (สำเร็จ / error)
