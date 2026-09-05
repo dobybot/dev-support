@@ -23,46 +23,21 @@ MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI 
 
 | ฟิลด์ | ค่า |
 |---|---|
-| `@artemis/mcp` version | `0.2.1` |
-| build จาก artemis commit | `06ba98e` — chore(mcp): bump @artemis/mcp เป็น 0.2.1 — docs subtask ของ PR tools เข้า bundle (ART-136) (#236) (ปลาย `DEV`) |
-| อัปเดต bundle เมื่อ | 2026-08-31 |
+| `@artemis/mcp` version | `0.3.0` |
+| build จาก artemis commit | `68b1363` — feat(art-140): GitHub PR Sync Phase 3 (ART-137 · `list_pull_requests` มี `ที่มา:github/api` · `link_pull_request` อธิบายเรื่อง sync/ENV rule) — ต่อจาก 0.2.1 (DEV@06ba98e) |
+| อัปเดต bundle เมื่อ | 2026-09-05 |
 
 ## refresh bundle (สำหรับ maintainer)
 
 เมื่อ source ของ artemis-mcp เปลี่ยน (ใน repo `dobybot/artemis`):
 
-1. **Build จากปลาย branch `DEV` เสมอ** — ไม่ใช่ branch local ที่อาจล้าหลัง ไม่งั้น bundle ที่แจกจะ
-   ถอย feature · ระวัง: remote มี branch ชื่อ `DEV` (ตัวใหญ่) — บน macOS/Windows ที่ filesystem
-   ไม่แยก case คำสั่ง `git push origin ...:dev` จะ**สร้าง branch ใหม่ตัวเล็กบน GitHub** แทนที่จะ
-   เข้า `DEV` ให้ระบุ ref เต็มเป็น `refs/heads/DEV` เสมอ · ถ้า working tree มีงานค้าง ใช้
-   `git worktree add --detach /tmp/artemis-build origin/DEV` แล้ว build จากตรงนั้นแทน
+```bash
+# 1) ใน repo artemis — build ใหม่
+pnpm mcp:build
 
-2. **Bump version ต้องแก้ 2 จุด** ใน `tools/artemis-mcp/` — `package.json` และค่าคงที่
-   `VERSION` ใน `src/stdio.ts` (ตัวหลังคือค่าที่ server รายงานจริงตอน handshake ไม่ได้อ่านจาก
-   package.json) — commit เข้า `DEV` ด้วย เพื่อให้ commit ในตารางข้างบนชี้ไปหา source ตรงรุ่นจริง
+# 2) คัดลอกทับ bundle ในนี้
+cp <artemis>/tools/artemis-mcp/dist/artemis-mcp.mjs <dev-support>/mcp/artemis/artemis-mcp.mjs
+```
 
-3. **Build แล้วคัดลอกทั้ง bundle และ source map**:
-
-   ```bash
-   # ใน repo artemis (หรือ worktree ชั่วคราว)
-   pnpm install && pnpm mcp:build
-
-   # คัดลอกทับในนี้ — เอา .map มาด้วย
-   cp <artemis>/tools/artemis-mcp/dist/artemis-mcp.mjs \
-      <artemis>/tools/artemis-mcp/dist/artemis-mcp.mjs.map \
-      <dev-support>/mcp/artemis/
-   ```
-
-4. **Smoke-test ก่อน commit** — ยิง MCP `initialize` handshake ดูว่า server ตอบและรายงาน
-   version ใหม่ (ใช้ URL/token หลอกได้ เพราะ handshake ยังไม่เรียก API):
-
-   ```bash
-   printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}\n' |
-     ARTEMIS_API_URL=http://localhost:9 ARTEMIS_API_TOKEN=art_$(printf '0%.0s' {1..64}) \
-     node mcp/artemis/artemis-mcp.mjs | head -c 200
-   # ต้องเห็น "serverInfo":{"name":"artemis","version":"<เลขใหม่>"}
-   ```
-
-5. อัปเดตตาราง "เวอร์ชัน bundle" ด้านบน (version · commit · วันที่) + commit — ทีมได้ของใหม่ตอน
-   `git pull` (ทางที่ลงทะเบียนไว้ชี้มาที่ไฟล์นี้ในตำแหน่งเดิม จึงใช้ได้เลยหลัง restart โดยไม่ต้องรัน
-   installer ซ้ำ)
+แล้วอัปเดตตาราง "เวอร์ชัน bundle" ด้านบน + commit — ทีมได้ของใหม่ตอน `git pull`
+(ทางที่ลงทะเบียนไว้ชี้มาที่ไฟล์นี้ในตำแหน่งเดิม จึงใช้ได้เลยหลัง restart โดยไม่ต้องรัน installer ซ้ำ)
