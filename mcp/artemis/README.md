@@ -23,9 +23,15 @@ MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI 
 
 | ฟิลด์ | ค่า |
 |---|---|
+<<<<<<< HEAD
 | `@artemis/mcp` version | `0.3.0` |
 | build จาก artemis commit | `68b1363` — feat(art-140): GitHub PR Sync Phase 3 (ART-137 · `list_pull_requests` มี `ที่มา:github/api` · `link_pull_request` อธิบายเรื่อง sync/ENV rule) — ต่อจาก 0.2.1 (DEV@06ba98e) |
 | อัปเดต bundle เมื่อ | 2026-09-05 |
+=======
+| `@artemis/mcp` version | `0.3.1` |
+| build จาก artemis commit | `1dd7bf5` — feat(art-153): Phase 1 — bundle MCP server เข้า image + GET /api/mcp/download ที่ต้องล็อกอิน (ART-151) (#251) · รวม 0.3.1 จาก `b8e1662` (#253) — ต่อจาก 0.3.0 (DEV@68b1363) (ปลาย `DEV`) |
+| อัปเดต bundle เมื่อ | 2026-09-10 |
+>>>>>>> e4cb182 (docs(mcp): ตารางเวอร์ชัน bundle → 0.3.1 (DEV@1dd7bf5, 2026-09-10))
 
 ## refresh bundle (สำหรับ maintainer)
 
