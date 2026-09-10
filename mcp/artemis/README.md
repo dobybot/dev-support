@@ -7,6 +7,12 @@ MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI 
   ไม่ต้องมี `node_modules` หรือ repo artemis
 - ต้นทาง/คู่มือเต็ม: `tools/artemis-mcp/` ใน repo `dobybot/artemis`
 
+> **ทางหลักของผู้ใช้ทั่วไปตอนนี้คือหน้าเว็บ** (ART-151/154, Sep 2026): เข้า Artemis → เมนูบัญชี →
+> **MCP Server** (`/settings/mcp`) กดดาวน์โหลด `artemis-mcp-<version>.mjs` (หน้าเทียบ SHA-256 ให้ก่อนบันทึก)
+> พร้อม snippet ตั้งค่าสำเร็จรูป — เวอร์ชันตรงกับที่ deploy อยู่เสมอ ไม่ต้อง `git pull` dev-support ·
+> **สำเนาในนี้ + flow refresh ด้านล่างเก็บไว้สำหรับ maintainer ที่แก้โค้ด tool เองแล้วอยากทดสอบ bundle
+> ก่อน merge** (หรือเครื่องที่ตั้ง MCP แบบ global ผ่าน `install-mcp.sh` ไว้ก่อนหน้า)
+
 ## ติดตั้ง
 
 ที่รากของ dev-support:
