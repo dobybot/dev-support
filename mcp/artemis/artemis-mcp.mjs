@@ -3226,8 +3226,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path) {
-      let input = path;
+    function removeDotSegments(path2) {
+      let input = path2;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -3479,8 +3479,8 @@ var require_schemes = __commonJS({
         wsComponent.secure = void 0;
       }
       if (wsComponent.resourceName) {
-        const [path, query] = wsComponent.resourceName.split("?");
-        wsComponent.path = path && path !== "/" ? path : void 0;
+        const [path2, query] = wsComponent.resourceName.split("?");
+        wsComponent.path = path2 && path2 !== "/" ? path2 : void 0;
         wsComponent.query = query;
         wsComponent.resourceName = void 0;
       }
@@ -6887,8 +6887,8 @@ var require_dist = __commonJS({
 });
 
 // src/stdio.ts
-import { readFile, stat } from "node:fs/promises";
-import { basename, isAbsolute, resolve } from "node:path";
+import { readFile, realpath, stat } from "node:fs/promises";
+import path, { basename, isAbsolute, resolve } from "node:path";
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
 var external_exports = {};
@@ -7368,8 +7368,8 @@ function getErrorMap() {
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path, errorMaps, issueData } = params;
-  const fullPath = [...path, ...issueData.path || []];
+  const { data, path: path2, errorMaps, issueData } = params;
+  const fullPath = [...path2, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -7485,11 +7485,11 @@ var errorUtil;
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path, key) {
+  constructor(parent, value, path2, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path;
+    this._path = path2;
     this._key = key;
   }
   get path() {
@@ -11127,10 +11127,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path) {
-  if (!path)
+function getElementAtPath(obj, path2) {
+  if (!path2)
     return obj;
-  return path.reduce((acc, key) => acc?.[key], obj);
+  return path2.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -11450,11 +11450,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path, issues) {
+function prefixIssues(path2, issues) {
   return issues.map((iss) => {
     var _a;
     (_a = iss).path ?? (_a.path = []);
-    iss.path.unshift(path);
+    iss.path.unshift(path2);
     return iss;
   });
 }
@@ -21141,13 +21141,13 @@ function loadConfig(env) {
   if (token === void 0 || token === "") {
     return {
       ok: false,
-      message: "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E15\u0E31\u0E49\u0E07 ARTEMIS_API_TOKEN \u2014 \u0E2A\u0E23\u0E49\u0E32\u0E07 token \u0E44\u0E14\u0E49\u0E17\u0E35\u0E48\u0E2B\u0E19\u0E49\u0E32 Admin \u2192 API Tokens \u0E02\u0E2D\u0E07 Artemis \u0E41\u0E25\u0E49\u0E27\u0E43\u0E2A\u0E48\u0E43\u0E19\u0E0A\u0E48\u0E2D\u0E07 env \u0E02\u0E2D\u0E07 .mcp.local.json (\u0E04\u0E48\u0E32\u0E08\u0E30\u0E41\u0E2A\u0E14\u0E07\u0E04\u0E23\u0E31\u0E49\u0E07\u0E40\u0E14\u0E35\u0E22\u0E27\u0E15\u0E2D\u0E19\u0E2A\u0E23\u0E49\u0E32\u0E07)"
+      message: "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E15\u0E31\u0E49\u0E07 ARTEMIS_API_TOKEN \u2014 \u0E2A\u0E23\u0E49\u0E32\u0E07 token \u0E44\u0E14\u0E49\u0E17\u0E35\u0E48\u0E2B\u0E19\u0E49\u0E32 /settings/api-tokens (\u0E40\u0E21\u0E19\u0E39\u0E1A\u0E31\u0E0D\u0E0A\u0E35 \u2192 API Tokens \u0E02\u0E2D\u0E07\u0E09\u0E31\u0E19) \u0E02\u0E2D\u0E07 Artemis \u0E41\u0E25\u0E49\u0E27\u0E43\u0E2A\u0E48\u0E43\u0E19\u0E0A\u0E48\u0E2D\u0E07 env \u0E02\u0E2D\u0E07 .mcp.local.json (\u0E04\u0E48\u0E32\u0E08\u0E30\u0E41\u0E2A\u0E14\u0E07\u0E04\u0E23\u0E31\u0E49\u0E07\u0E40\u0E14\u0E35\u0E22\u0E27\u0E15\u0E2D\u0E19\u0E2A\u0E23\u0E49\u0E32\u0E07)"
     };
   }
   if (!TOKEN_PATTERN.test(token)) {
     return {
       ok: false,
-      message: "\u0E23\u0E39\u0E1B\u0E41\u0E1A\u0E1A ARTEMIS_API_TOKEN \u0E44\u0E21\u0E48\u0E16\u0E39\u0E01\u0E15\u0E49\u0E2D\u0E07 \u2014 \u0E15\u0E49\u0E2D\u0E07\u0E02\u0E36\u0E49\u0E19\u0E15\u0E49\u0E19\u0E14\u0E49\u0E27\u0E22 art_ \u0E15\u0E32\u0E21\u0E14\u0E49\u0E27\u0E22\u0E40\u0E25\u0E02\u0E10\u0E32\u0E19\u0E2A\u0E34\u0E1A\u0E2B\u0E01 64 \u0E15\u0E31\u0E27 (\u0E04\u0E48\u0E32\u0E17\u0E35\u0E48\u0E15\u0E31\u0E49\u0E07\u0E44\u0E27\u0E49\u0E44\u0E21\u0E48\u0E15\u0E23\u0E07\u0E23\u0E39\u0E1B\u0E41\u0E1A\u0E1A\u0E19\u0E35\u0E49) \u0E2A\u0E23\u0E49\u0E32\u0E07\u0E43\u0E2B\u0E21\u0E48\u0E17\u0E35\u0E48\u0E2B\u0E19\u0E49\u0E32 Admin \u2192 API Tokens"
+      message: "\u0E23\u0E39\u0E1B\u0E41\u0E1A\u0E1A ARTEMIS_API_TOKEN \u0E44\u0E21\u0E48\u0E16\u0E39\u0E01\u0E15\u0E49\u0E2D\u0E07 \u2014 \u0E15\u0E49\u0E2D\u0E07\u0E02\u0E36\u0E49\u0E19\u0E15\u0E49\u0E19\u0E14\u0E49\u0E27\u0E22 art_ \u0E15\u0E32\u0E21\u0E14\u0E49\u0E27\u0E22\u0E40\u0E25\u0E02\u0E10\u0E32\u0E19\u0E2A\u0E34\u0E1A\u0E2B\u0E01 64 \u0E15\u0E31\u0E27 (\u0E04\u0E48\u0E32\u0E17\u0E35\u0E48\u0E15\u0E31\u0E49\u0E07\u0E44\u0E27\u0E49\u0E44\u0E21\u0E48\u0E15\u0E23\u0E07\u0E23\u0E39\u0E1B\u0E41\u0E1A\u0E1A\u0E19\u0E35\u0E49) \u0E2A\u0E23\u0E49\u0E32\u0E07\u0E43\u0E2B\u0E21\u0E48\u0E17\u0E35\u0E48\u0E2B\u0E19\u0E49\u0E32 /settings/api-tokens (\u0E40\u0E21\u0E19\u0E39\u0E1A\u0E31\u0E0D\u0E0A\u0E35 \u2192 API Tokens \u0E02\u0E2D\u0E07\u0E09\u0E31\u0E19)"
     };
   }
   const logLevelRaw = env.ARTEMIS_LOG_LEVEL?.trim();
@@ -21210,8 +21210,8 @@ async function toApiError(res) {
 }
 function createClient(cfg, fetchImpl) {
   const doFetch = fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
-  async function request(method, path, query, body, isRetry = false) {
-    const url = `${cfg.apiUrl}${path}${buildQuery(query)}`;
+  async function request(method, path2, query, body, isRetry = false) {
+    const url = `${cfg.apiUrl}${path2}${buildQuery(query)}`;
     let res;
     try {
       res = await doFetch(url, {
@@ -21243,7 +21243,7 @@ function createClient(cfg, fetchImpl) {
       const wait = err.retryAfterSec ?? 0;
       if (wait > 0 && wait <= MAX_RETRY_WAIT_SEC) {
         await new Promise((r) => setTimeout(r, wait * 1e3));
-        return request(method, path, query, body, true);
+        return request(method, path2, query, body, true);
       }
       return { ok: false, err };
     }
@@ -21257,11 +21257,11 @@ function createClient(cfg, fetchImpl) {
     }
   }
   return {
-    get: (path, query) => request("GET", path, query),
-    post: (path, body) => request("POST", path, void 0, body ?? {}),
-    put: (path, body) => request("PUT", path, void 0, body),
-    patch: (path, body) => request("PATCH", path, void 0, body),
-    del: (path) => request("DELETE", path)
+    get: (path2, query) => request("GET", path2, query),
+    post: (path2, body) => request("POST", path2, void 0, body ?? {}),
+    put: (path2, body) => request("PUT", path2, void 0, body),
+    patch: (path2, body) => request("PATCH", path2, void 0, body),
+    del: (path2) => request("DELETE", path2)
   };
 }
 async function postBytes(uploadUrl, bytes, mimeType, timeoutMs, fetchImpl) {
@@ -21322,6 +21322,16 @@ async function getBytes(url, maxBytes, timeoutMs, fetchImpl) {
   }
 }
 
+// src/fsGuard.ts
+function makeIsInside(p) {
+  return (root, candidate) => {
+    const rel = p.relative(root, candidate);
+    if (rel === "") return true;
+    if (p.isAbsolute(rel)) return false;
+    return rel !== ".." && !rel.startsWith(`..${p.sep}`);
+  };
+}
+
 // src/errors.ts
 function redactToken(text2) {
   return text2.replace(/art_[0-9a-f]{8,}/g, "art_***");
@@ -21330,18 +21340,18 @@ function describeError(err, hint) {
   const suffix = hint === void 0 ? "" : ` (${hint})`;
   switch (err.code) {
     case "UNAUTHORIZED":
-      return `token \u0E43\u0E0A\u0E49\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E2B\u0E23\u0E37\u0E2D\u0E16\u0E39\u0E01\u0E40\u0E1E\u0E34\u0E01\u0E16\u0E2D\u0E19\u0E41\u0E25\u0E49\u0E27${suffix} \u2014 \u0E15\u0E23\u0E27\u0E08\u0E04\u0E48\u0E32 ARTEMIS_API_TOKEN \u0E43\u0E19 .mcp.local.json \u0E41\u0E25\u0E49\u0E27 restart MCP server \xB7 \u0E16\u0E49\u0E32\u0E40\u0E1E\u0E34\u0E48\u0E07\u0E16\u0E39\u0E01\u0E40\u0E1E\u0E34\u0E01\u0E16\u0E2D\u0E19 \u0E43\u0E2B\u0E49\u0E2A\u0E23\u0E49\u0E32\u0E07 token \u0E43\u0E2B\u0E21\u0E48 \u0E17\u0E35\u0E48\u0E2B\u0E19\u0E49\u0E32 Admin \u2192 API Tokens (\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07 token \u0E17\u0E35\u0E48\u0E16\u0E39\u0E01\u0E1B\u0E34\u0E14\u0E43\u0E0A\u0E49\u0E07\u0E32\u0E19\u0E01\u0E47\u0E17\u0E33\u0E43\u0E2B\u0E49\u0E02\u0E36\u0E49\u0E19\u0E02\u0E49\u0E2D\u0E04\u0E27\u0E32\u0E21\u0E19\u0E35\u0E49)`;
+      return `token \u0E43\u0E0A\u0E49\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E2B\u0E23\u0E37\u0E2D\u0E16\u0E39\u0E01\u0E40\u0E1E\u0E34\u0E01\u0E16\u0E2D\u0E19\u0E41\u0E25\u0E49\u0E27${suffix} \u2014 \u0E15\u0E23\u0E27\u0E08\u0E04\u0E48\u0E32 ARTEMIS_API_TOKEN \u0E43\u0E19 .mcp.local.json \u0E41\u0E25\u0E49\u0E27 restart MCP server \xB7 \u0E16\u0E49\u0E32\u0E40\u0E1E\u0E34\u0E48\u0E07\u0E16\u0E39\u0E01\u0E40\u0E1E\u0E34\u0E01\u0E16\u0E2D\u0E19 \u0E43\u0E2B\u0E49\u0E2A\u0E23\u0E49\u0E32\u0E07 token \u0E43\u0E2B\u0E21\u0E48 \u0E17\u0E35\u0E48\u0E2B\u0E19\u0E49\u0E32 /settings/api-tokens (\u0E40\u0E21\u0E19\u0E39\u0E1A\u0E31\u0E0D\u0E0A\u0E35 \u2192 API Tokens \u0E02\u0E2D\u0E07\u0E09\u0E31\u0E19) \u2014 \u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07 token \u0E17\u0E35\u0E48\u0E16\u0E39\u0E01\u0E1B\u0E34\u0E14\u0E43\u0E0A\u0E49\u0E07\u0E32\u0E19\u0E01\u0E47\u0E17\u0E33\u0E43\u0E2B\u0E49\u0E02\u0E36\u0E49\u0E19\u0E02\u0E49\u0E2D\u0E04\u0E27\u0E32\u0E21\u0E19\u0E35\u0E49`;
     case "FORBIDDEN": {
       const scope = /token lacks scope ([\w:]+)/.exec(err.message);
       if (scope !== null) {
-        return `token \u0E43\u0E1A\u0E19\u0E35\u0E49\u0E44\u0E21\u0E48\u0E21\u0E35 scope \`${scope[1]}\`${suffix} \u2014 scope \u0E02\u0E2D\u0E07 token \u0E41\u0E01\u0E49\u0E17\u0E35\u0E2B\u0E25\u0E31\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49 \u0E15\u0E49\u0E2D\u0E07\u0E2A\u0E23\u0E49\u0E32\u0E07 token \u0E43\u0E1A\u0E43\u0E2B\u0E21\u0E48\u0E17\u0E35\u0E48\u0E2B\u0E19\u0E49\u0E32 Admin \u2192 API Tokens \u0E42\u0E14\u0E22\u0E15\u0E34\u0E4A\u0E01 \`${scope[1]}\` \u0E41\u0E25\u0E49\u0E27\u0E19\u0E33\u0E44\u0E1B\u0E41\u0E17\u0E19\u0E04\u0E48\u0E32 ARTEMIS_API_TOKEN \u0E43\u0E19 .mcp.local.json`;
+        return `token \u0E43\u0E1A\u0E19\u0E35\u0E49\u0E44\u0E21\u0E48\u0E21\u0E35 scope \`${scope[1]}\`${suffix} \u2014 scope \u0E02\u0E2D\u0E07 token \u0E41\u0E01\u0E49\u0E17\u0E35\u0E2B\u0E25\u0E31\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49 \u0E15\u0E49\u0E2D\u0E07\u0E2A\u0E23\u0E49\u0E32\u0E07 token \u0E43\u0E1A\u0E43\u0E2B\u0E21\u0E48\u0E17\u0E35\u0E48\u0E2B\u0E19\u0E49\u0E32 /settings/api-tokens (\u0E40\u0E21\u0E19\u0E39\u0E1A\u0E31\u0E0D\u0E0A\u0E35 \u2192 API Tokens \u0E02\u0E2D\u0E07\u0E09\u0E31\u0E19) \u0E42\u0E14\u0E22\u0E15\u0E34\u0E4A\u0E01 \`${scope[1]}\` \u0E41\u0E25\u0E49\u0E27\u0E19\u0E33\u0E44\u0E1B\u0E41\u0E17\u0E19\u0E04\u0E48\u0E32 ARTEMIS_API_TOKEN \u0E43\u0E19 .mcp.local.json`;
       }
       return `\u0E44\u0E21\u0E48\u0E21\u0E35\u0E2A\u0E34\u0E17\u0E18\u0E34\u0E4C\u0E40\u0E02\u0E49\u0E32\u0E16\u0E36\u0E07${suffix} \u2014 \u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07 token \u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E40\u0E1B\u0E47\u0E19\u0E2A\u0E21\u0E32\u0E0A\u0E34\u0E01\u0E02\u0E2D\u0E07\u0E42\u0E1B\u0E23\u0E40\u0E08\u0E01\u0E15\u0E4C\u0E19\u0E35\u0E49 (\u0E2A\u0E34\u0E17\u0E18\u0E34\u0E4C\u0E08\u0E23\u0E34\u0E07 = \u0E2A\u0E34\u0E17\u0E18\u0E34\u0E4C\u0E02\u0E2D\u0E07\u0E1C\u0E39\u0E49\u0E2D\u0E2D\u0E01 token \u2229 scope \u0E02\u0E2D\u0E07 token) \xB7 \u0E40\u0E23\u0E35\u0E22\u0E01 list_projects \u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E14\u0E39\u0E27\u0E48\u0E32\u0E40\u0E02\u0E49\u0E32\u0E16\u0E36\u0E07\u0E42\u0E1B\u0E23\u0E40\u0E08\u0E01\u0E15\u0E4C\u0E44\u0E2B\u0E19\u0E44\u0E14\u0E49\u0E1A\u0E49\u0E32\u0E07`;
     }
     case "NOT_FOUND":
       return `\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E2A\u0E34\u0E48\u0E07\u0E17\u0E35\u0E48\u0E2D\u0E49\u0E32\u0E07\u0E16\u0E36\u0E07${suffix} \xB7 ${err.message} \u2014 \u0E15\u0E23\u0E27\u0E08\u0E15\u0E31\u0E27\u0E2A\u0E30\u0E01\u0E14\u0E02\u0E2D\u0E07\u0E23\u0E2B\u0E31\u0E2A \u0E41\u0E25\u0E49\u0E27\u0E43\u0E0A\u0E49 list_tickets / list_projects \u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E14\u0E39\u0E04\u0E48\u0E32\u0E17\u0E35\u0E48\u0E21\u0E35\u0E2D\u0E22\u0E39\u0E48\u0E08\u0E23\u0E34\u0E07`;
     case "RATE_LIMITED":
-      return `\u0E40\u0E23\u0E35\u0E22\u0E01 API \u0E16\u0E35\u0E48\u0E40\u0E01\u0E34\u0E19\u0E40\u0E1E\u0E14\u0E32\u0E19\u0E02\u0E2D\u0E07 token \u0E19\u0E35\u0E49${suffix} \u2014 \u0E23\u0E2D\u0E2D\u0E35\u0E01 ${err.retryAfterSec ?? 30} \u0E27\u0E34\u0E19\u0E32\u0E17\u0E35\u0E41\u0E25\u0E49\u0E27\u0E25\u0E2D\u0E07\u0E43\u0E2B\u0E21\u0E48 (\u0E1C\u0E39\u0E49\u0E14\u0E39\u0E41\u0E25\u0E1B\u0E23\u0E31\u0E1A\u0E40\u0E1E\u0E14\u0E32\u0E19\u0E23\u0E32\u0E22\u0E43\u0E1A\u0E44\u0E14\u0E49\u0E17\u0E35\u0E48\u0E2B\u0E19\u0E49\u0E32 Admin \u2192 API Tokens)`;
+      return `\u0E40\u0E23\u0E35\u0E22\u0E01 API \u0E16\u0E35\u0E48\u0E40\u0E01\u0E34\u0E19\u0E40\u0E1E\u0E14\u0E32\u0E19\u0E02\u0E2D\u0E07 token \u0E19\u0E35\u0E49${suffix} \u2014 \u0E23\u0E2D\u0E2D\u0E35\u0E01 ${err.retryAfterSec ?? 30} \u0E27\u0E34\u0E19\u0E32\u0E17\u0E35\u0E41\u0E25\u0E49\u0E27\u0E25\u0E2D\u0E07\u0E43\u0E2B\u0E21\u0E48 (\u0E1C\u0E39\u0E49\u0E14\u0E39\u0E41\u0E25\u0E23\u0E30\u0E1A\u0E1A\u0E1B\u0E23\u0E31\u0E1A\u0E40\u0E1E\u0E14\u0E32\u0E19\u0E23\u0E32\u0E22\u0E43\u0E1A\u0E44\u0E14\u0E49\u0E17\u0E35\u0E48\u0E2B\u0E19\u0E49\u0E32 Admin \u2192 API Tokens)`;
     case "CONFLICT":
       return `\u0E04\u0E33\u0E02\u0E2D\u0E16\u0E39\u0E01\u0E15\u0E49\u0E2D\u0E07\u0E41\u0E15\u0E48\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E1B\u0E31\u0E08\u0E08\u0E38\u0E1A\u0E31\u0E19\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E1E\u0E23\u0E49\u0E2D\u0E21${suffix} \xB7 ${err.message} \u2014 \u0E41\u0E01\u0E49\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E17\u0E35\u0E48\u0E02\u0E31\u0E14\u0E2D\u0E22\u0E39\u0E48\u0E41\u0E25\u0E49\u0E27\u0E25\u0E2D\u0E07\u0E43\u0E2B\u0E21\u0E48\u0E44\u0E14\u0E49 (\u0E15\u0E48\u0E32\u0E07\u0E08\u0E32\u0E01 400 \u0E17\u0E35\u0E48\u0E25\u0E2D\u0E07\u0E43\u0E2B\u0E21\u0E48\u0E01\u0E35\u0E48\u0E04\u0E23\u0E31\u0E49\u0E07\u0E01\u0E47\u0E44\u0E21\u0E48\u0E1C\u0E48\u0E32\u0E19)`;
     case "NETWORK":
@@ -21688,8 +21698,10 @@ function looksSecret(absPath) {
     return true;
   }
   if (base === "credentials" || base === ".npmrc" || base === ".netrc") return true;
+  if (base === ".mcp.json" || base === ".mcp.local.json") return true;
   const lower = p.toLowerCase();
-  return /\/\.ssh\//.test(lower) || /\/\.aws\//.test(lower) || /\/\.gnupg\//.test(lower) || /\/\.config\/gcloud\//.test(lower) || /\/\.kube\//.test(lower);
+  return /\/\.ssh\//.test(lower) || /\/\.aws\//.test(lower) || /\/\.gnupg\//.test(lower) || /\/\.config\/gcloud\//.test(lower) || /\/\.kube\//.test(lower) || /\/\.codex\//.test(lower) || // ~/.codex/config.toml เก็บ env ของ MCP server (token) ทั้งก้อน
+  /\/\.git\//.test(lower);
 }
 function buildTools(ctx) {
   const { client, cfg } = ctx;
@@ -22466,13 +22478,28 @@ async function uploadAttachment(ctx, args) {
   if (ticketKey === void 0) return fail("\u0E15\u0E49\u0E2D\u0E07\u0E23\u0E30\u0E1A\u0E38 ticketKey \u0E40\u0E0A\u0E48\u0E19 ART-42");
   if (filePath === void 0) return fail("\u0E15\u0E49\u0E2D\u0E07\u0E23\u0E30\u0E1A\u0E38 filePath (path \u0E02\u0E2D\u0E07\u0E44\u0E1F\u0E25\u0E4C\u0E43\u0E19\u0E40\u0E04\u0E23\u0E37\u0E48\u0E2D\u0E07)");
   const abs = fs.resolve(filePath, cfg.uploadRoot);
+  let real = abs;
   if (cfg.uploadRoot !== void 0) {
     const root = fs.resolve(cfg.uploadRoot);
-    if (abs !== root && !abs.startsWith(root.endsWith("/") ? root : `${root}/`)) {
-      return fail(`\u0E44\u0E1F\u0E25\u0E4C ${abs} \u0E2D\u0E22\u0E39\u0E48\u0E19\u0E2D\u0E01\u0E42\u0E1F\u0E25\u0E40\u0E14\u0E2D\u0E23\u0E4C\u0E17\u0E35\u0E48\u0E2D\u0E19\u0E38\u0E0D\u0E32\u0E15\u0E43\u0E2B\u0E49\u0E2D\u0E31\u0E1B\u0E42\u0E2B\u0E25\u0E14 (ARTEMIS_UPLOAD_ROOT = ${root})`);
+    let realRoot;
+    try {
+      realRoot = await fs.realpath(root);
+    } catch {
+      return fail(`ARTEMIS_UPLOAD_ROOT \u0E0A\u0E35\u0E49\u0E44\u0E1B\u0E42\u0E1F\u0E25\u0E40\u0E14\u0E2D\u0E23\u0E4C\u0E17\u0E35\u0E48\u0E44\u0E21\u0E48\u0E21\u0E35\u0E2D\u0E22\u0E39\u0E48\u0E08\u0E23\u0E34\u0E07: ${root} \u2014 \u0E41\u0E01\u0E49\u0E04\u0E48\u0E32\u0E43\u0E19 config \u0E41\u0E25\u0E49\u0E27 restart MCP server`);
+    }
+    try {
+      real = await fs.realpath(abs);
+    } catch (e) {
+      const code = e.code;
+      if (code === "ENOENT") return fail(`\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E44\u0E1F\u0E25\u0E4C: ${abs}`);
+      return fail(`\u0E40\u0E1B\u0E34\u0E14\u0E44\u0E1F\u0E25\u0E4C ${abs} \u0E44\u0E21\u0E48\u0E44\u0E14\u0E49: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    if (!fs.isInside(realRoot, real)) {
+      const via = real !== abs ? ` \xB7 \u0E1B\u0E25\u0E32\u0E22\u0E17\u0E32\u0E07\u0E08\u0E23\u0E34\u0E07\u0E02\u0E2D\u0E07 symlink: ${real}` : "";
+      return fail(`\u0E44\u0E1F\u0E25\u0E4C ${abs} \u0E2D\u0E22\u0E39\u0E48\u0E19\u0E2D\u0E01\u0E42\u0E1F\u0E25\u0E40\u0E14\u0E2D\u0E23\u0E4C\u0E17\u0E35\u0E48\u0E2D\u0E19\u0E38\u0E0D\u0E32\u0E15\u0E43\u0E2B\u0E49\u0E2D\u0E31\u0E1B\u0E42\u0E2B\u0E25\u0E14 (ARTEMIS_UPLOAD_ROOT = ${root}${via})`);
     }
   }
-  if (looksSecret(abs)) {
+  if (looksSecret(abs) || looksSecret(real)) {
     return fail(
       `\u0E1B\u0E0F\u0E34\u0E40\u0E2A\u0E18\u0E01\u0E32\u0E23\u0E2D\u0E31\u0E1B\u0E42\u0E2B\u0E25\u0E14 ${abs} \u0E40\u0E1E\u0E23\u0E32\u0E30\u0E44\u0E1F\u0E25\u0E4C\u0E19\u0E35\u0E49\u0E40\u0E02\u0E49\u0E32\u0E02\u0E48\u0E32\u0E22 "\u0E44\u0E1F\u0E25\u0E4C\u0E04\u0E27\u0E32\u0E21\u0E25\u0E31\u0E1A" (\u0E40\u0E0A\u0E48\u0E19 .env, \u0E01\u0E38\u0E0D\u0E41\u0E08\u0E2A\u0E48\u0E27\u0E19\u0E15\u0E31\u0E27, credential \u0E02\u0E2D\u0E07 cloud) \xB7 \u0E01\u0E32\u0E23\u0E41\u0E19\u0E1A\u0E44\u0E1F\u0E25\u0E4C\u0E04\u0E37\u0E2D\u0E01\u0E32\u0E23\u0E2A\u0E48\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E2D\u0E2D\u0E01\u0E19\u0E2D\u0E01\u0E40\u0E04\u0E23\u0E37\u0E48\u0E2D\u0E07\u0E41\u0E1A\u0E1A\u0E22\u0E49\u0E2D\u0E19\u0E01\u0E25\u0E31\u0E1A\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49 \xB7 \u0E16\u0E49\u0E32\u0E15\u0E31\u0E49\u0E07\u0E43\u0E08\u0E08\u0E23\u0E34\u0E07 \u0E43\u0E2B\u0E49\u0E04\u0E31\u0E14\u0E25\u0E2D\u0E01\u0E40\u0E09\u0E1E\u0E32\u0E30\u0E2A\u0E48\u0E27\u0E19\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E44\u0E1B\u0E44\u0E27\u0E49\u0E44\u0E1F\u0E25\u0E4C\u0E2D\u0E37\u0E48\u0E19\u0E01\u0E48\u0E2D\u0E19`
     );
@@ -22574,7 +22601,7 @@ function configErrorTools(names, message) {
 }
 
 // src/stdio.ts
-var VERSION = "0.3.0";
+var VERSION = "0.3.1";
 function logStderr(level, cfgLevel, message) {
   if (cfgLevel === "silent") return;
   if (level === "debug" && cfgLevel !== "debug") return;
@@ -22595,7 +22622,12 @@ var nodeFs = {
   },
   basename(p) {
     return basename(p);
-  }
+  },
+  realpath(p) {
+    return realpath(p);
+  },
+  // node:path ของแพลตฟอร์มนี้ (win32 หรือ posix) — ตรรกะอยู่ใน fsGuard.ts ซึ่งเทสต์ทั้งสองแบบ
+  isInside: makeIsInside(path)
 };
 async function main() {
   const loaded = loadConfig(process.env);
@@ -22635,4 +22667,217 @@ main().catch((e) => {
   );
   process.exit(1);
 });
+
+/*
+=== ใบอนุญาตของแพ็กเกจที่ถูกรวมอยู่ในไฟล์นี้ (bundled third-party licenses) ===
+
+@modelcontextprotocol/sdk@1.29.0 — MIT
+
+MIT License
+
+Copyright (c) 2024 Anthropic, PBC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+------------------------------------------------------------------------
+
+ajv@8.20.0 — MIT
+
+The MIT License (MIT)
+
+Copyright (c) 2015-2021 Evgeny Poberezkin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+------------------------------------------------------------------------
+
+ajv-formats@3.0.1 — MIT
+
+MIT License
+
+Copyright (c) 2020 Evgeny Poberezkin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+------------------------------------------------------------------------
+
+fast-deep-equal@3.1.3 — MIT
+
+MIT License
+
+Copyright (c) 2017 Evgeny Poberezkin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+------------------------------------------------------------------------
+
+fast-uri@3.1.3 — BSD-3-Clause
+
+Copyright (c) 2011-2021, Gary Court until https://github.com/garycourt/uri-js/commit/a1acf730b4bba3f1097c9f52e7d9d3aba8cdcaae
+Copyright (c) 2021-present The Fastify team <https://github.com/fastify/fastify#team>
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * The names of any contributors may not be used to endorse or promote
+      products derived from this software without specific prior written
+      permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS AND CONTRIBUTORS BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+                                  *   *   *
+
+The complete list of contributors can be found at:
+- https://github.com/garycourt/uri-js/graphs/contributors
+
+------------------------------------------------------------------------
+
+json-schema-traverse@1.0.0 — MIT
+
+MIT License
+
+Copyright (c) 2017 Evgeny Poberezkin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+------------------------------------------------------------------------
+
+zod@3.25.76 — MIT
+
+MIT License
+
+Copyright (c) 2025 Colin McDonnell
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+------------------------------------------------------------------------
+
+zod-to-json-schema@3.25.2 — ISC
+
+ISC License
+
+Copyright (c) 2020, Stefan Terdell
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
 //# sourceMappingURL=artemis-mcp.mjs.map
