@@ -128,9 +128,19 @@ non-approval
 
 1. ตรวจ Ticket URL, `ticketKey`, absolute path และ SHA-256 จาก review JSON ซ้ำ
 2. ใช้ Artemis `upload_attachment` ส่ง **path ของไฟล์** ไปยัง Ticket เดิม ไม่ส่ง base64
+   และส่ง `mimeType` เป็น
+   `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` อย่างชัดเจน ห้ามปล่อยให้
+   tool ตรวจชนิดจาก magic bytes เพราะ `.xlsx` เป็น ZIP container และอาจถูกบันทึกเป็น
+   `application/zip`
 3. ใช้ชื่อ attachment `<TICKET-KEY>-test-cases.xlsx`
 4. ไม่แก้ description, status, assignee, label, comment หรือข้อมูลอื่นของ Ticket
-5. เมื่อสำเร็จ เปลี่ยน review JSON เป็น `status: "published"` และเก็บ attachment ID ถ้ามี
-6. รายงาน Ticket, filename, attachment ID และผลการอัปโหลดตามจริง
+5. หลัง upload สำเร็จ ใช้ attachment ID เรียก `get_attachment` แล้วดาวน์โหลดไฟล์จาก URL ที่ได้
+   กลับมาเป็นไฟล์ชั่วคราวแบบ binary โดยไม่แปลงข้อความหรือ base64 ตรวจว่า filename, MIME,
+   ขนาด และ SHA-256 ตรงกับไฟล์ที่ Developer อนุมัติ รวมทั้งเปิดเป็น `.xlsx` หรือทดสอบ ZIP
+   integrity ได้ หากดึง bytes กลับมาตรวจไม่ได้หรือค่าใดไม่ตรง ให้คง review JSON เป็น
+   `status: "pending"` รายงานว่า verification ไม่ผ่าน และห้ามอัปโหลดซ้ำอัตโนมัติ
+6. เมื่อการตรวจไฟล์ที่ดาวน์โหลดกลับผ่านแล้วเท่านั้น เปลี่ยน review JSON เป็น
+   `status: "published"` และเก็บ attachment ID
+7. รายงาน Ticket, filename, attachment ID, MIME, SHA-256 และผลการอัปโหลดตามจริง
 
 หากผล upload ไม่ชัดเจน ให้ตรวจ attachment list ก่อน retry เพื่อป้องกันไฟล์ซ้ำ
