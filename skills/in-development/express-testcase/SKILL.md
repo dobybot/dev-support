@@ -1,12 +1,13 @@
 ---
 name: express-testcase
-description: "Create a compact, evidence-backed Excel test case from an Artemis ticket only after verifying the ticket contains a usable Database diff, Scenario, Data Dictionary, and Feature screenshot; stop and request missing evidence when the gate fails, then hold the generated workbook for Developer review and exact approval before uploading the unchanged file to the same Artemis ticket. Use when the user invokes /express-testcase or $express-testcase, supplies an Artemis task URL and asks to create Test Cases, or continues a pending review/upload flow. Triggers: 'สร้าง Test Case จาก Artemis', 'ทำ testcase', 'อนุมัติให้อัปโหลด', 'approve upload'."
+description: "Create a reviewable, evidence-backed Excel test suite from an Artemis ticket only after verifying the ticket contains a usable Database diff, Scenario, Data Dictionary, and Feature screenshot; stop and request missing evidence when the gate fails, then hold the generated workbook for Developer review and exact approval before uploading the unchanged file to the same Artemis ticket. Use when the user invokes /express-testcase or $express-testcase, supplies an Artemis task URL and asks to create Test Cases, or continues a pending review/upload flow. Triggers: 'สร้าง Test Case จาก Artemis', 'ทำ testcase', 'อนุมัติให้อัปโหลด', 'approve upload'."
 ---
 
 # Express Test Case
 
-สร้าง Test Case สำหรับ Feature ของ Express เป็นไฟล์ Excel แบบกระชับ โดยยึดหลักฐานใน
-Artemis Ticket และรอ Developer ตรวจฉบับเต็มก่อนแนบกลับไปยัง Ticket เดิม
+สร้าง Test Case สำหรับ Feature ของ Express เป็นไฟล์ Excel แบบ risk-based ที่คนอ่านและ
+ทดสอบตามได้ โดยยึดหลักฐานใน Artemis Ticket และรอ Developer ตรวจฉบับเต็มก่อนแนบกลับไปยัง
+Ticket เดิม
 
 ## 1. ล็อก Ticket ปลายทาง
 
@@ -59,18 +60,35 @@ Gate นี้ไม่มี fallback ห้ามสร้างไฟล์�
 
 ## 4. ออกแบบ Test Case
 
-เลือกเฉพาะชุดเล็กที่ตรวจความเสี่ยงสำคัญได้ครบ:
+สร้างชุดทดสอบตามความเสี่ยง ไม่ใช้จำนวน Test Case เป็นตัวแทนคุณภาพ:
 
-- มีไม่เกิน **10 Test Case**
-- รวมค่าขอบเขตที่ตรวจ validation เดียวกันเป็น parameterized case เดียว
-- ครอบคลุม happy path, validation/edge case ที่มีหลักฐาน, การแก้ไข/ยกเลิก/ลบเมื่อ
-  Feature รองรับ, ผลต่อฐานข้อมูล และการแยกบริษัทหรือสิทธิ์เมื่อเกี่ยวข้อง
+- เป้าหมายปกติคือ **12–20 Test Case** เพื่อให้คนตรวจและทดสอบเองได้ครบโดยไม่ล้น ไม่มี hard
+  limit หากเกิน 20 ข้อ ต้องเกิดจาก validation, business rule, permission หรือผลกระทบข้อมูล
+  ที่เป็นอิสระจริง และสรุปเหตุผลที่ต้องเพิ่มให้ Developer เห็น
+- ทุกแถวมี `Tags` อย่างน้อยหนึ่ง tag จากมิติเส้นทาง: `Happy Path`, `Sad Path`, `Edge Case`
+  และเพิ่ม tag ด้านความเสี่ยงเมื่อเกี่ยวข้อง: `Validation`, `Permission`, `Database`,
+  `Regression` หนึ่งแถวมีได้หลาย tag
+- แยก validation เป็นคนละ Test Case เมื่อเป็นคนละกฎหรือ Expected Result ต่างกัน ส่วนค่าหลาย
+  ค่าที่พิสูจน์กฎเดียวกันให้รวมเป็น parameterized case พร้อมระบุชุดค่าที่ต้องลองใน `Test Data`
+- ครอบคลุม happy path, sad path, boundary/edge case, validation ที่มีหลักฐาน,
+  การแก้ไข/ยกเลิก/ลบเมื่อ Feature รองรับ, ผลต่อฐานข้อมูล และการแยกบริษัทหรือสิทธิ์เมื่อเกี่ยวข้อง
 - เชื่อม Expected Result ฝั่งหน้าจอกับ Database diff และ Data Dictionary
 - ใช้ชื่อเมนู, field, button และ keyboard ตาม Scenario/ภาพ
 - ไม่สร้างกฎ ข้อความ error หรือ workflow ที่หลักฐานไม่ยืนยัน
 
-เรียง P0 ก่อน P1 และตัด Case ที่ซ้ำกัน Test Case หนึ่งรายการควรตรวจเป้าหมายธุรกิจหนึ่ง
-เรื่อง แม้ภายในจะใช้หลายค่าทดสอบของ validation เดียวกัน
+ทุก Test Case ต้องมี `Evidence Source / Traceability` ชี้ไปยังหลักฐานที่ระบุตำแหน่งได้ เช่น
+Scenario/Case, acceptance criterion, Data Dictionary table/field, Database Diff table/field,
+ชื่อภาพหรือ comment ห้ามใช้ข้อความกว้าง ๆ เช่น “จาก Ticket” และห้ามสร้าง Test Case ที่ไม่มี
+หลักฐานรองรับ
+
+เรียง `P0`, `P1`, `P2` แล้วตามลำดับการใช้งาน โดยกำหนด Priority จากผลกระทบ ไม่ใช่ชนิด tag:
+
+- `P0` — เส้นทางธุรกิจหลัก, ความปลอดภัย, tenant/company isolation หรือความเสี่ยงข้อมูลเสีย
+- `P1` — validation, alternate/sad path และพฤติกรรมสำคัญที่ควรผ่านก่อน release
+- `P2` — rare edge case หรือ regression ความเสี่ยงต่ำที่ยังมีหลักฐานรองรับ
+
+ตัด Case ที่ซ้ำกัน Test Case หนึ่งรายการควรตรวจเป้าหมายธุรกิจหนึ่งเรื่อง แม้ภายในจะใช้หลายค่า
+ทดสอบของ validation เดียวกัน
 
 ## 5. สร้าง Excel draft
 
@@ -79,19 +97,25 @@ Gate นี้ไม่มี fallback ห้ามสร้างไฟล์�
 
 - มี **worksheet เดียว** ชื่อ `Test Cases`
 - เป็นตาราง **ขาวดำ** ไม่มีสีตกแต่ง chart หรือ dashboard
-- มีแถวบนสุดระบุ Ticket URL และวิธีกรอกผล
-- ใช้คอลัมน์อย่างน้อย: `TC ID`, `Priority`, `Scenario / จุดตรวจ`, `Precondition`,
-  `Test Data`, `ขั้นตอนทดสอบ`, `Expected Result (หน้าจอ)`, `Expected Result (ข้อมูล)`,
-  `Automation`, `AI Result`, `AI Evidence / Defect`, `Developer Result`,
-  `Developer Evidence / Defect`, `Final Status`
+- ส่วนบนระบุ Ticket URL, Build/Commit, Environment, เวลาเริ่มทดสอบ, วิธีกรอกผล,
+  `Release Readiness` และ `Human Release Decision / Residual Risk`
+- ใช้คอลัมน์อย่างน้อย: `TC ID`, `Priority`, `Tags`, `Scenario / จุดตรวจ`,
+  `Evidence Source / Traceability`, `Precondition`, `Test Data`, `ขั้นตอนทดสอบ`,
+  `Expected Result (หน้าจอ)`, `Expected Result (ข้อมูล)`, `Automation`, `AI Result`,
+  `AI Evidence / Defect`, `Developer Result`, `Developer Evidence / Defect`, `Final Status`
 - ตั้ง `AI Result` และ `Developer Result` เริ่มต้นเป็น `Not Run` พร้อมตัวเลือก
   `Not Run`, `Pass`, `Fail`, `Blocked`
 - ให้ `Final Status` เป็นสูตร: `Fail` เมื่อฝ่ายใด Fail, `Blocked` เมื่อฝ่ายใด Blocked,
   `Pass` เมื่อทั้ง AI และ Developer Pass, มิฉะนั้น `Pending`
+- ให้ `Release Readiness` เริ่มเป็น `NOT READY` และเปลี่ยนเป็น `READY FOR HUMAN DECISION`
+  ได้ต่อเมื่อ `P0` และ `P1` ผ่านทั้ง AI และ Developer และไม่มี Test Case ใดเป็น `Fail` หรือ
+  `Blocked`; `P2` ที่ยังไม่รันต้องถูกระบุเป็น residual risk และให้คนรับผิดชอบเป็นผู้ตัดสินใจ
+  ห้ามตีความ `READY FOR HUMAN DECISION` ว่าอนุมัติ release อัตโนมัติ
 - wrap text, freeze header, ตั้งความกว้าง/ความสูงให้อ่านครบ และใช้เส้นตารางสีดำ
 
-ตรวจไฟล์ก่อนส่ง draft: มี worksheet เดียว, Test Case ไม่เกิน 10, สูตรไม่มี error,
-ไม่มีข้อความถูกตัด และภาพ render เป็นขาวดำอ่านได้ครบ
+ตรวจไฟล์ก่อนส่ง draft: มี worksheet เดียว, จำนวน Case สอดคล้องกับความเสี่ยงและไม่ซ้ำ,
+ทุก Case มี Tags และ traceability, สูตรไม่มี error, ไม่มีข้อความถูกตัด และภาพ render เป็นขาวดำ
+อ่านได้ครบ
 
 ## 6. Developer review gate
 
