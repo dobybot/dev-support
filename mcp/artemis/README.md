@@ -29,9 +29,9 @@ MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI 
 
 | ฟิลด์ | ค่า |
 |---|---|
-| `@artemis/mcp` version | `0.3.1` |
-| build จาก artemis commit | `1dd7bf5` — feat(art-153): Phase 1 — bundle MCP server เข้า image + GET /api/mcp/download ที่ต้องล็อกอิน (ART-151) (#251) · รวม 0.3.1 จาก `b8e1662` (#253) — ต่อจาก 0.3.0 (DEV@68b1363) (ปลาย `DEV`) |
-| อัปเดต bundle เมื่อ | 2026-09-10 |
+| `@artemis/mcp` version | `0.4.0` |
+| build จาก artemis commit | `5cbb3b9` — feat(art-161): ถอดลิงก์ PR ออกจาก ticket ได้ทั้ง REST และ MCP (ART-161) (#258) · เพิ่ม tool `unlink_pull_request` เป็นตัวที่ 24 — ต่อจาก 0.3.1 (DEV@`1dd7bf5`) (ปลาย `DEV`) |
+| อัปเดต bundle เมื่อ | 2026-09-16 |
 
 ## refresh bundle (สำหรับ maintainer)
 
