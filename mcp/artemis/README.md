@@ -30,8 +30,8 @@ MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI 
 | ฟิลด์ | ค่า |
 |---|---|
 | `@artemis/mcp` version | `0.4.0` |
-| build จาก artemis commit | `5cbb3b9` — feat(art-161): ถอดลิงก์ PR ออกจาก ticket ได้ทั้ง REST และ MCP (ART-161) (#258) · เพิ่ม tool `unlink_pull_request` เป็นตัวที่ 24 — ต่อจาก 0.3.1 (DEV@`1dd7bf5`) (ปลาย `DEV`) |
-| อัปเดต bundle เมื่อ | 2026-09-16 |
+| build จาก artemis commit | `b5e1e59` — Merge PR #266 (ART-166/167) · คำอธิบาย `parentKey` / `dueDate` ของ `create_ticket` / `update_ticket` บอกกติกาวันกำหนดส่งของงานแม่ที่ตามวันของ subtask — จำนวน tool เท่าเดิม 24 ตัว (ปลาย `DEV`) |
+| อัปเดต bundle เมื่อ | 2026-09-23 |
 
 ## refresh bundle (สำหรับ maintainer)
 
