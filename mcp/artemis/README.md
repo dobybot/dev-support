@@ -1,7 +1,7 @@
 # artemis — MCP server (bundle)
 
-MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI Agent (Claude Code/Codex) อ่าน/เขียนงานได้ **23 tool**
-(โปรเจกต์ · บอร์ด · งาน · sprint · backlog · คอมเมนต์ · label · ไฟล์แนบ · pull request)
+MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI Agent (Claude Code/Codex) อ่าน/เขียนงานได้ **28 tool**
+(โปรเจกต์ · บอร์ด · งาน · sprint · backlog · คอมเมนต์ · label · ไฟล์แนบ · pull request · My Work)
 
 - `artemis-mcp.mjs` = **bundle ไฟล์เดียว** (esbuild รวม SDK + zod เข้าไปแล้ว) รันด้วย `node` ได้เลย
   ไม่ต้องมี `node_modules` หรือ repo artemis
@@ -29,9 +29,9 @@ MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI 
 
 | ฟิลด์ | ค่า |
 |---|---|
-| `@artemis/mcp` version | `0.4.0` |
-| build จาก artemis commit | `b5e1e59` — Merge PR #266 (ART-166/167) · คำอธิบาย `parentKey` / `dueDate` ของ `create_ticket` / `update_ticket` บอกกติกาวันกำหนดส่งของงานแม่ที่ตามวันของ subtask — จำนวน tool เท่าเดิม 24 ตัว (ปลาย `DEV`) |
-| อัปเดต bundle เมื่อ | 2026-09-23 |
+| `@artemis/mcp` version | `0.5.0` |
+| build จาก artemis commit | `1052188` — Merge PR #295 (ART-238) · tool ใหม่ 4 ตัวของหน้า My Work: `list_my_work` · `list_my_queue` · `set_queue_position` · `remove_from_queue` — รวม 28 tool (ปลาย `DEV`) |
+| อัปเดต bundle เมื่อ | 2026-10-08 |
 
 ## refresh bundle (สำหรับ maintainer)
 

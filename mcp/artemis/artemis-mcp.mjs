@@ -21590,19 +21590,27 @@ var FORMAT = external_exports.enum(["table", "json"]).optional().describe("table
 function asJson(value) {
   return JSON.stringify(value, null, 0);
 }
-function ticketLine(t) {
-  const bits = [
-    t.key,
-    `[${t.status}]`,
-    `(${t.priority})`,
-    t.type,
-    t.title
-  ];
+function headBits(t) {
+  const bits = [t.key, `[${t.status}]`, `(${t.priority})`, t.type, t.title];
   if (t.storyPoints !== null) bits.push(`${t.storyPoints}pt`);
+  return bits;
+}
+function ticketLine(t) {
+  const bits = headBits(t);
   if (t.sprintName !== null) bits.push(`sprint:${t.sprintName}`);
   if (t.parentKey !== null) bits.push(`\u21B3${t.parentKey}`);
   if (t.flagged) bits.push("\u2691");
   if (t.archived) bits.push("(archived)");
+  return bits.join("  ");
+}
+function myWorkLine(cfg, r) {
+  const bits = headBits(r);
+  if (r.dueDate !== null) bits.push(`due:${r.dueDate}`);
+  if (r.parentKey !== null) bits.push(`\u21B3${r.parentKey}`);
+  if (r.flagged) bits.push("\u2691");
+  if (r.labels.length > 0) bits.push(r.labels.map((l) => `#${l}`).join(" "));
+  const url = ticketUrl(cfg, r.key);
+  if (url !== void 0) bits.push(url);
   return bits.join("  ");
 }
 function pageFooter(page) {
@@ -22484,6 +22492,123 @@ ${pullRequestLine(res.data.pullRequest)}`);
       );
     }
   });
+  defs.push({
+    name: "list_my_work",
+    config: {
+      title: "\u0E07\u0E32\u0E19\u0E02\u0E2D\u0E07\u0E09\u0E31\u0E19 (\u0E2B\u0E19\u0E49\u0E32 My Work)",
+      description: '\u0E07\u0E32\u0E19\u0E02\u0E2D\u0E07\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07 token \u0E02\u0E49\u0E32\u0E21\u0E17\u0E38\u0E01\u0E42\u0E1B\u0E23\u0E40\u0E08\u0E01\u0E15\u0E4C \u0E41\u0E1A\u0E48\u0E07\u0E2A\u0E2D\u0E07\u0E01\u0E2D\u0E07\u0E40\u0E2B\u0E21\u0E37\u0E2D\u0E19\u0E2B\u0E19\u0E49\u0E32 My Work: \u0E21\u0E2D\u0E1A\u0E2B\u0E21\u0E32\u0E22\u0E43\u0E2B\u0E49\u0E09\u0E31\u0E19 / \u0E09\u0E31\u0E19\u0E41\u0E08\u0E49\u0E07\u0E41\u0E15\u0E48\u0E21\u0E2D\u0E1A\u0E2B\u0E21\u0E32\u0E22\u0E04\u0E19\u0E2D\u0E37\u0E48\u0E19 \xB7 \u0E1B\u0E23\u0E34\u0E22\u0E32\u0E22\u0E40\u0E09\u0E1E\u0E32\u0E30\u0E07\u0E32\u0E19\u0E17\u0E35\u0E48\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E40\u0E2A\u0E23\u0E47\u0E08 (done:"all" = \u0E23\u0E27\u0E21\u0E07\u0E32\u0E19\u0E40\u0E2A\u0E23\u0E47\u0E08)\n\u0E2D\u0E22\u0E32\u0E01\u0E23\u0E39\u0E49\u0E27\u0E48\u0E32\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49\u0E15\u0E49\u0E2D\u0E07\u0E17\u0E33\u0E2D\u0E30\u0E44\u0E23\u0E01\u0E48\u0E2D\u0E19 \u0E43\u0E0A\u0E49 list_my_queue (\u0E04\u0E34\u0E27\u0E17\u0E35\u0E48\u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49\u0E08\u0E31\u0E14\u0E25\u0E33\u0E14\u0E31\u0E1A\u0E44\u0E27\u0E49\u0E40\u0E2D\u0E07)',
+      inputSchema: {
+        done: external_exports.enum(["open", "all"]).optional().describe("open (\u0E1B\u0E23\u0E34\u0E22\u0E32\u0E22) = \u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E40\u0E2A\u0E23\u0E47\u0E08 \xB7 all = \u0E23\u0E27\u0E21\u0E07\u0E32\u0E19\u0E17\u0E35\u0E48\u0E40\u0E2A\u0E23\u0E47\u0E08\u0E41\u0E25\u0E49\u0E27"),
+        // รับทั้ง string (แบบ tool อื่นทุกตัว) และ array · จงใจไม่ใช้ ARTEMIS_PROJECT_KEY เป็นค่าปริยาย —
+        // My Work คือภาพข้ามโปรเจกต์ ถ้ากรองเงียบ ๆ ด้วยค่าใน config agent จะเห็นงานไม่ครบโดยไม่รู้ตัว
+        projectKey: external_exports.union([external_exports.string(), external_exports.array(external_exports.string())]).optional().describe('\u0E01\u0E23\u0E2D\u0E07\u0E40\u0E09\u0E1E\u0E32\u0E30\u0E42\u0E1B\u0E23\u0E40\u0E08\u0E01\u0E15\u0E4C \u0E40\u0E0A\u0E48\u0E19 "ART" \u0E2B\u0E23\u0E37\u0E2D ["ART","BUG"] \xB7 \u0E44\u0E21\u0E48\u0E2A\u0E48\u0E07 = \u0E17\u0E38\u0E01\u0E42\u0E1B\u0E23\u0E40\u0E08\u0E01\u0E15\u0E4C'),
+        format: FORMAT
+      },
+      annotations: READ
+    },
+    handler: async (args) => {
+      const raw = args.projectKey;
+      const projects = Array.isArray(raw) ? raw : typeof raw === "string" ? [raw] : void 0;
+      const res = await client.get("/api/v1/my-work", {
+        done: str(args.done),
+        projectKey: projects !== void 0 && projects.length > 0 ? projects.join(",") : void 0
+      });
+      if (!res.ok) return failFrom(ctx, res.err, "list_my_work");
+      if (str(args.format) === "json") return ok(asJson(res.data));
+      const block = (head, rows) => `${head} (${rows.length})
+` + (rows.length === 0 ? "\u2014" : rows.map((r) => myWorkLine(cfg, r)).join("\n"));
+      return ok(
+        block("\u0E21\u0E2D\u0E1A\u0E2B\u0E21\u0E32\u0E22\u0E43\u0E2B\u0E49\u0E09\u0E31\u0E19", res.data.assigned) + "\n\n" + block("\u0E09\u0E31\u0E19\u0E41\u0E08\u0E49\u0E07 (\u0E21\u0E2D\u0E1A\u0E2B\u0E21\u0E32\u0E22\u0E04\u0E19\u0E2D\u0E37\u0E48\u0E19)", res.data.reported)
+      );
+    }
+  });
+  defs.push({
+    name: "list_my_queue",
+    config: {
+      title: "\u0E04\u0E34\u0E27 \u0E27\u0E31\u0E19\u0E19\u0E35\u0E49 / \u0E15\u0E48\u0E2D\u0E04\u0E34\u0E27 \u0E02\u0E2D\u0E07\u0E09\u0E31\u0E19",
+      description: '\u0E04\u0E34\u0E27\u0E2A\u0E48\u0E27\u0E19\u0E15\u0E31\u0E27\u0E17\u0E35\u0E48\u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49\u0E08\u0E31\u0E14\u0E44\u0E27\u0E49\u0E1A\u0E19\u0E2B\u0E19\u0E49\u0E32 My Work \u0E40\u0E23\u0E35\u0E22\u0E07\u0E15\u0E32\u0E21\u0E17\u0E35\u0E48\u0E40\u0E2B\u0E47\u0E19\u0E1A\u0E19\u0E08\u0E2D\u0E08\u0E23\u0E34\u0E07: \u0E07\u0E32\u0E19\u0E17\u0E35\u0E48\u0E40\u0E1B\u0E47\u0E19\u0E15\u0E32\u0E40\u0E23\u0E32 \u2192 \u0E23\u0E2D\u0E04\u0E19\u0E2D\u0E37\u0E48\u0E19 \u2192 \u0E40\u0E2A\u0E23\u0E47\u0E08\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49 (\u0E07\u0E32\u0E19\u0E17\u0E35\u0E48\u0E40\u0E2A\u0E23\u0E47\u0E08\u0E01\u0E48\u0E2D\u0E19\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49\u0E44\u0E21\u0E48\u0E41\u0E2A\u0E14\u0E07) \xB7 "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49" \u0E15\u0E31\u0E14\u0E15\u0E32\u0E21 timezone (\u0E1B\u0E23\u0E34\u0E22\u0E32\u0E22 Asia/Bangkok)\n\u0E08\u0E31\u0E14\u0E04\u0E34\u0E27\u0E15\u0E48\u0E2D\u0E14\u0E49\u0E27\u0E22 set_queue_position / remove_from_queue',
+      inputSchema: {
+        timezone: external_exports.string().optional().describe("\u0E0A\u0E37\u0E48\u0E2D\u0E40\u0E02\u0E15\u0E40\u0E27\u0E25\u0E32 IANA \u0E40\u0E0A\u0E48\u0E19 Asia/Bangkok (\u0E1B\u0E23\u0E34\u0E22\u0E32\u0E22)"),
+        format: FORMAT
+      },
+      annotations: READ
+    },
+    handler: async (args) => {
+      const res = await client.get("/api/v1/my-work/queue", { timezone: str(args.timezone) });
+      if (!res.ok) return failFrom(ctx, res.err, "list_my_queue");
+      if (str(args.format) === "json") return ok(asJson(res.data));
+      const line = (r) => {
+        const tags = [
+          ...r.done ? ["\u2713 \u0E40\u0E2A\u0E23\u0E47\u0E08\u0E41\u0E25\u0E49\u0E27"] : [],
+          ...r.waiting ? ["\u23F3 \u0E23\u0E2D\u0E04\u0E19\u0E2D\u0E37\u0E48\u0E19"] : [],
+          ...r.staleDays > 0 ? [`\u0E04\u0E49\u0E32\u0E07 ${r.staleDays} \u0E27\u0E31\u0E19`] : []
+        ];
+        return (tags.length > 0 ? `${tags.join(" \xB7 ")}  ` : "") + myWorkLine(cfg, r);
+      };
+      const block = (head, rows) => `${head} (${rows.length})
+` + (rows.length === 0 ? "\u2014" : rows.map(line).join("\n"));
+      return ok(`${block("\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49", res.data.today)}
+
+${block("\u0E15\u0E48\u0E2D\u0E04\u0E34\u0E27", res.data.next)}`);
+    }
+  });
+  defs.push({
+    name: "set_queue_position",
+    config: {
+      title: "\u0E1B\u0E31\u0E01 / \u0E22\u0E49\u0E32\u0E22\u0E0A\u0E48\u0E2D\u0E07 / \u0E08\u0E31\u0E14\u0E25\u0E33\u0E14\u0E31\u0E1A \u0E07\u0E32\u0E19\u0E43\u0E19\u0E04\u0E34\u0E27\u0E02\u0E2D\u0E07\u0E09\u0E31\u0E19",
+      description: "\u0E27\u0E32\u0E07\u0E07\u0E32\u0E19\u0E43\u0E19\u0E0A\u0E48\u0E2D\u0E07 today (\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49) \u0E2B\u0E23\u0E37\u0E2D next (\u0E15\u0E48\u0E2D\u0E04\u0E34\u0E27) \xB7 \u0E1A\u0E2D\u0E01\u0E15\u0E33\u0E41\u0E2B\u0E19\u0E48\u0E07\u0E44\u0E14\u0E49\u0E2D\u0E22\u0E48\u0E32\u0E07\u0E40\u0E14\u0E35\u0E22\u0E27: after / before (\u0E23\u0E2B\u0E31\u0E2A\u0E07\u0E32\u0E19\u0E43\u0E19\u0E0A\u0E48\u0E2D\u0E07\u0E19\u0E31\u0E49\u0E19) \u0E2B\u0E23\u0E37\u0E2D position top/bottom \xB7 \u0E44\u0E21\u0E48\u0E1A\u0E2D\u0E01\u0E15\u0E33\u0E41\u0E2B\u0E19\u0E48\u0E07 = \u0E1B\u0E31\u0E01\u0E15\u0E48\u0E2D\u0E17\u0E49\u0E32\u0E22 (\u0E16\u0E49\u0E32\u0E2D\u0E22\u0E39\u0E48\u0E0A\u0E48\u0E2D\u0E07\u0E19\u0E31\u0E49\u0E19\u0E2D\u0E22\u0E39\u0E48\u0E41\u0E25\u0E49\u0E27\u0E08\u0E30\u0E44\u0E21\u0E48\u0E02\u0E22\u0E31\u0E1A)\n\u0E15\u0E33\u0E41\u0E2B\u0E19\u0E48\u0E07\u0E19\u0E31\u0E1A\u0E43\u0E19\u0E01\u0E25\u0E38\u0E48\u0E21\u0E40\u0E14\u0E35\u0E22\u0E27\u0E01\u0E31\u0E19\u0E1A\u0E19\u0E08\u0E2D (\u0E15\u0E32\u0E40\u0E23\u0E32 / \u0E23\u0E2D\u0E04\u0E19\u0E2D\u0E37\u0E48\u0E19) \u2014 \u0E2D\u0E49\u0E32\u0E07\u0E07\u0E32\u0E19\u0E15\u0E48\u0E32\u0E07\u0E01\u0E25\u0E38\u0E48\u0E21\u0E2B\u0E23\u0E37\u0E2D\u0E07\u0E32\u0E19\u0E17\u0E35\u0E48\u0E40\u0E2A\u0E23\u0E47\u0E08\u0E41\u0E25\u0E49\u0E27\u0E08\u0E30\u0E16\u0E39\u0E01\u0E1B\u0E0F\u0E34\u0E40\u0E2A\u0E18 \xB7 \u0E40\u0E23\u0E35\u0E22\u0E01 list_my_queue \u0E14\u0E39\u0E04\u0E34\u0E27\u0E01\u0E48\u0E2D\u0E19 \xB7 \u0E01\u0E32\u0E23\u0E08\u0E31\u0E14\u0E04\u0E34\u0E27\u0E44\u0E21\u0E48\u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E15\u0E31\u0E27\u0E07\u0E32\u0E19\u0E41\u0E25\u0E30\u0E44\u0E21\u0E48\u0E25\u0E07\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E07\u0E32\u0E19",
+      inputSchema: {
+        key: external_exports.string().describe("\u0E23\u0E2B\u0E31\u0E2A\u0E07\u0E32\u0E19 \u0E40\u0E0A\u0E48\u0E19 ART-42"),
+        bucket: external_exports.enum(["today", "next"]).describe("today = \u0E27\u0E31\u0E19\u0E19\u0E35\u0E49 \xB7 next = \u0E15\u0E48\u0E2D\u0E04\u0E34\u0E27"),
+        after: external_exports.string().optional().describe("\u0E27\u0E32\u0E07\u0E15\u0E48\u0E2D\u0E08\u0E32\u0E01\u0E07\u0E32\u0E19\u0E19\u0E35\u0E49"),
+        before: external_exports.string().optional().describe("\u0E27\u0E32\u0E07\u0E01\u0E48\u0E2D\u0E19\u0E07\u0E32\u0E19\u0E19\u0E35\u0E49"),
+        position: external_exports.enum(["top", "bottom"]).optional().describe("\u0E1A\u0E19\u0E2A\u0E38\u0E14/\u0E25\u0E48\u0E32\u0E07\u0E2A\u0E38\u0E14\u0E02\u0E2D\u0E07\u0E01\u0E25\u0E38\u0E48\u0E21")
+      },
+      annotations: IDEMPOTENT
+    },
+    handler: async (args) => {
+      const key = str(args.key);
+      const bucket = str(args.bucket);
+      if (key === void 0) return fail("\u0E15\u0E49\u0E2D\u0E07\u0E23\u0E30\u0E1A\u0E38 key \u0E02\u0E2D\u0E07\u0E07\u0E32\u0E19 \u0E40\u0E0A\u0E48\u0E19 ART-42");
+      if (bucket !== "today" && bucket !== "next") return fail('\u0E15\u0E49\u0E2D\u0E07\u0E23\u0E30\u0E1A\u0E38 bucket \u0E40\u0E1B\u0E47\u0E19 "today" \u0E2B\u0E23\u0E37\u0E2D "next"');
+      const after = str(args.after);
+      const before = str(args.before);
+      const position = str(args.position);
+      if ([after, before, position].filter((x) => x !== void 0).length > 1) {
+        return fail("\u0E23\u0E30\u0E1A\u0E38\u0E15\u0E33\u0E41\u0E2B\u0E19\u0E48\u0E07\u0E44\u0E14\u0E49\u0E2D\u0E22\u0E48\u0E32\u0E07\u0E40\u0E14\u0E35\u0E22\u0E27: after \u0E2B\u0E23\u0E37\u0E2D before \u0E2B\u0E23\u0E37\u0E2D position \u2014 \u0E40\u0E25\u0E37\u0E2D\u0E01\u0E2B\u0E19\u0E36\u0E48\u0E07\u0E41\u0E1A\u0E1A\u0E41\u0E25\u0E49\u0E27\u0E40\u0E23\u0E35\u0E22\u0E01\u0E43\u0E2B\u0E21\u0E48");
+      }
+      const res = await client.put(
+        `/api/v1/my-work/queue/${encodeURIComponent(key)}`,
+        { bucket, after, before, position }
+      );
+      if (!res.ok) {
+        const stale = res.err.message.startsWith("ANCHOR_MOVED") ? "\n\n\u0E40\u0E23\u0E35\u0E22\u0E01 list_my_queue \u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E14\u0E39\u0E04\u0E34\u0E27\u0E25\u0E48\u0E32\u0E2A\u0E38\u0E14 \u0E41\u0E25\u0E49\u0E27\u0E40\u0E25\u0E37\u0E2D\u0E01\u0E15\u0E33\u0E41\u0E2B\u0E19\u0E48\u0E07\u0E43\u0E2B\u0E21\u0E48" : "";
+        return fail(describeError(res.err, `\u0E27\u0E32\u0E07 ${key} \u0E43\u0E19\u0E04\u0E34\u0E27`) + stale);
+      }
+      const where = after !== void 0 ? `\u0E15\u0E48\u0E2D\u0E08\u0E32\u0E01 ${after}` : before !== void 0 ? `\u0E01\u0E48\u0E2D\u0E19 ${before}` : position ?? "";
+      const head = res.data.bucket === "today" ? "\u0E27\u0E31\u0E19\u0E19\u0E35\u0E49" : "\u0E15\u0E48\u0E2D\u0E04\u0E34\u0E27";
+      return ok(`\u0E27\u0E32\u0E07 ${res.data.key} \u0E43\u0E19\u0E0A\u0E48\u0E2D\u0E07${head}\u0E41\u0E25\u0E49\u0E27${where === "" ? "" : ` (${where})`}`);
+    }
+  });
+  defs.push({
+    name: "remove_from_queue",
+    config: {
+      title: "\u0E16\u0E2D\u0E14\u0E07\u0E32\u0E19\u0E2D\u0E2D\u0E01\u0E08\u0E32\u0E01\u0E04\u0E34\u0E27\u0E02\u0E2D\u0E07\u0E09\u0E31\u0E19",
+      description: "\u0E40\u0E2D\u0E32\u0E07\u0E32\u0E19\u0E2D\u0E2D\u0E01\u0E08\u0E32\u0E01\u0E04\u0E34\u0E27 \u0E27\u0E31\u0E19\u0E19\u0E35\u0E49/\u0E15\u0E48\u0E2D\u0E04\u0E34\u0E27 \u0E02\u0E2D\u0E07\u0E40\u0E08\u0E49\u0E32\u0E02\u0E2D\u0E07 token \xB7 \u0E15\u0E31\u0E27\u0E07\u0E32\u0E19\u0E44\u0E21\u0E48\u0E16\u0E39\u0E01\u0E41\u0E15\u0E30 \xB7 \u0E07\u0E32\u0E19\u0E17\u0E35\u0E48\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E2D\u0E22\u0E39\u0E48\u0E43\u0E19\u0E04\u0E34\u0E27\u0E01\u0E47\u0E15\u0E2D\u0E1A\u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08 (\u0E22\u0E34\u0E07\u0E0B\u0E49\u0E33\u0E44\u0E14\u0E49)",
+      inputSchema: {
+        key: external_exports.string().describe("\u0E23\u0E2B\u0E31\u0E2A\u0E07\u0E32\u0E19 \u0E40\u0E0A\u0E48\u0E19 ART-42")
+      },
+      // ไม่ destructive: ถอดแค่แถวคิวส่วนตัว ปักกลับได้ด้วยรหัสงานอย่างเดียว (แบบ remove_label)
+      annotations: { ...IDEMPOTENT, destructiveHint: false }
+    },
+    handler: async (args) => {
+      const key = str(args.key);
+      if (key === void 0) return fail("\u0E15\u0E49\u0E2D\u0E07\u0E23\u0E30\u0E1A\u0E38 key \u0E02\u0E2D\u0E07\u0E07\u0E32\u0E19 \u0E40\u0E0A\u0E48\u0E19 ART-42");
+      const res = await client.del(`/api/v1/my-work/queue/${encodeURIComponent(key)}`);
+      if (!res.ok) return failFrom(ctx, res.err, `ticket ${key}`);
+      return ok(`${key} \u0E44\u0E21\u0E48\u0E2D\u0E22\u0E39\u0E48\u0E43\u0E19\u0E04\u0E34\u0E27\u0E02\u0E2D\u0E07\u0E04\u0E38\u0E13\u0E41\u0E25\u0E49\u0E27`);
+    }
+  });
   return defs;
 }
 function pullRequestLine(pr) {
@@ -22634,7 +22759,7 @@ function configErrorTools(names, message) {
 }
 
 // src/stdio.ts
-var VERSION = "0.4.0";
+var VERSION = "0.5.0";
 function logStderr(level, cfgLevel, message) {
   if (cfgLevel === "silent") return;
   if (level === "debug" && cfgLevel !== "debug") return;
