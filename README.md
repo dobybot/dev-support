@@ -199,6 +199,18 @@ cmd /c rmdir "$env:USERPROFILE\.codex\skills\<ชื่อ-skill>"
    ที่มาพัฒนาต่อมี context (ดูตัวอย่างที่ `skills/in-development/learn-diff/`)
 5. เปิด PR — เมื่อ skill นิ่งแล้วค่อยพิจารณาย้ายกลุ่ม
 
+## เวอร์ชัน
+
+เลขเวอร์ชันของ dev-support คือ **git tag** (`vX.Y.Z`) — ดูรุ่นที่เครื่องตัวเองใช้อยู่ด้วย `git describe --tags`
+และดูรายการรุ่นทั้งหมดด้วย `git tag -n`
+
+| รุ่น | วันที่ | สิ่งที่มี |
+|---|---|---|
+| `v1.0.0` | Oct 8, 2026 | รุ่นแรกที่ติดเลข · MCP artemis `0.5.0` (28 tool · เพิ่ม tool หน้า My Work) |
+
+กติกาเพิ่มเลข: **MINOR** = เพิ่ม/อัปเดต skill หรือ refresh bundle MCP · **PATCH** = แก้เอกสาร/บั๊กเล็ก ·
+**MAJOR** = เปลี่ยนวิธีติดตั้งจนต้องรัน installer ใหม่ (`version` ใน `pyproject.toml` เป็นของ skill กลุ่ม Kiwi ไม่ใช่เลขของ repo)
+
 ## Feedback
 
 Skill ในกลุ่ม `in-development` เป็นส่วนหนึ่งของ workflow improvement program —

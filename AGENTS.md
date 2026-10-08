@@ -20,6 +20,10 @@ Repo นี้คือศูนย์รวม **Codex skills ของที�
   ซึ่งลงแบบ global ผ่าน `Codex mcp add --scope user` (ไม่ symlink แบบ skill — ลงทะเบียนชี้มาที่ไฟล์ใน clone นี้
   `git pull` จึงอัปเดต bundle ให้เอง) · bundle เป็น artifact ที่ build จาก repo ต้นทาง — refresh ตามวิธีใน
   `mcp/<name>/README.md` และอัปเดต version stamp ทุกครั้งที่เปลี่ยน
+- **เวอร์ชันของ repo = git tag `vX.Y.Z`** (เริ่ม `v1.0.0` · Oct 8, 2026) — หลัง push งานที่ทีมต้อง `git pull`
+  ให้ติด tag ใหม่แบบ annotated แล้ว push tag และเพิ่มแถวในตาราง "เวอร์ชัน" ของ README:
+  MINOR = เพิ่ม/อัปเดต skill หรือ refresh bundle MCP · PATCH = แก้เอกสาร/บั๊กเล็ก ·
+  MAJOR = เปลี่ยนวิธีติดตั้งจนต้องรัน installer ใหม่ · `version` ใน `pyproject.toml` เป็นของ skill กลุ่ม Kiwi ไม่ใช่เลขของ repo
 
 ## Convention การเขียน/แก้ skill
 
