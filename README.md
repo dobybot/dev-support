@@ -20,7 +20,7 @@ dev-support/
 │       ├── generate-test-cases/
 │       └── ...
 ├── mcp/                    # MCP server แบบ bundle (รันได้เลย ไม่ต้อง build)
-│   └── artemis/            # ห่อ REST API ของ Artemis · 28 tool
+│   └── artemis/            # ห่อ REST API ของ Artemis · 34 tool
 ├── pyproject.toml          # Python env สำหรับ skill กลุ่ม Kiwi TCMS (อย่าลบ)
 └── rules/                  # (สำรองไว้สำหรับ rules ของทีมในอนาคต)
 ```
@@ -207,6 +207,7 @@ cmd /c rmdir "$env:USERPROFILE\.codex\skills\<ชื่อ-skill>"
 | รุ่น | วันที่ | สิ่งที่มี |
 |---|---|---|
 | `v1.0.0` | Oct 8, 2026 | รุ่นแรกที่ติดเลข · MCP artemis `0.5.0` (28 tool · เพิ่ม tool หน้า My Work) |
+| `v1.1.0` | Nov 20, 2026 | MCP artemis `0.8.0` (34 tool · ภาพรวมบอร์ด `board_snapshot` · ประวัติงาน · แก้หลายใบ · ปิด sprint · ART-277) |
 
 กติกาเพิ่มเลข: **MINOR** = เพิ่ม/อัปเดต skill หรือ refresh bundle MCP · **PATCH** = แก้เอกสาร/บั๊กเล็ก ·
 **MAJOR** = เปลี่ยนวิธีติดตั้งจนต้องรัน installer ใหม่ (`version` ใน `pyproject.toml` เป็นของ skill กลุ่ม Kiwi ไม่ใช่เลขของ repo)

@@ -1,7 +1,7 @@
 # artemis — MCP server (bundle)
 
-MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI Agent (Claude Code/Codex) อ่าน/เขียนงานได้ **28 tool**
-(โปรเจกต์ · บอร์ด · งาน · sprint · backlog · คอมเมนต์ · label · ไฟล์แนบ · pull request · My Work)
+MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI Agent (Claude Code/Codex) อ่าน/เขียนงานได้ **34 tool**
+(โปรเจกต์ · บอร์ด · งาน · sprint · backlog · คอมเมนต์ · label · ไฟล์แนบ · pull request · My Work · ภาพรวมบอร์ด · ประวัติงาน · แก้หลายใบ)
 
 - `artemis-mcp.mjs` = **bundle ไฟล์เดียว** (esbuild รวม SDK + zod เข้าไปแล้ว) รันด้วย `node` ได้เลย
   ไม่ต้องมี `node_modules` หรือ repo artemis
@@ -29,9 +29,11 @@ MCP server ที่ห่อ REST API `/api/v1` ของ Artemis ให้ AI 
 
 | ฟิลด์ | ค่า |
 |---|---|
-| `@artemis/mcp` version | `0.5.0` |
-| build จาก artemis commit | `1052188` — Merge PR #295 (ART-238) · tool ใหม่ 4 ตัวของหน้า My Work: `list_my_work` · `list_my_queue` · `set_queue_position` · `remove_from_queue` — รวม 28 tool (ปลาย `DEV`) |
-| อัปเดต bundle เมื่อ | 2026-10-08 |
+| `@artemis/mcp` version | `0.8.0` |
+| build จาก artemis commit | `3853bde` — Merge PR #353 (ART-277 P0–P2) · `list_tickets` กรองก่อนแบ่งหน้า + filter ใหม่ · tool ใหม่ 6 ตัว: `board_snapshot` · `get_tickets` · `list_activity` · `apply_template` · `batch_update` · `complete_sprint` · `create_ticket` รับ status/วันที่/label ใน call เดียว · เวลาเป็น ISO 8601 +07:00 — รวม 34 tool (ปลาย `main`) |
+| อัปเดต bundle เมื่อ | 2026-11-20 |
+
+> 🔴 bundle นี้ต้องใช้กับ backend ที่ deploy PR #353 แล้ว — กับ backend รุ่นเก่า tool ใหม่จะแจ้งว่าเซิร์ฟเวอร์ยังไม่รองรับ
 
 ## refresh bundle (สำหรับ maintainer)
 
